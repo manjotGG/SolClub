@@ -1,0 +1,20 @@
+[
+  {
+    "reference": "3p8KTBnZaGdmD7sZcmE8J7ftdQQW6mULDgHxQqXxgXsh",
+    "url": "solana:9WzDXbvfdkVeVZV5cRgQzrNyKaEP5qN7nJtfxQG3BqLk?amount=0.001&reference=3p8KTBnZaGdmD7sZcmE8J7ftdQQW6mULDgHxQqXxgXsh&label=SolClub Loyalty Purchase&message=Complete purchase to earn loyalty NFTs!",
+    "qr_type": "solana_pay",
+    "user_wallet": null,
+    "store_id": "store_001",
+    "timestamp": "2025-11-15T20:14:27.636493",
+    "status": "pending"
+  },
+  {
+    "reference": "9CSc5b6WxKz3A1eu3Q7tMt393mLyU13XRFtQMXr7hj1A",
+    "url": "http://localhost:8000/transaction-request?user_wallet=8WzDXbvfdkVeVZV5cRgQzrNyKaEP5qN7nJtfxQG3BqLk&store_id=store_001&reference=9CSc5b6WxKz3A1eu3Q7tMt393mLyU13XRFtQMXr7hj1A",
+    "qr_type": "backend",
+    "user_wallet": "8WzDXbvfdkVeVZV5cRgQzrNyKaEP5qN7nJtfxQG3BqLk",
+    "store_id": "store_001",
+    "timestamp": "2025-11-15T20:14:27.693853",
+    "status": "pending"
+  }
+]

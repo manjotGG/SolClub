@@ -1,0 +1,62 @@
+{
+  "name": "Epic Mystery Vault",
+  "symbol": "SOLCLUB",
+  "description": "An epic mystery NFT with unique traits",
+  "image": "https://nft.solclub.com/epic_mystery/77579d66628be61a1f41a2aa17680130.png",
+  "external_url": "https://solclub.com",
+  "collection": {
+    "name": "SolClub Mystery Collection",
+    "family": "SolClub"
+  },
+  "attributes": [
+    {
+      "trait_type": "Rarity",
+      "value": "Epic Mystery"
+    },
+    {
+      "trait_type": "Rarity Score",
+      "value": 62
+    },
+    {
+      "trait_type": "Background",
+      "value": "emerald"
+    },
+    {
+      "trait_type": "Mystery Level",
+      "value": 4
+    },
+    {
+      "trait_type": "Mint Date",
+      "value": "2025-11-15"
+    },
+    {
+      "trait_type": "Element",
+      "value": "Void"
+    },
+    {
+      "trait_type": "Power Level",
+      "value": 34
+    },
+    {
+      "trait_type": "Special Ability",
+      "value": "Teleport"
+    },
+    {
+      "trait_type": "Legendary Trait",
+      "value": "Ethereal"
+    }
+  ],
+  "properties": {
+    "category": "image",
+    "creators": [
+      {
+        "address": "Wd1GGSZQsdosW9qpeFoXRi8YNfe4281YDxNKgYmdnXs",
+        "share": 100
+      }
+    ]
+  },
+  "minted_for": "8WzDXbvfdkVeVZV5cRgQzrNyKaEP5qN7nJtfxQG3BqLk",
+  "minted_at": "2025-11-15T20:55:06.363017",
+  "mystery_revealed": false,
+  "reveal_date": "2025-11-22T20:55:06.363017"
+}

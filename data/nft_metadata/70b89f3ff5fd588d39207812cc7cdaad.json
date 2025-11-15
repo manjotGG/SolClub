@@ -1,0 +1,66 @@
+{
+  "name": "Legendary Mystery Orb",
+  "symbol": "SOLCLUB",
+  "description": "A legendary mystery NFT with mythical powers",
+  "image": "https://nft.solclub.com/legendary_mystery/b08de93a496005ce94a712570edc4fc9.png",
+  "external_url": "https://solclub.com",
+  "collection": {
+    "name": "SolClub Mystery Collection",
+    "family": "SolClub"
+  },
+  "attributes": [
+    {
+      "trait_type": "Rarity",
+      "value": "Legendary Mystery"
+    },
+    {
+      "trait_type": "Rarity Score",
+      "value": 91
+    },
+    {
+      "trait_type": "Background",
+      "value": "galaxy"
+    },
+    {
+      "trait_type": "Mystery Level",
+      "value": 5
+    },
+    {
+      "trait_type": "Mint Date",
+      "value": "2025-11-15"
+    },
+    {
+      "trait_type": "Element",
+      "value": "Quantum"
+    },
+    {
+      "trait_type": "Power Level",
+      "value": 76
+    },
+    {
+      "trait_type": "Special Ability",
+      "value": "Soul Bind"
+    },
+    {
+      "trait_type": "Legendary Trait",
+      "value": "Omnipotent"
+    },
+    {
+      "trait_type": "Origin",
+      "value": "First Edition"
+    }
+  ],
+  "properties": {
+    "category": "image",
+    "creators": [
+      {
+        "address": "Wd1GGSZQsdosW9qpeFoXRi8YNfe4281YDxNKgYmdnXs",
+        "share": 100
+      }
+    ]
+  },
+  "minted_for": "8WzDXbvfdkVeVZV5cRgQzrNyKaEP5qN7nJtfxQG3BqLk",
+  "minted_at": "2025-11-15T20:55:06.368751",
+  "mystery_revealed": false,
+  "reveal_date": "2025-11-22T20:55:06.368751"
+}

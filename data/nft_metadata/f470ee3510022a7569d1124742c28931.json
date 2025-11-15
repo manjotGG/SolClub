@@ -1,0 +1,62 @@
+{
+  "name": "Epic Mystery Vault",
+  "symbol": "SOLCLUB",
+  "description": "An epic mystery NFT with unique traits",
+  "image": "https://nft.solclub.com/epic_mystery/61e701f97401ee74dbe47c8c5ee63b05.png",
+  "external_url": "https://solclub.com",
+  "collection": {
+    "name": "SolClub Mystery Collection",
+    "family": "SolClub"
+  },
+  "attributes": [
+    {
+      "trait_type": "Rarity",
+      "value": "Epic Mystery"
+    },
+    {
+      "trait_type": "Rarity Score",
+      "value": 64
+    },
+    {
+      "trait_type": "Background",
+      "value": "gold"
+    },
+    {
+      "trait_type": "Mystery Level",
+      "value": 4
+    },
+    {
+      "trait_type": "Mint Date",
+      "value": "2025-11-15"
+    },
+    {
+      "trait_type": "Element",
+      "value": "Phoenix"
+    },
+    {
+      "trait_type": "Power Level",
+      "value": 27
+    },
+    {
+      "trait_type": "Special Ability",
+      "value": "Multiply"
+    },
+    {
+      "trait_type": "Legendary Trait",
+      "value": "Mystical"
+    }
+  ],
+  "properties": {
+    "category": "image",
+    "creators": [
+      {
+        "address": "Wd1GGSZQsdosW9qpeFoXRi8YNfe4281YDxNKgYmdnXs",
+        "share": 100
+      }
+    ]
+  },
+  "minted_for": "8WzDXbvfdkVeVZV5cRgQzrNyKaEP5qN7nJtfxQG3BqLk",
+  "minted_at": "2025-11-15T20:32:52.203405",
+  "mystery_revealed": false,
+  "reveal_date": "2025-11-22T20:32:52.203405"
+}

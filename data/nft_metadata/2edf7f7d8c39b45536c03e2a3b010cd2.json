@@ -1,0 +1,58 @@
+{
+  "name": "Rare Mystery Chest",
+  "symbol": "SOLCLUB",
+  "description": "A rare mystery NFT with special properties",
+  "image": "https://nft.solclub.com/rare_mystery/b9063fe78aa09bb97b3f12ec0c2d87b8.png",
+  "external_url": "https://solclub.com",
+  "collection": {
+    "name": "SolClub Mystery Collection",
+    "family": "SolClub"
+  },
+  "attributes": [
+    {
+      "trait_type": "Rarity",
+      "value": "Rare Mystery"
+    },
+    {
+      "trait_type": "Rarity Score",
+      "value": 36
+    },
+    {
+      "trait_type": "Background",
+      "value": "purple"
+    },
+    {
+      "trait_type": "Mystery Level",
+      "value": 3
+    },
+    {
+      "trait_type": "Mint Date",
+      "value": "2025-11-15"
+    },
+    {
+      "trait_type": "Element",
+      "value": "Light"
+    },
+    {
+      "trait_type": "Power Level",
+      "value": 16
+    },
+    {
+      "trait_type": "Special Ability",
+      "value": "Shield"
+    }
+  ],
+  "properties": {
+    "category": "image",
+    "creators": [
+      {
+        "address": "Wd1GGSZQsdosW9qpeFoXRi8YNfe4281YDxNKgYmdnXs",
+        "share": 100
+      }
+    ]
+  },
+  "minted_for": "8WzDXbvfdkVeVZV5cRgQzrNyKaEP5qN7nJtfxQG3BqLk",
+  "minted_at": "2025-11-15T21:17:30.938479",
+  "mystery_revealed": false,
+  "reveal_date": "2025-11-22T21:17:30.938479"
+}

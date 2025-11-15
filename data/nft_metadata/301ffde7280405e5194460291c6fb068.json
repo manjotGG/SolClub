@@ -1,0 +1,54 @@
+{
+  "name": "Common Mystery Box",
+  "symbol": "SOLCLUB",
+  "description": "A mysterious NFT with common traits",
+  "image": "https://nft.solclub.com/common_mystery/e24d8dc40891e9d41f564b18e3826f2c.png",
+  "external_url": "https://solclub.com",
+  "collection": {
+    "name": "SolClub Mystery Collection",
+    "family": "SolClub"
+  },
+  "attributes": [
+    {
+      "trait_type": "Rarity",
+      "value": "Common Mystery"
+    },
+    {
+      "trait_type": "Rarity Score",
+      "value": 18
+    },
+    {
+      "trait_type": "Background",
+      "value": "green"
+    },
+    {
+      "trait_type": "Mystery Level",
+      "value": 2
+    },
+    {
+      "trait_type": "Mint Date",
+      "value": "2025-11-15"
+    },
+    {
+      "trait_type": "Element",
+      "value": "Earth"
+    },
+    {
+      "trait_type": "Power Level",
+      "value": 5
+    }
+  ],
+  "properties": {
+    "category": "image",
+    "creators": [
+      {
+        "address": "Wd1GGSZQsdosW9qpeFoXRi8YNfe4281YDxNKgYmdnXs",
+        "share": 100
+      }
+    ]
+  },
+  "minted_for": "8WzDXbvfdkVeVZV5cRgQzrNyKaEP5qN7nJtfxQG3BqLk",
+  "minted_at": "2025-11-15T20:33:52.770490",
+  "mystery_revealed": false,
+  "reveal_date": "2025-11-22T20:33:52.770490"
+}
