@@ -1,1 +1,37 @@
 2026-03-08 22:28:53,783 ERROR    invalid wallet address 8WzDXbvfdkVeVZV5cRgQzrNyKaEP5qN7nJtfxQG3BqLk
+2026-03-08 22:49:44,827 INFO     starting mint command
+2026-03-08 22:49:56,103 INFO     wallet validated: HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ
+2026-03-08 22:50:57,893 ERROR    rpc call failed: argument 'signature': 'str' object cannot be converted to 'Signature'
+2026-03-08 22:50:57,894 ERROR    Mystery NFT minting failed: rpc failure
+Traceback (most recent call last):
+  File "/Users/manjotsingh/Downloads/SolClub/nft_minting/nft_minter.py", line 84, in verify
+    resp = await self.client.get_transaction(
+  File "/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/solana/rpc/async_api.py", line 388, in get_transaction
+    body = self._get_transaction_body(tx_sig, encoding, commitment, max_supported_transaction_version)
+  File "/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/site-packages/solana/rpc/core.py", line 246, in _get_transaction_body
+    return GetTransaction(tx_sig, config)
+TypeError: argument 'signature': 'str' object cannot be converted to 'Signature'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/Users/manjotsingh/Downloads/SolClub/nft_minting/nft_minter.py", line 511, in mint_mystery_nft
+    verified = await self.tx_verifier.verify(
+  File "/Users/manjotsingh/Downloads/SolClub/nft_minting/nft_minter.py", line 89, in verify
+    raise TransactionVerificationError("rpc failure") from exc
+nft_minting.nft_minter.TransactionVerificationError: rpc failure
+2026-03-08 22:50:57,898 ERROR    mint returned no record for wallet HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ
+2026-03-08 23:00:00,454 ERROR    invalid signature format invalidsignature: failed to decode string to signature
+2026-03-08 23:20:30,138 INFO     starting mint command
+2026-03-08 23:20:38,970 INFO     wallet validated: HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ
+2026-03-08 23:20:40,748 ERROR    invalid signature format main_mint_146047: failed to decode string to signature
+2026-03-08 23:20:40,749 WARNING  transaction main_mint_146047 failed verification
+2026-03-08 23:20:40,749 ERROR    mint returned no record for wallet HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ
+2026-03-08 23:23:40,183 INFO     starting mint command
+2026-03-08 23:23:41,485 ERROR    user entered invalid wallet: Update the NFT minting logic in my Python Web3 project.
+2026-03-08 23:24:01,683 INFO     starting mint command
+2026-03-08 23:24:40,597 INFO     wallet validated: HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ
+2026-03-08 23:24:42,733 INFO     demo mode active, skipping verification for main_mint_146289
+2026-03-08 23:24:42,736 INFO     saved metadata https://ipfs.io/ipfs/7663497856b8652ed92d5deffed65b3d
+2026-03-08 23:24:42,738 INFO     minted mystery nft JE9Zns58PyZC8p95MXqY2srpeiAM2dPcSDqo5YnHWWx3 for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ tx=main_mint_146289
+2026-03-08 23:24:42,739 INFO     mint success wallet=HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ rarity=epic_mystery time=2026-03-08T23:24:42.738989

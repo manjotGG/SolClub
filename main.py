@@ -725,70 +725,92 @@ async def generate_store_qr(generator, amount: float, store_id: str, product: st
         print(f"❌ Failed to generate QR: {e}")
 
 async def mint_mystery_nft():
-    """Mint mystery NFTs"""
+    """Mint mystery NFTs via interactive CLI.
+
+    This command replaces the previous hard‑coded flow by asking the user for a
+    wallet, validating the address, logging the attempt, and printing a clean
+    summary on success.  Any problem stops the operation with an informative
+    message.
+    """
+
     print("🎨 Mystery NFT Minter")
     print("-" * 30)
-    
+
     try:
-        # Add modules to path
-        from nft_minting.nft_minter import NFTMinter
-        
+        # dynamic imports only when command is invoked
+        from nft_minting.nft_minter import NFTMinter, WalletValidator, logger
+        from datetime import datetime
+
         minter = NFTMinter()
         minter.load_or_create_minter_keypair()
-        
-        print(f"🔑 NFT Minter: {minter.minter_keypair.public_key}")
-        
-        # Interactive NFT minting
+        logger.info("starting mint command")
+
+        print(f"🔑 NFT Minter pubkey: {minter.keypair.pubkey() if minter.keypair else 'none'}")
+
+        # --- wallet input & validation ------------------------------------------------
         wallet = input("Enter user wallet address: ").strip()
-        
+        if not WalletValidator.is_valid(wallet):
+            print(f"❌ Invalid wallet address: {wallet}")
+            logger.error("user entered invalid wallet: %s", wallet)
+            return
+        logger.info("wallet validated: %s", wallet)
+
+        # --- rarity selection --------------------------------------------------------
         print("\nMystery NFT Types:")
         print("1. Common Mystery (60% chance)")
         print("2. Rare Mystery (30% chance)")
         print("3. Epic Mystery (8% chance)")
         print("4. Legendary Mystery (2% chance)")
-        print("5. Random (based on rarity distribution)")
-        
-        choice = input("Select type: ").strip()
-        
+        print("5. Random (weighted by rarity engine)")
+
+        choice = input("Select type (1-5): ").strip()
         nft_types = {
             "1": "common_mystery",
-            "2": "rare_mystery", 
+            "2": "rare_mystery",
             "3": "epic_mystery",
             "4": "legendary_mystery",
-            "5": None  # Random
+            "5": None,  # let engine choose
         }
-        
+
         nft_type = nft_types.get(choice)
         if nft_type is None and choice == "5":
-            # Determine random rarity using default payment/loyalty values
             nft_type = minter.determine_mystery_rarity(amount_paid=0.01, user_transaction_count=1)
         elif nft_type is None:
-            print("Invalid option")
+            print("❌ Invalid selection, aborting.")
+            logger.warning("invalid rarity choice: %s", choice)
             return
-            
-        print(f"\n🎲 Minting {nft_type} NFT...")
-        
+
+        print(f"\n🎲 Minting {nft_type} NFT for {wallet} ...")
+
+        # perform mint
         nft = await minter.mint_mystery_nft(
             user_wallet=wallet,
             nft_type=nft_type,
             transaction_signature=f"main_mint_{int(asyncio.get_event_loop().time())}",
-            amount_paid=0.01
+            amount_paid=0.01,
         )
-        
+
         if nft:
+            ts = datetime.now().isoformat()
             print("✅ Mystery NFT minted successfully!")
-            print(f"   Mint Address: {nft['mint_address']}")
-            print(f"   Rarity: {nft['nft_type']}")
-            print(f"   Reveal Date: {nft['reveal_date']}")
-            if nft.get('seasonal_theme'):
-                print(f"   Seasonal Theme: {nft['seasonal_theme']}")
+            print(f"   Wallet       : {wallet}")
+            print(f"   Rarity       : {nft['nft_type']}")
+            print(f"   Timestamp    : {ts}")
+            if nft.get("seasonal_theme"):
+                print(f"   Seasonal     : {nft['seasonal_theme']}")
+            logger.info("mint success wallet=%s rarity=%s time=%s", wallet, nft['nft_type'], ts)
         else:
             print("❌ NFT minting failed")
-            
+            logger.error("mint returned no record for wallet %s", wallet)
+
         await minter.client.close()
-        
+
     except Exception as e:
         print(f"❌ NFT minting failed: {e}")
+        try:
+            logger.exception("exception in mint command")
+        except NameError:
+            pass
 
 def main():
     """Main entry point"""
