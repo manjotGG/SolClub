@@ -13,30 +13,253 @@ from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from solana.rpc.async_api import AsyncClient
 from solana.rpc.commitment import Commitment
-import aiohttp
 import hashlib
 import random
+import logging
+
+# configure logger for this module
+LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+LOG_FILE = os.path.join(LOG_DIR, "nft_minter.log")
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+fh = logging.FileHandler(LOG_FILE)
+formatter = logging.Formatter("%(asctime)s %(levelname)-8s %(message)s")
+fh.setFormatter(formatter)
+logger.addHandler(fh)
+
+# mirror logs to console as well
+ch = logging.StreamHandler()
+ch.setFormatter(formatter)
+logger.addHandler(ch)
+
+
+
+# -----------------------------------------------------------------------------
+# custom exceptions
+# -----------------------------------------------------------------------------
+
+class NFTMinterError(Exception):
+    """Base exception for NFT minter failures."""
+
+
+class WalletValidationError(NFTMinterError):
+    pass
+
+
+class TransactionVerificationError(NFTMinterError):
+    pass
+
+
+# -----------------------------------------------------------------------------
+# helper components
+# -----------------------------------------------------------------------------
+
+class WalletValidator:
+    """Simple Solana wallet address validator."""
+
+    @staticmethod
+    def is_valid(address: str) -> bool:
+        try:
+            # use from_string to parse base58 addresses
+            Pubkey.from_string(address)
+            return True
+        except Exception:
+            return False
+
+
+class TransactionVerifier:
+    """Verifies a transaction using the RPC client."""
+
+    def __init__(self, client: AsyncClient, commitment: Commitment):
+        self.client = client
+        self.commitment = commitment
+
+    async def verify(
+        self, signature: str, payer: str, expected_amount: float
+    ) -> bool:
+        logger.debug("verifying tx %s for %s", signature, payer)
+        try:
+            resp = await self.client.get_transaction(
+                signature, commitment=self.commitment
+            )
+        except Exception as exc:
+            logger.error("rpc call failed: %s", exc)
+            raise TransactionVerificationError("rpc failure") from exc
+
+        if resp.value is None:
+            logger.warning("tx %s not found", signature)
+            return False
+
+        meta = resp.value.meta
+        if meta and meta.err:
+            logger.warning("tx %s session error %s", signature, meta.err)
+            return False
+
+        try:
+            payer_pk = Pubkey(payer)
+        except Exception as exc:
+            logger.error("invalid payer pubkey %s", payer)
+            raise WalletValidationError("invalid payer pubkey") from exc
+
+        account_keys = [Pubkey(k) for k in resp.value.transaction.message.account_keys]
+        if payer_pk not in account_keys:
+            logger.warning("payer %s not in tx", payer)
+            return False
+
+        idx = account_keys.index(payer_pk)
+        pre = meta.pre_balances[idx]
+        post = meta.post_balances[idx]
+        paid = (pre - post) / 1_000_000_000
+
+        if paid + 1e-9 < expected_amount:
+            logger.warning("payer sent %f SOL, expected %f", paid, expected_amount)
+            return False
+
+        logger.debug("tx %s verified", signature)
+        return True
+
+
+class RarityDistribution:
+    """Determines rarity outcomes and keeps track of supply."""
+
+    def __init__(self, configs: Dict[str, Dict[str, Any]]):
+        self.configs = configs
+        self.minted_counts = {k: 0 for k in configs}
+
+    def choose(self, amount_paid: float, user_tx_count: int) -> str:
+        candidates, weights = [], []
+        for r, cfg in self.configs.items():
+            if amount_paid < cfg.get("min_amount", 0):
+                continue
+            if cfg.get("max_supply") is not None and self.minted_counts[r] >= cfg["max_supply"]:
+                continue
+            bonus = min(user_tx_count * 2, 20)
+            candidates.append(r)
+            weights.append(cfg.get("weight", 0) + bonus)
+        if not candidates:
+            return "common_mystery"
+        total = sum(weights)
+        pick = random.uniform(0, total)
+        cum = 0
+        for r, w in zip(candidates, weights):
+            cum += w
+            if pick <= cum:
+                return r
+        return candidates[0]
+
+    def record(self, rarity: str):
+        if rarity in self.minted_counts:
+            self.minted_counts[rarity] += 1
+
+
+class SeasonalManager:
+    """Handles seasonal theme selection and active state."""
+
+    MONTHS = {"winter": [12, 1, 2], "spring": [3, 4, 5], "summer": [6, 7, 8], "fall": [9, 10, 11]}
+
+    def __init__(self, configs: Dict[str, Any]):
+        self.configs = configs
+
+    def active_theme(self) -> Optional[str]:
+        for cid, cfg in self.configs.items():
+            if cfg.get("active") and cid != "loyalty_legends":
+                return random.choice(cfg.get("themes", []))
+        return None
+
+    @classmethod
+    def is_season_active(cls, season: str) -> bool:
+        return datetime.now().month in cls.MONTHS.get(season, [])
+
+
+class StorageManager:
+    """Persistent storage for metadata and records."""
+
+    def __init__(self, metadata_dir: str, record_path: str):
+        self.metadata_dir = metadata_dir
+        self.record_path = record_path
+        os.makedirs(self.metadata_dir, exist_ok=True)
+        os.makedirs(os.path.dirname(self.record_path), exist_ok=True)
+
+    def save_metadata(self, metadata: Dict[str, Any]) -> str:
+        mid = hashlib.md5(json.dumps(metadata, sort_keys=True).encode()).hexdigest()
+        with open(os.path.join(self.metadata_dir, f"{mid}.json"), "w") as f:
+            json.dump(metadata, f, indent=2)
+        uri = f"https://ipfs.io/ipfs/{mid}"
+        logger.info("saved metadata %s", uri)
+        return uri
+
+    def append_record(self, record: Dict[str, Any]) -> None:
+        records = []
+        if os.path.exists(self.record_path):
+            with open(self.record_path, "r") as f:
+                records = json.load(f)
+        records.append(record)
+        with open(self.record_path, "w") as f:
+            json.dump(records, f, indent=2)
+
+    def load_records(self) -> List[Dict[str, Any]]:
+        if not os.path.exists(self.record_path):
+            return []
+        with open(self.record_path, "r") as f:
+            return json.load(f)
+
 
 class NFTMinter:
-    def __init__(self, rpc_url="https://api.devnet.solana.com"):
+    def __init__(self, rpc_url: str = "https://api.devnet.solana.com"):
+        # network client
         self.client = AsyncClient(rpc_url)
         self.commitment = Commitment("confirmed")
-        self.keypair = None
-        self.metadata_dir = "../data/nft_metadata"
-        self.nft_collections_dir = "../data/nft_collections"
-        os.makedirs(self.metadata_dir, exist_ok=True)
-        os.makedirs(self.nft_collections_dir, exist_ok=True)
-        
-        # Mystery NFT configurations
-        self.mystery_rarities = {
-            "common_mystery": {"weight": 60, "min_amount": 0.01},
-            "rare_mystery": {"weight": 30, "min_amount": 0.05},  
-            "epic_mystery": {"weight": 8, "min_amount": 0.1},
-            "legendary_mystery": {"weight": 2, "min_amount": 0.25}
+        self.keypair: Optional[Keypair] = None
+
+        # storage / persistence
+        self.storage = StorageManager(
+            metadata_dir="../data/nft_metadata",
+            record_path="../data/nft_records.json",
+        )
+
+        # rarity engine (weights + optional supply cap)
+        rarity_cfg = {
+            "common_mystery": {"weight": 60, "min_amount": 0.01, "max_supply": 5000},
+            "rare_mystery": {"weight": 30, "min_amount": 0.05, "max_supply": 2000},
+            "epic_mystery": {"weight": 8, "min_amount": 0.1, "max_supply": 500},
+            "legendary_mystery": {"weight": 2, "min_amount": 0.25, "max_supply": 100},
         }
-        
-        # Seasonal collections
-        self.seasonal_collections = self.load_seasonal_collections()
+        self.rarity_engine = RarityDistribution(rarity_cfg)
+
+        # seasonal manager
+        seasonal_cfg = {
+            "winter_2024": {
+                "active": SeasonalManager.is_season_active("winter"),
+                "themes": ["snowflake", "winter_animal", "holiday", "frost"],
+            },
+            "spring_2025": {
+                "active": SeasonalManager.is_season_active("spring"),
+                "themes": ["flower", "butterfly", "rain", "growth"],
+            },
+            "loyalty_legends": {
+                "active": True,
+                "themes": [
+                    "bronze_legend",
+                    "silver_legend",
+                    "gold_legend",
+                    "platinum_legend",
+                ],
+            },
+        }
+        self.seasonal_mgr = SeasonalManager(seasonal_cfg)
+
+        # transaction verifier
+        self.tx_verifier = TransactionVerifier(self.client, self.commitment)
+
+        # keep compatibility properties
+        self.metadata_dir = self.storage.metadata_dir
+        self.nft_collections_dir = "../data/nft_collections"
+        os.makedirs(self.nft_collections_dir, exist_ok=True)
+
+        # keep old attr for compatibility
+        self.mystery_rarities = rarity_cfg
         
     def load_or_create_minter_keypair(self, keypair_path="../data/nft_minter_keypair.json"):
         """Load or create NFT minter keypair"""
@@ -80,78 +303,36 @@ class NFTMinter:
             return False
     
     def load_seasonal_collections(self):
-        """Load seasonal NFT collection configurations"""
-        return {
-            "winter_2024": {
-                "active": self.is_season_active("winter"),
-                "name": "Winter Mystery Collection",
-                "description": "Limited winter-themed mystery NFTs",
-                "start_date": "2024-12-01",
-                "end_date": "2025-02-28",
-                "max_supply": 1000,
-                "themes": ["snowflake", "winter_animal", "holiday", "frost"]
-            },
-            "spring_2025": {
-                "active": self.is_season_active("spring"),
-                "name": "Spring Bloom Collection", 
-                "description": "Fresh spring mystery NFTs",
-                "start_date": "2025-03-01",
-                "end_date": "2025-05-31",
-                "max_supply": 800,
-                "themes": ["flower", "butterfly", "rain", "growth"]
-            },
-            "loyalty_legends": {
-                "active": True,
-                "name": "Loyalty Legends",
-                "description": "Exclusive loyalty program NFTs",
-                "max_supply": 10000,
-                "themes": ["bronze_legend", "silver_legend", "gold_legend", "platinum_legend"]
-            }
-        }
+        """DEPRECATED: return the raw seasonal configuration.
+
+        Previously used during initialization; the new architecture relies on
+        :class:`SeasonalManager`.  This helper is retained for backwards
+        compatibility and will emit a warning when called.
+        """
+        logger.warning("load_seasonal_collections is deprecated")
+        if hasattr(self, "seasonal_mgr"):
+            return self.seasonal_mgr.configs
+        return {}
     
     def is_season_active(self, season):
-        """Check if seasonal collection is currently active"""
-        now = datetime.now()
-        month = now.month
-        
-        season_months = {
-            "winter": [12, 1, 2],
-            "spring": [3, 4, 5],
-            "summer": [6, 7, 8],
-            "fall": [9, 10, 11]
-        }
-        
-        return month in season_months.get(season, [])
+        """Return whether ``season`` is currently active.
+
+        Delegates to :class:`SeasonalManager` so that the logic is centralized.
+        """
+        return SeasonalManager.is_season_active(season)
     
     def determine_mystery_rarity(self, amount_paid, user_transaction_count=1):
-        """Determine mystery NFT rarity based on payment and user history"""
-        # Base rarity weights
-        weights = []
-        rarities = []
-        
-        for rarity, config in self.mystery_rarities.items():
-            if amount_paid >= config["min_amount"]:
-                # Adjust weight based on user loyalty
-                bonus_weight = min(user_transaction_count * 2, 20)  # Max 20% bonus
-                final_weight = config["weight"] + bonus_weight
-                
-                weights.append(final_weight)
-                rarities.append(rarity)
-        
-        if not rarities:
+        """Proxy to the configured rarity engine.
+
+        In production this method exists mainly for backwards compatibility with
+        code that called the old implementation directly.
+        """
+        try:
+            choice = self.rarity_engine.choose(amount_paid, user_transaction_count)
+            return choice
+        except Exception as exc:
+            logger.error("rarity engine failed: %s", exc, exc_info=True)
             return "common_mystery"
-        
-        # Weighted random selection
-        total_weight = sum(weights)
-        random_num = random.uniform(0, total_weight)
-        
-        cumulative_weight = 0
-        for i, weight in enumerate(weights):
-            cumulative_weight += weight
-            if random_num <= cumulative_weight:
-                return rarities[i]
-        
-        return rarities[0]  # Fallback
     
     def generate_mystery_metadata(self, rarity, seasonal_theme=None, user_wallet=None):
         """Generate metadata for mystery NFT"""
@@ -298,44 +479,54 @@ class NFTMinter:
         return seasonal_traits.get(theme)
     
     async def upload_metadata_to_storage(self, metadata):
-        """Upload NFT metadata to decentralized storage (mock implementation)"""
-        # In production, this would upload to IPFS or Arweave
-        metadata_id = hashlib.md5(json.dumps(metadata, sort_keys=True).encode()).hexdigest()
-        metadata_file = os.path.join(self.metadata_dir, f"{metadata_id}.json")
-        
-        with open(metadata_file, 'w') as f:
-            json.dump(metadata, f, indent=2)
-        
-        # Mock IPFS/Arweave URL
-        mock_uri = f"https://ipfs.io/ipfs/{metadata_id}"
-        print(f"📄 Metadata uploaded: {mock_uri}")
-        
-        return mock_uri
+        """DEPRECATED: use :meth:`StorageManager.save_metadata` instead.
+
+        Kept for backwards compatibility with existing scripts.
+        """
+        logger.warning("upload_metadata_to_storage deprecated, forwarding to storage manager")
+        # storage.save_metadata is synchronous; we call it directly
+        return self.storage.save_metadata(metadata)
     
-    async def mint_mystery_nft(self, user_wallet, nft_type, transaction_signature, amount_paid):
-        """Mint a mystery NFT for user"""
+    async def mint_mystery_nft(
+        self,
+        user_wallet: str,
+        transaction_signature: str,
+        amount_paid: float,
+        nft_type: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Mint a mystery NFT for a given wallet.
+
+        The rarity is selected by the internal engine when ``nft_type`` is
+        falsy.  Transactions are verified on-chain before proceeding and the
+        wallet address is validated.  Every successful mint is logged.
+        """
+
         try:
             if not self.keypair:
                 self.load_or_create_minter_keypair()
-            
-            # Determine seasonal theme
-            seasonal_theme = self.get_current_seasonal_theme()
-            
-            # Generate metadata
-            metadata = self.generate_mystery_metadata(
-                nft_type, 
-                seasonal_theme, 
-                user_wallet
+
+            if not self.validate_wallet_address(user_wallet):
+                raise WalletValidationError(f"invalid wallet {user_wallet}")
+
+            verified = await self.tx_verifier.verify(
+                transaction_signature, user_wallet, amount_paid
             )
-            
-            # Upload metadata
-            metadata_uri = await self.upload_metadata_to_storage(metadata)
-            
-            # Create mock mint (in production, use Metaplex)
+            if not verified:
+                logger.warning("transaction %s failed verification", transaction_signature)
+                return None
+
+            # choose rarity if not provided
+            if not nft_type:
+                nft_type = self.rarity_engine.choose(amount_paid, user_transaction_count=1)
+            self.rarity_engine.record(nft_type)
+
+            seasonal_theme = self.seasonal_mgr.active_theme()
+            metadata = self.generate_mystery_metadata(nft_type, seasonal_theme, user_wallet)
+            metadata_uri = self.storage.save_metadata(metadata)
+
             mint_keypair = Keypair()
             mint_address = mint_keypair.pubkey()
-            
-            # Record NFT
+
             nft_record = {
                 "mint_address": str(mint_address),
                 "owner": user_wallet,
@@ -350,46 +541,82 @@ class NFTMinter:
                 "status": "minted",
                 "mystery_revealed": False,
                 "reveal_date": metadata["reveal_date"],
-                "network": "devnet"
+                "network": "devnet",
             }
-            
-            self.save_nft_record(nft_record)
-            
+            self.storage.append_record(nft_record)
+
+            logger.info(
+                "minted mystery nft %s for %s tx=%s",
+                mint_address,
+                user_wallet,
+                transaction_signature,
+            )
+
             print(f"🎨 Mystery NFT Minted!")
             print(f"   Type: {nft_type}")
             print(f"   Owner: {user_wallet}")
             print(f"   Mint: {mint_address}")
             print(f"   Rarity: {metadata['attributes'][0]['value']}")
             print(f"   Seasonal: {seasonal_theme or 'None'}")
-            
+
             return nft_record
-            
         except Exception as e:
-            print(f"❌ Mystery NFT minting failed: {e}")
+            logger.error("Mystery NFT minting failed: %s", e, exc_info=True)
             return None
     
-    def get_current_seasonal_theme(self):
-        """Get current seasonal theme if any collection is active"""
-        for collection_id, collection in self.seasonal_collections.items():
-            if collection["active"] and collection_id != "loyalty_legends":
-                return random.choice(collection["themes"])
-        return None
+    def get_current_seasonal_theme(self) -> Optional[str]:
+        """Return a random theme from the active seasonal collection."""
+        return self.seasonal_mgr.active_theme()
     
     def save_nft_record(self, nft_record):
-        """Save NFT record to storage"""
-        nft_file = "../data/nft_records.json"
-        
-        if os.path.exists(nft_file):
-            with open(nft_file, 'r') as f:
-                records = json.load(f)
-        else:
-            records = []
-        
-        records.append(nft_record)
-        
-        os.makedirs(os.path.dirname(nft_file), exist_ok=True)
-        with open(nft_file, 'w') as f:
-            json.dump(records, f, indent=2)
+        """Legacy helper; forwards to :class:`StorageManager`.
+
+        This method is kept for API compatibility with earlier code but internal
+        callers should use ``self.storage.append_record`` directly.
+        """
+        logger.warning("save_nft_record deprecated, using storage manager")
+        self.storage.append_record(nft_record)
+
+    def get_user_nfts(self, user_wallet):
+        """Get all NFTs owned by a wallet.
+
+        The old file-based implementation has been replaced with the storage
+        manager; a thin wrapper is retained for compatibility.
+        """
+        return [rec for rec in self.storage.load_records() if rec["owner"] == user_wallet]
+
+    def validate_wallet_address(self, address: str) -> bool:
+        """Return True if the string is a valid Solana pubkey."""
+        valid = WalletValidator.is_valid(address)
+        if not valid:
+            logger.error("invalid wallet address %s", address)
+        return valid
+
+    async def verify_transaction(self, signature: str, payer: str, amount: float) -> bool:
+        """Convenience wrapper around :class:`TransactionVerifier`."""
+        return await self.tx_verifier.verify(signature, payer, amount)
+
+    async def auto_reveal_due_nfts(self):
+        """Reveal any mystery NFTs whose reveal date has passed."""
+        records = self.storage.load_records()
+        changed = False
+        for rec in records:
+            if not rec.get("mystery_revealed"):
+                reveal_date = datetime.fromisoformat(rec["reveal_date"])
+                if datetime.now() >= reveal_date:
+                    rec["mystery_revealed"] = True
+                    rec["revealed_at"] = datetime.now().isoformat()
+                    logger.info("auto-revealed %s", rec["mint_address"])
+                    changed = True
+        if changed:
+            with open(self.storage.record_path, "w") as f:
+                json.dump(records, f, indent=2)
+
+    async def start_reveal_scheduler(self, interval_secs: int = 3600):
+        """Periodic background task that calls ``auto_reveal_due_nfts``."""
+        while True:
+            await self.auto_reveal_due_nfts()
+            await asyncio.sleep(interval_secs)
     
     def get_user_nfts(self, user_wallet):
         """Get all NFTs owned by user"""
@@ -403,32 +630,21 @@ class NFTMinter:
         
         return [record for record in records if record["owner"] == user_wallet]
     
-    async def reveal_mystery_nft(self, mint_address):
-        """Reveal mystery NFT after reveal date"""
-        nft_file = "../data/nft_records.json"
-        
-        if not os.path.exists(nft_file):
-            return None
-        
-        with open(nft_file, 'r') as f:
-            records = json.load(f)
-        
-        for record in records:
-            if record["mint_address"] == mint_address:
-                reveal_date = datetime.fromisoformat(record["reveal_date"])
-                
-                if datetime.now() >= reveal_date and not record["mystery_revealed"]:
-                    # Mark as revealed
-                    record["mystery_revealed"] = True
-                    record["revealed_at"] = datetime.now().isoformat()
-                    
-                    # Save updated records
-                    with open(nft_file, 'w') as f:
+    async def reveal_mystery_nft(self, mint_address: str) -> Optional[Dict[str, Any]]:
+        """Attempt to reveal a single mystery NFT now that its reveal date has arrived."""
+        records = self.storage.load_records()
+        for rec in records:
+            if rec.get("mint_address") == mint_address:
+                reveal_date = datetime.fromisoformat(rec.get("reveal_date"))
+                if datetime.now() >= reveal_date and not rec.get("mystery_revealed"):
+                    rec["mystery_revealed"] = True
+                    rec["revealed_at"] = datetime.now().isoformat()
+                    # write back all records
+                    with open(self.storage.record_path, "w") as f:
                         json.dump(records, f, indent=2)
-                    
+                    logger.info("revealed %s", mint_address)
                     print(f"✨ Mystery NFT revealed: {mint_address}")
-                    return record
-        
+                    return rec
         return None
 
 async def test_nft_minting():
@@ -453,17 +669,15 @@ async def test_nft_minting():
     test_wallet = "8WzDXbvfdkVeVZV5cRgQzrNyKaEP5qN7nJtfxQG3BqLk"
     
     for scenario in test_scenarios:
-        print(f"\n🎲 Minting {scenario['expected_rarity']} (${scenario['amount']} SOL)...")
-        
+        print(f"\n🎲 Minting with ${scenario['amount']} SOL (expected {scenario['expected_rarity']})")
         nft = await minter.mint_mystery_nft(
             user_wallet=test_wallet,
-            nft_type=scenario['expected_rarity'],
             transaction_signature=f"test_tx_{scenario['amount']}",
-            amount_paid=scenario['amount']
+            amount_paid=scenario['amount'],
+            nft_type=scenario['expected_rarity'],  # provided explicitly for testing
         )
-        
         if nft:
-            print(f"✅ Minted: {nft['mint_address'][:16]}...")
+            print(f"✅ Minted: {nft['mint_address'][:16]}... rarity={nft['rarity']}")
     
     # Show user's collection
     user_nfts = minter.get_user_nfts(test_wallet)

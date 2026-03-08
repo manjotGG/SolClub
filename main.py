@@ -760,8 +760,8 @@ async def mint_mystery_nft():
         
         nft_type = nft_types.get(choice)
         if nft_type is None and choice == "5":
-            # Determine random rarity
-            nft_type = minter.determine_mystery_rarity()
+            # Determine random rarity using default payment/loyalty values
+            nft_type = minter.determine_mystery_rarity(amount_paid=0.01, user_transaction_count=1)
         elif nft_type is None:
             print("Invalid option")
             return

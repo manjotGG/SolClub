@@ -150,17 +150,17 @@ async def demo_solana_loyalty():
         minter = NFTMinter()
         
         print("🎄 Active Seasonal Collections:")
-        for collection_id, collection in minter.seasonal_collections.items():
-            if collection["active"]:
-                print(f"\n   📦 {collection['name']}")
-                print(f"      Description: {collection['description']}")
+        # use the new manager
+        for collection_id, collection in minter.seasonal_mgr.configs.items():
+            if collection.get("active"):
+                print(f"\n   📦 {collection.get('name', collection_id)}")
+                print(f"      Description: {collection.get('description', '')}")
                 print(f"      Max Supply: {collection.get('max_supply', 'Unlimited')}")
-                print(f"      Themes: {', '.join(collection['themes'])}")
-                
+                print(f"      Themes: {', '.join(collection.get('themes', []))}")
                 if 'start_date' in collection:
                     print(f"      Period: {collection['start_date']} to {collection['end_date']}")
             else:
-                print(f"\n   ⏸️  {collection['name']} (Inactive)")
+                print(f"\n   ⏸️  {collection.get('name', collection_id)} (Inactive)")
         
     except Exception as e:
         print(f"❌ Seasonal collections demo failed: {e}")
