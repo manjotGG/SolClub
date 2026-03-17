@@ -35,7 +35,7 @@ import os
 from typing import Optional
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, "../data"))
+DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, "data"))
 NFT_RECORDS_FILE = os.path.join(DATA_DIR, "real_nft_records.json")
 
 os.makedirs(DATA_DIR, exist_ok=True)
