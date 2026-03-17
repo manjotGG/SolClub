@@ -80,3 +80,17 @@ nft_minting.nft_minter.TransactionVerificationError: rpc failure
 2026-03-17 18:48:01,798 INFO     loyalty points updated for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ: +100 (legendary_mystery)
 2026-03-17 18:48:01,799 INFO     minted mystery nft 5dYj95Q8Rvukh1XKm8bUACfhQUzy3ygcVbXLteGz8vCs for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ tx=main_mint_161727
 2026-03-17 18:48:01,799 INFO     mint success wallet=HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ rarity=legendary_mystery time=2026-03-17T18:48:01.799229
+2026-03-17 19:15:27,757 INFO     starting mint command
+2026-03-17 19:15:59,580 INFO     wallet validated: HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ
+2026-03-17 19:16:03,220 INFO     demo mode active, skipping verification for main_mint_163409
+2026-03-17 19:16:03,222 INFO     saved metadata https://ipfs.io/ipfs/a4f1da1dbcc7accc25cc28a5ca0d2518
+2026-03-17 19:16:03,242 INFO     loyalty points updated for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ: +10 (common_mystery)
+2026-03-17 19:16:03,242 INFO     minted mystery nft XoAfV7t5ZHQoqgfSCh7jDsbmu2WmYfGkqBMhAmx1gZs for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ tx=main_mint_163409
+2026-03-17 19:16:03,242 INFO     mint success wallet=HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ rarity=common_mystery time=2026-03-17T19:16:03.242735
+2026-03-17 20:09:23,271 INFO     starting mint command
+2026-03-17 20:10:05,678 INFO     wallet validated: GruZpDkmepvQqVQnXB4gNggjiv9QYSxqTXuHPRft571b
+2026-03-17 20:10:12,430 INFO     demo mode active, skipping verification for main_mint_166658
+2026-03-17 20:10:12,433 INFO     saved metadata https://ipfs.io/ipfs/cf185744a3353b345052cc02ff96e69d
+2026-03-17 20:10:12,450 INFO     loyalty points updated for GruZpDkmepvQqVQnXB4gNggjiv9QYSxqTXuHPRft571b: +10 (common_mystery)
+2026-03-17 20:10:12,450 INFO     minted mystery nft 9g63i5SorDfcmbPZEHmHXuuarK7HGQtWaAzQZhakxWus for GruZpDkmepvQqVQnXB4gNggjiv9QYSxqTXuHPRft571b tx=main_mint_166658
+2026-03-17 20:10:12,450 INFO     mint success wallet=GruZpDkmepvQqVQnXB4gNggjiv9QYSxqTXuHPRft571b rarity=common_mystery time=2026-03-17T20:10:12.450464

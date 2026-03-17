@@ -1,0 +1,58 @@
+{
+  "name": "Blooming Common Mystery Box",
+  "symbol": "SOLCLUB",
+  "description": "A mysterious NFT with common traits with flower theme",
+  "image": "https://nft.solclub.com/common_mystery/faa56ef94b5070129e5db312f873702e.png",
+  "external_url": "https://solclub.com",
+  "collection": {
+    "name": "SolClub Mystery Collection",
+    "family": "SolClub"
+  },
+  "attributes": [
+    {
+      "trait_type": "Rarity",
+      "value": "Common Mystery"
+    },
+    {
+      "trait_type": "Rarity Score",
+      "value": 25
+    },
+    {
+      "trait_type": "Background",
+      "value": "gray"
+    },
+    {
+      "trait_type": "Mystery Level",
+      "value": 3
+    },
+    {
+      "trait_type": "Mint Date",
+      "value": "2026-03-17"
+    },
+    {
+      "trait_type": "Element",
+      "value": "Earth"
+    },
+    {
+      "trait_type": "Power Level",
+      "value": 1
+    },
+    {
+      "trait_type": "Seasonal Power",
+      "value": "Bloom Acceleration"
+    }
+  ],
+  "properties": {
+    "category": "image",
+    "creators": [
+      {
+        "address": "Wd1GGSZQsdosW9qpeFoXRi8YNfe4281YDxNKgYmdnXs",
+        "share": 100
+      }
+    ]
+  },
+  "minted_for": "HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ",
+  "minted_at": "2026-03-17T19:16:03.220855",
+  "mystery_revealed": false,
+  "reveal_date": "2026-03-24T19:16:03.220861"
+}
