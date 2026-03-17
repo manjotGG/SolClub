@@ -35,3 +35,48 @@ nft_minting.nft_minter.TransactionVerificationError: rpc failure
 2026-03-08 23:24:42,736 INFO     saved metadata https://ipfs.io/ipfs/7663497856b8652ed92d5deffed65b3d
 2026-03-08 23:24:42,738 INFO     minted mystery nft JE9Zns58PyZC8p95MXqY2srpeiAM2dPcSDqo5YnHWWx3 for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ tx=main_mint_146289
 2026-03-08 23:24:42,739 INFO     mint success wallet=HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ rarity=epic_mystery time=2026-03-08T23:24:42.738989
+2026-03-17 13:58:23,530 INFO     created nft record data file ../data/real_nft_records.json
+2026-03-17 13:58:23,531 INFO     starting mint command
+2026-03-17 14:01:27,687 INFO     wallet validated: HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ
+2026-03-17 14:01:38,824 INFO     demo mode active, skipping verification for main_mint_145739
+2026-03-17 14:01:38,829 INFO     saved metadata https://ipfs.io/ipfs/bb759cd777d4fcbf07d2e2c881b39a8a
+2026-03-17 14:01:38,929 INFO     loyalty points updated for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ: +50 (epic_mystery)
+2026-03-17 14:01:38,929 INFO     minted mystery nft 4pEHAwwFnR2gTPmNPnHa1wyvYDmwH5HKEjH1KZfp3s7n for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ tx=main_mint_145739
+2026-03-17 14:01:38,930 INFO     mint success wallet=HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ rarity=epic_mystery time=2026-03-17T14:01:38.930131
+2026-03-17 14:11:58,607 INFO     starting mint command
+2026-03-17 14:12:58,107 INFO     wallet validated: HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ
+2026-03-17 14:13:00,651 INFO     demo mode active, skipping verification for main_mint_146421
+2026-03-17 14:13:00,652 INFO     saved metadata https://ipfs.io/ipfs/e64666b234671c9b5af55eb38776f68a
+2026-03-17 14:13:00,665 INFO     loyalty points updated for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ: +25 (rare_mystery)
+2026-03-17 14:13:00,665 INFO     minted mystery nft 2sHyWdxNj1JPTHvmhVs8ZFiFS4H7nULfH3SWDLH8zHYZ for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ tx=main_mint_146421
+2026-03-17 14:13:00,665 INFO     mint success wallet=HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ rarity=rare_mystery time=2026-03-17T14:13:00.665825
+2026-03-17 14:13:51,027 INFO     starting mint command
+2026-03-17 14:29:06,995 ERROR    user entered invalid wallet: python3 main.py mint
+2026-03-17 14:29:08,758 INFO     starting mint command
+2026-03-17 14:29:19,817 INFO     wallet validated: HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ
+2026-03-17 14:29:21,999 INFO     demo mode active, skipping verification for main_mint_147402
+2026-03-17 14:29:22,002 INFO     saved metadata https://ipfs.io/ipfs/ded41548bcb90281ddaef6067737ed8f
+2026-03-17 14:29:22,017 INFO     loyalty points updated for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ: +50 (epic_mystery)
+2026-03-17 14:29:22,017 INFO     minted mystery nft 3LSy9T87RFxJyojHTXGJnnjFJjj1Xst1rAwDvA7tu47S for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ tx=main_mint_147402
+2026-03-17 14:29:22,017 INFO     mint success wallet=HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ rarity=epic_mystery time=2026-03-17T14:29:22.017641
+2026-03-17 18:36:20,081 INFO     starting mint command
+2026-03-17 18:36:40,941 INFO     wallet validated: HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ
+2026-03-17 18:36:43,952 INFO     demo mode active, skipping verification for main_mint_161049
+2026-03-17 18:36:43,954 INFO     saved metadata https://ipfs.io/ipfs/d7027338b7b600a987e7de99e04e5a8a
+2026-03-17 18:36:43,974 INFO     loyalty points updated for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ: +100 (legendary_mystery)
+2026-03-17 18:36:43,975 INFO     minted mystery nft GZjSn32hpTrAFFvKPBo5MXCojmM2DGmiddgpphzkUbC9 for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ tx=main_mint_161049
+2026-03-17 18:36:43,975 INFO     mint success wallet=HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ rarity=legendary_mystery time=2026-03-17T18:36:43.975235
+2026-03-17 18:43:26,037 INFO     starting mint command
+2026-03-17 18:43:35,012 INFO     wallet validated: HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ
+2026-03-17 18:43:36,762 INFO     demo mode active, skipping verification for main_mint_161462
+2026-03-17 18:43:36,764 INFO     saved metadata https://ipfs.io/ipfs/d60f62a81fd8c38aacaca24b2f7b3bbd
+2026-03-17 18:43:36,777 INFO     loyalty points updated for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ: +25 (rare_mystery)
+2026-03-17 18:43:36,777 INFO     minted mystery nft DfUFrncaDZxjEZLiiSksvmhiM5qgda9Fv5bTf9qTPEqi for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ tx=main_mint_161462
+2026-03-17 18:43:36,777 INFO     mint success wallet=HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ rarity=rare_mystery time=2026-03-17T18:43:36.777860
+2026-03-17 18:47:52,109 INFO     starting mint command
+2026-03-17 18:48:00,069 INFO     wallet validated: HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ
+2026-03-17 18:48:01,780 INFO     demo mode active, skipping verification for main_mint_161727
+2026-03-17 18:48:01,782 INFO     saved metadata https://ipfs.io/ipfs/951a8a126cc18f2ca47562a4349ab7fe
+2026-03-17 18:48:01,798 INFO     loyalty points updated for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ: +100 (legendary_mystery)
+2026-03-17 18:48:01,799 INFO     minted mystery nft 5dYj95Q8Rvukh1XKm8bUACfhQUzy3ygcVbXLteGz8vCs for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ tx=main_mint_161727
+2026-03-17 18:48:01,799 INFO     mint success wallet=HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ rarity=legendary_mystery time=2026-03-17T18:48:01.799229

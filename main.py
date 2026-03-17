@@ -31,7 +31,14 @@ Version: 2.0.0 (Production)
 import sys
 import asyncio
 import argparse
+import os
 from typing import Optional
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, "../data"))
+NFT_RECORDS_FILE = os.path.join(DATA_DIR, "real_nft_records.json")
+
+os.makedirs(DATA_DIR, exist_ok=True)
 
 def show_banner():
     """Display the SolClub banner"""
@@ -130,7 +137,7 @@ def create_fastapi_app():
     
     # Load merchant keypair
     def load_merchant_keypair():
-        keypair_path = "data/merchant_keypair.json"
+        keypair_path = os.path.join(DATA_DIR, "merchant_keypair.json")
         if os.path.exists(keypair_path):
             with open(keypair_path, 'r') as f:
                 keypair_data = json.load(f)
@@ -155,7 +162,7 @@ def create_fastapi_app():
     def save_transaction_data(transactions: List[Dict]):
         """Save transaction data to JSON file"""
         try:
-            transactions_file = "data/transactions.json"
+            transactions_file = os.path.join(DATA_DIR, "transactions.json")
             os.makedirs(os.path.dirname(transactions_file), exist_ok=True)
             
             # Load existing transactions
@@ -176,7 +183,7 @@ def create_fastapi_app():
     
     def load_transaction_data():
         """Load transaction metadata from JSON file"""
-        data_file = "data/transactions.json"
+        data_file = os.path.join(DATA_DIR, "transactions.json")
         if os.path.exists(data_file):
             with open(data_file, 'r') as f:
                 return json.load(f)
@@ -359,7 +366,7 @@ def create_fastapi_app():
             }
             
             # Save user data
-            users_file = "data/loyalty_users.json"
+            users_file = os.path.join(DATA_DIR, "loyalty_users.json")
             os.makedirs(os.path.dirname(users_file), exist_ok=True)
             
             users = []
@@ -397,36 +404,48 @@ def create_fastapi_app():
     async def get_user_nfts(wallet: str):
         """Get user's mystery NFT collection"""
         try:
-            nft_file = "data/nft_records.json"
-            
+            nft_file = NFT_RECORDS_FILE
+            normalized_wallet = wallet.strip()
+
+            print(f"DEBUG: /mystery-nft/{normalized_wallet} - loading {nft_file}")
+
             if not os.path.exists(nft_file):
+                print(f"DEBUG: nft file missing: {nft_file}")
                 return {
-                    "wallet": wallet,
+                    "wallet": normalized_wallet,
                     "nfts": [],
                     "total_count": 0,
+                    "rarity_breakdown": {},
+                    "unrevealed_count": 0,
                     "message": "No NFTs found. Complete a purchase to receive your first mystery NFT!"
                 }
-            
+
             with open(nft_file, 'r') as f:
-                all_nfts = json.load(f)
-            
-            # Filter NFTs for this wallet
-            user_nfts = [nft for nft in all_nfts if nft.get("owner") == wallet]
-            
-            # Count by rarity
+                raw = f.read().strip()
+                if not raw:
+                    print(f"DEBUG: nft file empty: {nft_file}")
+                    all_nfts = []
+                else:
+                    all_nfts = json.loads(raw)
+
+            print(f"DEBUG: loaded {len(all_nfts)} nft records")
+
+            user_nfts = [nft for nft in all_nfts if str(nft.get("owner", "")).strip() == normalized_wallet]
+            print(f"DEBUG: filtered to {len(user_nfts)} records for wallet {normalized_wallet}")
+
             rarity_counts = {}
             for nft in user_nfts:
-                rarity = nft.get("nft_type", "unknown")
+                rarity = nft.get("nft_type", nft.get("rarity", "unknown"))
                 rarity_counts[rarity] = rarity_counts.get(rarity, 0) + 1
-            
+
             return {
-                "wallet": wallet,
+                "wallet": normalized_wallet,
                 "nfts": user_nfts,
                 "total_count": len(user_nfts),
                 "rarity_breakdown": rarity_counts,
-                "unrevealed_count": len([n for n in user_nfts if not n.get("revealed", False)])
+                "unrevealed_count": len([n for n in user_nfts if not n.get("mystery_revealed", False)]),
             }
-            
+
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
     
@@ -557,16 +576,18 @@ def create_fastapi_app():
         """Get user's loyalty program statistics"""
         try:
             # Load user's NFTs and transaction history
-            nft_file = "data/nft_records.json"
-            transaction_file = "data/transactions.json"
+            nft_file = NFT_RECORDS_FILE
+            transaction_file = os.path.join(DATA_DIR, "transactions.json")
+            normalized_wallet = wallet.strip()
             
             user_nfts = []
             user_transactions = []
             
             if os.path.exists(nft_file):
                 with open(nft_file, 'r') as f:
-                    all_nfts = json.load(f)
-                user_nfts = [nft for nft in all_nfts if nft.get("owner") == wallet]
+                    raw = f.read().strip()
+                    all_nfts = json.loads(raw) if raw else []
+                user_nfts = [nft for nft in all_nfts if str(nft.get("owner", "")).strip() == normalized_wallet]
             
             if os.path.exists(transaction_file):
                 with open(transaction_file, 'r') as f:
@@ -631,7 +652,10 @@ def create_fastapi_app():
             blockchain_status = "connected" if latest_blockhash.value else "disconnected"
             
             # Check data files
-            required_files = ["data/nft_records.json", "data/transactions.json"]
+            required_files = [
+                NFT_RECORDS_FILE,
+                os.path.join(DATA_DIR, "transactions.json"),
+            ]
             file_status = {}
             for file_path in required_files:
                 file_status[file_path] = "exists" if os.path.exists(file_path) else "missing"
@@ -781,6 +805,9 @@ async def mint_mystery_nft():
             return
 
         print(f"\n🎲 Minting {nft_type} NFT for {wallet} ...")
+
+        # debug: verify exact wallet from input is used
+        print("DEBUG USER WALLET:", wallet)
 
         # perform mint
         nft = await minter.mint_mystery_nft(

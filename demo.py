@@ -9,6 +9,10 @@ import os
 from datetime import datetime
 import json
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, "../data"))
+os.makedirs(DATA_DIR, exist_ok=True)
+
 # Add modules to path
 sys.path.append('qr_wallet')
 sys.path.append('backend')
@@ -192,11 +196,11 @@ async def demo_solana_loyalty():
     print("-" * 50)
     
     data_files = [
-        ("../data/merchant_keypair.json", "🏪 Merchant Wallet"),
-        ("../data/nft_minter_keypair.json", "🎨 NFT Minter Wallet"),
-        ("../data/transactions.json", "💳 Transaction Records"),
-        ("../data/nft_records.json", "🎭 NFT Collection Database"),
-        ("../data/loyalty_data.json", "🏆 Loyalty Program Data")
+        (os.path.join(DATA_DIR, "merchant_keypair.json"), "🏪 Merchant Wallet"),
+        (os.path.join(DATA_DIR, "nft_minter_keypair.json"), "🎨 NFT Minter Wallet"),
+        (os.path.join(DATA_DIR, "transactions.json"), "💳 Transaction Records"),
+        (os.path.join(DATA_DIR, "nft_records.json"), "🎭 NFT Collection Database"),
+        (os.path.join(DATA_DIR, "loyalty_data.json"), "🏆 Loyalty Program Data")
     ]
     
     print("📁 Generated Data Files:")
@@ -208,7 +212,7 @@ async def demo_solana_loyalty():
             print(f"   ⚠️  {description}: {file_path} (will be created)")
     
     print("\n🎨 Generated QR Codes:")
-    qr_dir = "../data"
+    qr_dir = DATA_DIR
     if os.path.exists(qr_dir):
         qr_files = [f for f in os.listdir(qr_dir) if f.endswith('.png')]
         for qr_file in qr_files:

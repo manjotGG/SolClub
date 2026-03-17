@@ -17,6 +17,10 @@ import hashlib
 import random
 import logging
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, "../data"))
+os.makedirs(DATA_DIR, exist_ok=True)
+
 # configure logger for this module
 LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
@@ -218,6 +222,12 @@ class StorageManager:
         os.makedirs(self.metadata_dir, exist_ok=True)
         os.makedirs(os.path.dirname(self.record_path), exist_ok=True)
 
+        # Ensure record file exists with safe initial content
+        if not os.path.exists(self.record_path):
+            with open(self.record_path, "w") as f:
+                json.dump([], f)
+            logger.info("created nft record data file %s", self.record_path)
+
     def save_metadata(self, metadata: Dict[str, Any]) -> str:
         mid = hashlib.md5(json.dumps(metadata, sort_keys=True).encode()).hexdigest()
         with open(os.path.join(self.metadata_dir, f"{mid}.json"), "w") as f:
@@ -228,18 +238,50 @@ class StorageManager:
 
     def append_record(self, record: Dict[str, Any]) -> None:
         records = []
+
         if os.path.exists(self.record_path):
-            with open(self.record_path, "r") as f:
-                records = json.load(f)
+            try:
+                with open(self.record_path, "r") as f:
+                    text = f.read().strip()
+                    if text:
+                        records = json.loads(text)
+                    else:
+                        records = []
+            except (json.JSONDecodeError, ValueError) as e:
+                logger.warning("corrupted nft records file %s: %s", self.record_path, e)
+                records = []
+
         records.append(record)
+
         with open(self.record_path, "w") as f:
             json.dump(records, f, indent=2)
 
+        logger.debug("saved nft record for owner=%s rarity=%s", record.get("owner"), record.get("nft_type"))
+
     def load_records(self) -> List[Dict[str, Any]]:
         if not os.path.exists(self.record_path):
+            logger.debug("nft record file missing, returning empty list: %s", self.record_path)
             return []
-        with open(self.record_path, "r") as f:
-            return json.load(f)
+
+        try:
+            with open(self.record_path, "r") as f:
+                text = f.read().strip()
+                if not text:
+                    logger.debug("nft record file empty, returning empty list: %s", self.record_path)
+                    return []
+                records = json.loads(text)
+                logger.debug("loaded %d nft records from %s", len(records), self.record_path)
+                return records
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error("failed to parse nft record file %s: %s", self.record_path, e)
+            return []
+
+    def filter_records_by_wallet(self, wallet: str) -> List[Dict[str, Any]]:
+        normalized = wallet.strip()
+        records = self.load_records()
+        filtered = [r for r in records if str(r.get("owner", "")).strip() == normalized]
+        logger.debug("filter_records_by_wallet %s -> %d records", normalized, len(filtered))
+        return filtered
 
 
 class NFTMinter:
@@ -251,8 +293,8 @@ class NFTMinter:
 
         # storage / persistence
         self.storage = StorageManager(
-            metadata_dir="../data/nft_metadata",
-            record_path="../data/nft_records.json",
+            metadata_dir=os.path.join(DATA_DIR, "nft_metadata"),
+            record_path=os.path.join(DATA_DIR, "real_nft_records.json"),
         )
 
         # rarity engine (weights + optional supply cap)
@@ -291,13 +333,13 @@ class NFTMinter:
 
         # keep compatibility properties
         self.metadata_dir = self.storage.metadata_dir
-        self.nft_collections_dir = "../data/nft_collections"
+        self.nft_collections_dir = os.path.join(DATA_DIR, "nft_collections")
         os.makedirs(self.nft_collections_dir, exist_ok=True)
 
         # keep old attr for compatibility
         self.mystery_rarities = rarity_cfg
         
-    def load_or_create_minter_keypair(self, keypair_path="../data/nft_minter_keypair.json"):
+    def load_or_create_minter_keypair(self, keypair_path=os.path.join(DATA_DIR, "nft_minter_keypair.json")):
         """Load or create NFT minter keypair"""
         os.makedirs(os.path.dirname(keypair_path), exist_ok=True)
         
@@ -563,9 +605,14 @@ class NFTMinter:
             mint_keypair = Keypair()
             mint_address = mint_keypair.pubkey()
 
+            # ensure wallet from input is chained through and saved as owner
+            user_wallet = user_wallet.strip()
+            print("DEBUG: mint_mystery_nft owner=", user_wallet)
+
             nft_record = {
                 "mint_address": str(mint_address),
                 "owner": user_wallet,
+                "minted_by": str(self.keypair.pubkey()),
                 "metadata_uri": metadata_uri,
                 "nft_type": nft_type,
                 "rarity": nft_type,
@@ -580,6 +627,30 @@ class NFTMinter:
                 "network": "devnet",
             }
             self.storage.append_record(nft_record)
+
+            # Update loyalty points after successful mint
+            try:
+                from loyalty_engine.loyalty_engine import LoyaltyRulesEngine
+
+                rarity_points = {
+                    "common_mystery": 10,
+                    "rare_mystery": 25,
+                    "epic_mystery": 50,
+                    "legendary_mystery": 100,
+                }
+                points_for_rarity = rarity_points.get(nft_type, 0)
+
+                loyalty_engine = LoyaltyRulesEngine(use_sqlite=True)
+                if points_for_rarity > 0:
+                    loyalty_engine.add_points(user_wallet.strip(), points_for_rarity)
+                    logger.info(
+                        "loyalty points updated for %s: +%d (%s)",
+                        user_wallet,
+                        points_for_rarity,
+                        nft_type,
+                    )
+            except Exception as e:
+                logger.error("failed loyalty update after mint for %s: %s", user_wallet, e)
 
             logger.info(
                 "minted mystery nft %s for %s tx=%s",
@@ -614,12 +685,8 @@ class NFTMinter:
         self.storage.append_record(nft_record)
 
     def get_user_nfts(self, user_wallet):
-        """Get all NFTs owned by a wallet.
-
-        The old file-based implementation has been replaced with the storage
-        manager; a thin wrapper is retained for compatibility.
-        """
-        return [rec for rec in self.storage.load_records() if rec["owner"] == user_wallet]
+        """Get all NFTs owned by a wallet."""
+        return self.storage.filter_records_by_wallet(user_wallet)
 
     def validate_wallet_address(self, address: str) -> bool:
         """Return True if the string is a valid Solana pubkey."""
@@ -653,19 +720,7 @@ class NFTMinter:
         while True:
             await self.auto_reveal_due_nfts()
             await asyncio.sleep(interval_secs)
-    
-    def get_user_nfts(self, user_wallet):
-        """Get all NFTs owned by user"""
-        nft_file = "../data/nft_records.json"
-        
-        if not os.path.exists(nft_file):
-            return []
-        
-        with open(nft_file, 'r') as f:
-            records = json.load(f)
-        
-        return [record for record in records if record["owner"] == user_wallet]
-    
+
     async def reveal_mystery_nft(self, mint_address: str) -> Optional[Dict[str, Any]]:
         """Attempt to reveal a single mystery NFT now that its reveal date has arrived."""
         records = self.storage.load_records()

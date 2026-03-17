@@ -7,9 +7,12 @@ import os
 from PIL import Image
 import json
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, "../data"))
+
 def display_qr_info():
     """Display information about generated QR codes"""
-    data_dir = "../data"
+    data_dir = DATA_DIR
     metadata_file = os.path.join(data_dir, "transaction_metadata.json")
     
     if not os.path.exists(metadata_file):
@@ -35,7 +38,7 @@ def display_qr_info():
 
 def list_qr_files():
     """List all QR code files"""
-    data_dir = "../data"
+    data_dir = DATA_DIR
     
     if not os.path.exists(data_dir):
         print("❌ Data directory not found.")

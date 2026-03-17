@@ -15,10 +15,14 @@ import json
 import asyncio
 from solana.rpc.async_api import AsyncClient
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, "../data"))
+os.makedirs(DATA_DIR, exist_ok=True)
+
 class SolanaPayQRGenerator:
     def __init__(self, merchant_wallet=None, backend_url="http://localhost:8000"):
         self.backend_url = backend_url
-        self.output_dir = "../data"
+        self.output_dir = os.path.join(DATA_DIR)
         os.makedirs(self.output_dir, exist_ok=True)
         
         # Use provided merchant wallet or create one

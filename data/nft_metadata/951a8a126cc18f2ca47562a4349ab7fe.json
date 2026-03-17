@@ -1,0 +1,70 @@
+{
+  "name": "Graceful Legendary Mystery Orb",
+  "symbol": "SOLCLUB",
+  "description": "A legendary mystery NFT with mythical powers with butterfly theme",
+  "image": "https://nft.solclub.com/legendary_mystery/9f3def8e7d396dc08bb7a72afa4b9dbe.png",
+  "external_url": "https://solclub.com",
+  "collection": {
+    "name": "SolClub Mystery Collection",
+    "family": "SolClub"
+  },
+  "attributes": [
+    {
+      "trait_type": "Rarity",
+      "value": "Legendary Mystery"
+    },
+    {
+      "trait_type": "Rarity Score",
+      "value": 95
+    },
+    {
+      "trait_type": "Background",
+      "value": "galaxy"
+    },
+    {
+      "trait_type": "Mystery Level",
+      "value": 6
+    },
+    {
+      "trait_type": "Mint Date",
+      "value": "2026-03-17"
+    },
+    {
+      "trait_type": "Element",
+      "value": "Cosmic"
+    },
+    {
+      "trait_type": "Power Level",
+      "value": 68
+    },
+    {
+      "trait_type": "Special Ability",
+      "value": "Time Control"
+    },
+    {
+      "trait_type": "Legendary Trait",
+      "value": "Omnipotent"
+    },
+    {
+      "trait_type": "Origin",
+      "value": "First Edition"
+    },
+    {
+      "trait_type": "Seasonal Power",
+      "value": "Metamorphosis"
+    }
+  ],
+  "properties": {
+    "category": "image",
+    "creators": [
+      {
+        "address": "Wd1GGSZQsdosW9qpeFoXRi8YNfe4281YDxNKgYmdnXs",
+        "share": 100
+      }
+    ]
+  },
+  "minted_for": "HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ",
+  "minted_at": "2026-03-17T18:48:01.781306",
+  "mystery_revealed": false,
+  "reveal_date": "2026-03-24T18:48:01.781312"
+}

@@ -11,6 +11,10 @@ from typing import Dict, List, Any, Optional
 import asyncio
 from dataclasses import dataclass
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, "../data"))
+os.makedirs(DATA_DIR, exist_ok=True)
+
 @dataclass
 class LoyaltyRule:
     """Represents a loyalty program rule"""
@@ -22,10 +26,10 @@ class LoyaltyRule:
     cooldown_days: int = 0
 
 class LoyaltyRulesEngine:
-    def __init__(self, db_path="../data/loyalty.db", use_sqlite=True):
+    def __init__(self, db_path=os.path.join(DATA_DIR, "loyalty.db"), use_sqlite=True):
         self.db_path = db_path
         self.use_sqlite = use_sqlite
-        self.json_file = "../data/loyalty_data.json"
+        self.json_file = os.path.join(DATA_DIR, "loyalty_data.json")
         
         # Create data directory
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)

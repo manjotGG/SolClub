@@ -8,10 +8,14 @@ import os
 from datetime import datetime
 from typing import List, Dict, Any
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, "../data"))
+os.makedirs(DATA_DIR, exist_ok=True)
+
 class NFTGallery:
     def __init__(self):
-        self.nft_file = "../data/nft_records.json"
-        self.metadata_dir = "../data/nft_metadata"
+        self.nft_file = os.path.join(DATA_DIR, "nft_records.json")
+        self.metadata_dir = os.path.join(DATA_DIR, "nft_metadata")
     
     def load_nft_records(self) -> List[Dict[str, Any]]:
         """Load all NFT records"""
