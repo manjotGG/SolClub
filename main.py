@@ -27,7 +27,8 @@ Commands:
 Author: SolClub Team
 Version: 2.0.0 (Production)
 """
-
+from database.db import init_db
+init_db()
 import sys
 import asyncio
 import argparse
@@ -100,6 +101,8 @@ def create_fastapi_app():
     from typing import Optional, Dict, Any, List
     import json
     import os
+    import uuid
+    from database.db import get_connection
     import asyncio
     from datetime import datetime, timedelta
     from solana.rpc.async_api import AsyncClient
@@ -624,7 +627,51 @@ def create_fastapi_app():
             
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to get user stats: {str(e)}")
-    
+
+    @app.post("/merchant/register")
+    async def register_merchant(name: str, wallet_address: str):
+        """Register a merchant and return api_key"""
+        try:
+            api_key = uuid.uuid4().hex
+            with get_connection() as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    """
+                    INSERT INTO merchants (name, wallet_address, api_key)
+                    VALUES (?, ?, ?)
+                    """,
+                    (name, wallet_address, api_key),
+                )
+                conn.commit()
+
+            return {"success": True, "api_key": api_key}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/merchant/{merchant_id}")
+    async def get_merchant(merchant_id: int):
+        """Fetch merchant details by id"""
+        with get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT id, name, wallet_address, api_key, created_at FROM merchants WHERE id = ?", (merchant_id,))
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Merchant not found")
+
+            return dict(row)
+
+    @app.get("/merchant/by-name/{name}")
+    async def get_merchant_by_name(name: str):
+        """Fetch merchant details by name"""
+        with get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT id, name, wallet_address, api_key, created_at FROM merchants WHERE name = ?", (name,))
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Merchant not found")
+
+            return dict(row)
+
     def get_next_milestone(total_spent):
         """Calculate next spending milestone"""
         milestones = [0.25, 0.5, 1.0, 2.0, 5.0]

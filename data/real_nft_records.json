@@ -49,5 +49,22 @@
     "mystery_revealed": false,
     "reveal_date": "2026-03-24T20:10:12.432029",
     "network": "devnet"
+  },
+  {
+    "mint_address": "6rYT3SrY2nqsr6VRJzpqeg9UN4pHb1G72SaEnNgSiMh3",
+    "owner": "HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ",
+    "minted_by": "Wd1GGSZQsdosW9qpeFoXRi8YNfe4281YDxNKgYmdnXs",
+    "metadata_uri": "https://ipfs.io/ipfs/fcc04b114ad59bfef069c744ac06979a",
+    "nft_type": "common_mystery",
+    "rarity": "common_mystery",
+    "seasonal_theme": "flower",
+    "transaction_signature": "main_mint_23903",
+    "amount_paid": 0.01,
+    "minted_at": "2026-03-19T14:35:52.201894",
+    "minter": "Wd1GGSZQsdosW9qpeFoXRi8YNfe4281YDxNKgYmdnXs",
+    "status": "minted",
+    "mystery_revealed": false,
+    "reveal_date": "2026-03-26T14:35:52.199698",
+    "network": "devnet"
   }
 ]
