@@ -358,19 +358,46 @@ class LoyaltyRulesEngine:
     
     def calculate_tier(self, transaction_count: int) -> str:
         """Calculate user tier based on transaction count"""
-        if transaction_count >= 100:
-            return "Legend"
-        elif transaction_count >= 50:
-            return "Diamond"
-        elif transaction_count >= 25:
-            return "Platinum"
+        # standard tier thresholds for loyalty program
+        if transaction_count >= 20:
+            return "platinum"
         elif transaction_count >= 10:
-            return "Gold"
+            return "gold"
         elif transaction_count >= 5:
-            return "Silver"
+            return "silver"
         else:
-            return "Bronze"
-    
+            return "bronze"
+
+    def get_nft_rarity(self, transaction_count: int) -> str:
+        """Compute NFT rarity with increasing chances for higher rarity as activity grows"""
+        import random
+
+        base = {
+            "common_mystery": 70,
+            "rare_mystery": 20,
+            "epic_mystery": 8,
+            "legendary_mystery": 2,
+        }
+
+        # increase per-5-tx boosts (cumulative)
+        boost_steps = transaction_count // 5
+        rare_bonus = 5 * boost_steps
+        epic_bonus = 2 * boost_steps
+        legend_bonus = 1 * boost_steps
+
+        # apply caps to keep inside 100
+        rare = min(base["rare_mystery"] + rare_bonus, 60)
+        epic = min(base["epic_mystery"] + epic_bonus, 25)
+        legendary = min(base["legendary_mystery"] + legend_bonus, 10)
+
+        common = max(100 - (rare + epic + legendary), 0)
+
+        weights = [common, rare, epic, legendary]
+        rarities = ["common_mystery", "rare_mystery", "epic_mystery", "legendary_mystery"]
+
+        rarity = random.choices(rarities, weights=weights, k=1)[0]
+        return rarity
+
     def get_next_milestone(self, current_count: int) -> Dict[str, Any]:
         """Get next reward milestone"""
         milestones = [1, 5, 10, 25, 50, 100]
@@ -500,6 +527,13 @@ class LoyaltyRulesEngine:
             ]
         
         return user_data
+
+
+def get_nft_rarity(transaction_count: int) -> str:
+    """Module-level helper for determining NFT rarity based on transaction count."""
+    engine = LoyaltyRulesEngine(use_sqlite=False)
+    return engine.get_nft_rarity(transaction_count)
+
 
 def test_loyalty_engine():
     """Test the loyalty rules engine"""

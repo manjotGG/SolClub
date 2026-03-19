@@ -672,6 +672,47 @@ def create_fastapi_app():
 
             return dict(row)
 
+    @app.get("/customer/{wallet}")
+    async def get_customer(wallet: str):
+        """Fetch customer data with NFT history and tier"""
+        normalized_wallet = wallet.strip()
+        nfts = []
+
+        if os.path.exists(NFT_RECORDS_FILE):
+            try:
+                with open(NFT_RECORDS_FILE, 'r') as f:
+                    raw = f.read().strip()
+                    all_nfts = json.loads(raw) if raw else []
+
+                nfts = [n for n in all_nfts if str(n.get("owner", "")).strip() == normalized_wallet]
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Failed to load NFT records: {str(e)}")
+
+        total_transactions = len(nfts)
+
+        # Determine tier from loyalty engine
+        try:
+            from loyalty_engine.loyalty_engine import LoyaltyRulesEngine
+            loyalty_engine = LoyaltyRulesEngine(use_sqlite=False)
+            tier = loyalty_engine.calculate_tier(total_transactions)
+        except Exception:
+            # fallback simple local tier mapping
+            if total_transactions >= 20:
+                tier = "platinum"
+            elif total_transactions >= 10:
+                tier = "gold"
+            elif total_transactions >= 5:
+                tier = "silver"
+            else:
+                tier = "bronze"
+
+        return {
+            "wallet": normalized_wallet,
+            "total_transactions": total_transactions,
+            "tier": tier,
+            "nfts": nfts
+        }
+
     def get_next_milestone(total_spent):
         """Calculate next spending milestone"""
         milestones = [0.25, 0.5, 1.0, 2.0, 5.0]

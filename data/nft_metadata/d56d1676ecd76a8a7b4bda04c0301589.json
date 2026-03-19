@@ -1,0 +1,66 @@
+{
+  "name": "Refreshing Epic Mystery Vault",
+  "symbol": "SOLCLUB",
+  "description": "An epic mystery NFT with unique traits with rain theme",
+  "image": "https://nft.solclub.com/epic_mystery/dc717e5c211f31941e4ec2045b6c31f2.png",
+  "external_url": "https://solclub.com",
+  "collection": {
+    "name": "SolClub Mystery Collection",
+    "family": "SolClub"
+  },
+  "attributes": [
+    {
+      "trait_type": "Rarity",
+      "value": "Epic Mystery"
+    },
+    {
+      "trait_type": "Rarity Score",
+      "value": 74
+    },
+    {
+      "trait_type": "Background",
+      "value": "crimson"
+    },
+    {
+      "trait_type": "Mystery Level",
+      "value": 5
+    },
+    {
+      "trait_type": "Mint Date",
+      "value": "2026-03-19"
+    },
+    {
+      "trait_type": "Element",
+      "value": "Dragon"
+    },
+    {
+      "trait_type": "Power Level",
+      "value": 39
+    },
+    {
+      "trait_type": "Special Ability",
+      "value": "Teleport"
+    },
+    {
+      "trait_type": "Legendary Trait",
+      "value": "Ancient"
+    },
+    {
+      "trait_type": "Seasonal Power",
+      "value": "Water Blessing"
+    }
+  ],
+  "properties": {
+    "category": "image",
+    "creators": [
+      {
+        "address": "Wd1GGSZQsdosW9qpeFoXRi8YNfe4281YDxNKgYmdnXs",
+        "share": 100
+      }
+    ]
+  },
+  "minted_for": "HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ",
+  "minted_at": "2026-03-19T19:14:16.044395",
+  "mystery_revealed": false,
+  "reveal_date": "2026-03-26T19:14:16.044403"
+}

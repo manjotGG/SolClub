@@ -13,6 +13,8 @@ from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from solana.rpc.async_api import AsyncClient
 from solana.rpc.commitment import Commitment
+from loyalty_engine.loyalty_engine import get_nft_rarity
+from database.db import get_connection
 import hashlib
 import random
 import logging
@@ -412,7 +414,20 @@ class NFTMinter:
         except Exception as exc:
             logger.error("rarity engine failed: %s", exc, exc_info=True)
             return "common_mystery"
-    
+
+    def _get_user_transaction_count(self, wallet: str) -> int:
+        """Query centralized DB for wallet transaction count."""
+        wallet = wallet.strip()
+        try:
+            with get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT COUNT(*) FROM transactions WHERE wallet = ?", (wallet,))
+                row = cursor.fetchone()
+                return int(row[0] if row else 0)
+        except Exception as ex:
+            logger.warning("could not query transaction count for %s: %s", wallet, ex)
+            return 0
+
     def generate_mystery_metadata(self, rarity, seasonal_theme=None, user_wallet=None):
         """Generate metadata for mystery NFT"""
         
@@ -594,9 +609,10 @@ class NFTMinter:
                 logger.warning("transaction %s failed verification", transaction_signature)
                 return None
 
-            # choose rarity if not provided
+            # choose rarity if not provided, based on user's transaction history
             if not nft_type:
-                nft_type = self.rarity_engine.choose(amount_paid, user_transaction_count=1)
+                user_transaction_count = self._get_user_transaction_count(user_wallet)
+                nft_type = get_nft_rarity(user_transaction_count)
             self.rarity_engine.record(nft_type)
 
             seasonal_theme = self.seasonal_mgr.active_theme()

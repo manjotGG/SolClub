@@ -1,0 +1,58 @@
+{
+  "name": "Refreshing Common Mystery Box",
+  "symbol": "SOLCLUB",
+  "description": "A mysterious NFT with common traits with rain theme",
+  "image": "https://nft.solclub.com/common_mystery/196a75a13c94dc48876bfe7676e7c40c.png",
+  "external_url": "https://solclub.com",
+  "collection": {
+    "name": "SolClub Mystery Collection",
+    "family": "SolClub"
+  },
+  "attributes": [
+    {
+      "trait_type": "Rarity",
+      "value": "Common Mystery"
+    },
+    {
+      "trait_type": "Rarity Score",
+      "value": 13
+    },
+    {
+      "trait_type": "Background",
+      "value": "green"
+    },
+    {
+      "trait_type": "Mystery Level",
+      "value": 3
+    },
+    {
+      "trait_type": "Mint Date",
+      "value": "2026-03-19"
+    },
+    {
+      "trait_type": "Element",
+      "value": "Earth"
+    },
+    {
+      "trait_type": "Power Level",
+      "value": 1
+    },
+    {
+      "trait_type": "Seasonal Power",
+      "value": "Water Blessing"
+    }
+  ],
+  "properties": {
+    "category": "image",
+    "creators": [
+      {
+        "address": "Wd1GGSZQsdosW9qpeFoXRi8YNfe4281YDxNKgYmdnXs",
+        "share": 100
+      }
+    ]
+  },
+  "minted_for": "HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ",
+  "minted_at": "2026-03-19T19:29:48.401724",
+  "mystery_revealed": false,
+  "reveal_date": "2026-03-26T19:29:48.401732"
+}
