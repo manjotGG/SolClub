@@ -683,6 +683,19 @@ class NFTMinter:
             print(f"   Rarity: {metadata['attributes'][0]['value']}")
             print(f"   Seasonal: {seasonal_theme or 'None'}")
 
+            # Store minted NFT record in DB
+            try:
+                with get_connection() as conn:
+                    cur = conn.cursor()
+                    cur.execute(
+                        "INSERT INTO nft_records (wallet, nft_type, mint_address) VALUES (?, ?, ?)",
+                        (user_wallet, nft_type, str(mint_address)),
+                    )
+                    conn.commit()
+                print("💾 NFT stored in DB:", user_wallet, nft_type, mint_address)
+            except Exception as e:
+                print("❌ Failed to store NFT in DB:", e)
+
             return nft_record
         except Exception as e:
             logger.error("Mystery NFT minting failed: %s", e, exc_info=True)
