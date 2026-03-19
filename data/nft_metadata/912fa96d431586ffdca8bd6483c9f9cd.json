@@ -1,0 +1,62 @@
+{
+  "name": "Blooming Rare Mystery Chest",
+  "symbol": "SOLCLUB",
+  "description": "A rare mystery NFT with special properties with flower theme",
+  "image": "https://nft.solclub.com/rare_mystery/bb9425778215991858ed32dc8d4d7d2a.png",
+  "external_url": "https://solclub.com",
+  "collection": {
+    "name": "SolClub Mystery Collection",
+    "family": "SolClub"
+  },
+  "attributes": [
+    {
+      "trait_type": "Rarity",
+      "value": "Rare Mystery"
+    },
+    {
+      "trait_type": "Rarity Score",
+      "value": 47
+    },
+    {
+      "trait_type": "Background",
+      "value": "teal"
+    },
+    {
+      "trait_type": "Mystery Level",
+      "value": 4
+    },
+    {
+      "trait_type": "Mint Date",
+      "value": "2026-03-19"
+    },
+    {
+      "trait_type": "Element",
+      "value": "Light"
+    },
+    {
+      "trait_type": "Power Level",
+      "value": 23
+    },
+    {
+      "trait_type": "Special Ability",
+      "value": "Speed"
+    },
+    {
+      "trait_type": "Seasonal Power",
+      "value": "Bloom Acceleration"
+    }
+  ],
+  "properties": {
+    "category": "image",
+    "creators": [
+      {
+        "address": "Wd1GGSZQsdosW9qpeFoXRi8YNfe4281YDxNKgYmdnXs",
+        "share": 100
+      }
+    ]
+  },
+  "minted_for": "HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ",
+  "minted_at": "2026-03-19T19:41:56.654647",
+  "mystery_revealed": false,
+  "reveal_date": "2026-03-26T19:41:56.654652"
+}

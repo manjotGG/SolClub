@@ -202,5 +202,39 @@
     "mystery_revealed": false,
     "reveal_date": "2026-03-26T19:29:48.401732",
     "network": "devnet"
+  },
+  {
+    "mint_address": "4x21nXTLBmPWXLVCaTXBJXakiVq8baYA6ZkUZprKTtSA",
+    "owner": "HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ",
+    "minted_by": "Wd1GGSZQsdosW9qpeFoXRi8YNfe4281YDxNKgYmdnXs",
+    "metadata_uri": "https://ipfs.io/ipfs/912fa96d431586ffdca8bd6483c9f9cd",
+    "nft_type": "rare_mystery",
+    "rarity": "rare_mystery",
+    "seasonal_theme": "flower",
+    "transaction_signature": "demo_tx_001",
+    "amount_paid": 0.01,
+    "minted_at": "2026-03-19T19:41:56.655509",
+    "minter": "Wd1GGSZQsdosW9qpeFoXRi8YNfe4281YDxNKgYmdnXs",
+    "status": "minted",
+    "mystery_revealed": false,
+    "reveal_date": "2026-03-26T19:41:56.654652",
+    "network": "devnet"
+  },
+  {
+    "mint_address": "3mtBvfEL6vr48D7k3KjbYTdPdJEXvUsdJd3rCP2hLiXe",
+    "owner": "HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ",
+    "minted_by": "Wd1GGSZQsdosW9qpeFoXRi8YNfe4281YDxNKgYmdnXs",
+    "metadata_uri": "https://ipfs.io/ipfs/90ea030db8f4d79da7eab61e928c24ec",
+    "nft_type": "epic_mystery",
+    "rarity": "epic_mystery",
+    "seasonal_theme": "flower",
+    "transaction_signature": "33txYGAnCd35H5tbQ8DDM5gtqWfqyPwXjPZTR4u5pUxX52nJysNAwAPiNN19N6Z4am3SgWFpnr9Ns2zJ35yCkUHo",
+    "amount_paid": 0.01,
+    "minted_at": "2026-03-19T20:20:42.323383",
+    "minter": "Wd1GGSZQsdosW9qpeFoXRi8YNfe4281YDxNKgYmdnXs",
+    "status": "minted",
+    "mystery_revealed": false,
+    "reveal_date": "2026-03-26T20:20:42.322202",
+    "network": "devnet"
   }
 ]

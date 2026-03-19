@@ -712,6 +712,40 @@ class NFTMinter:
             logger.error("invalid wallet address %s", address)
         return valid
 
+
+async def mint_nft(wallet: str, amount_paid: float, transaction_signature: str) -> Optional[Dict[str, Any]]:
+    """Mint an NFT using transaction history and store record."""
+    # determine nth purchases from central transaction table
+    transaction_count = 0
+    try:
+        from database.db import get_connection
+        with get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM transactions WHERE wallet = ?", (wallet.strip(),))
+            row = cur.fetchone()
+            transaction_count = int(row[0] if row else 0)
+    except Exception as e:
+        logger.warning("failed to query transaction_count for %s: %s", wallet, e)
+        transaction_count = 0
+
+    try:
+        rarity = get_nft_rarity(transaction_count)
+    except Exception as e:
+        logger.warning("get_nft_rarity failed: %s", e)
+        rarity = "common_mystery"
+
+    minter = NFTMinter()
+    minter.load_or_create_minter_keypair()
+    # use rarity from history
+    nft_record = await minter.mint_mystery_nft(
+        user_wallet=wallet,
+        transaction_signature=transaction_signature,
+        amount_paid=amount_paid,
+        nft_type=rarity,
+    )
+    return nft_record
+
+
     async def verify_transaction(self, signature: str, payer: str, amount: float) -> bool:
         """Convenience wrapper around :class:`TransactionVerifier`."""
         return await self.tx_verifier.verify(signature, payer, amount)

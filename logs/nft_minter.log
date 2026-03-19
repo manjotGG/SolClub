@@ -167,3 +167,11 @@ nft_minting.nft_minter.TransactionVerificationError: rpc failure
 2026-03-19 19:29:48,406 INFO     loyalty points updated for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ: +10 (common_mystery)
 2026-03-19 19:29:48,406 INFO     minted mystery nft 79vYvDc5hYZY7UPNtE2bLfvcMswsKs3gntpaoBNRkan5 for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ tx=main_mint_41524
 2026-03-19 19:29:48,406 INFO     mint success wallet=HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ rarity=common_mystery time=2026-03-19T19:29:48.406261
+2026-03-19 19:41:56,653 INFO     demo mode active, skipping verification for demo_tx_001
+2026-03-19 19:41:56,655 INFO     saved metadata https://ipfs.io/ipfs/912fa96d431586ffdca8bd6483c9f9cd
+2026-03-19 19:41:56,659 INFO     loyalty points updated for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ: +25 (rare_mystery)
+2026-03-19 19:41:56,659 INFO     minted mystery nft 4x21nXTLBmPWXLVCaTXBJXakiVq8baYA6ZkUZprKTtSA for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ tx=demo_tx_001
+2026-03-19 20:20:42,321 INFO     demo mode active, skipping verification for 33txYGAnCd35H5tbQ8DDM5gtqWfqyPwXjPZTR4u5pUxX52nJysNAwAPiNN19N6Z4am3SgWFpnr9Ns2zJ35yCkUHo
+2026-03-19 20:20:42,323 INFO     saved metadata https://ipfs.io/ipfs/90ea030db8f4d79da7eab61e928c24ec
+2026-03-19 20:20:42,326 INFO     loyalty points updated for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ: +50 (epic_mystery)
+2026-03-19 20:20:42,326 INFO     minted mystery nft 3mtBvfEL6vr48D7k3KjbYTdPdJEXvUsdJd3rCP2hLiXe for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ tx=33txYGAnCd35H5tbQ8DDM5gtqWfqyPwXjPZTR4u5pUxX52nJysNAwAPiNN19N6Z4am3SgWFpnr9Ns2zJ35yCkUHo

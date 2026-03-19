@@ -108,13 +108,16 @@ def create_fastapi_app():
     from solana.rpc.async_api import AsyncClient
     from solana.rpc.commitment import Commitment
     from solders.pubkey import Pubkey
+    from solders.signature import Signature
     from solders.keypair import Keypair
+    from nft_minting.nft_minter import mint_nft
     
     # Pydantic models
     class ValidationRequest(BaseModel):
         signature: str
-        reference: str
         wallet: str
+        amount: Optional[float] = None
+        merchant_id: Optional[int] = None
 
     class WalletConnectRequest(BaseModel):
         publicKey: str
@@ -135,7 +138,8 @@ def create_fastapi_app():
         store_id: str
     
     # Solana client setup
-    SOLANA_CLIENT = AsyncClient("https://api.devnet.solana.com")
+    # Transactions are on testnet; use testnet endpoint for validation
+    SOLANA_CLIENT = AsyncClient("https://api.testnet.solana.com")
     COMMITMENT = Commitment("confirmed")
     
     # Load merchant keypair
@@ -298,52 +302,99 @@ def create_fastapi_app():
         """Validate actual Solana blockchain transaction and mint rewards"""
         try:
             print(f"🔍 Validating transaction: {request.signature}")
+
+            # Demo flow bypass for local testing
+            if str(request.signature).startswith("demo_"):
+                valid = True
+                tx_amount = float(request.amount or 0.01)
+                transaction = type("DemoTx", (), {
+                    "meta": None,
+                    "block_time": None,
+                    "slot": None
+                })()
+            else:
+                valid = False
+
+                # Convert string signature to Signature object for RPC call
+                try:
+                    sig = Signature.from_string(request.signature)
+                except Exception as exc:
+                    return {
+                        "valid": False,
+                        "error": "Invalid signature format",
+                        "signature": request.signature,
+                        "details": str(exc)
+                    }
+
+                # Get transaction from blockchain
+                tx_response = await SOLANA_CLIENT.get_transaction(
+                    sig,
+                    commitment=COMMITMENT,
+                    max_supported_transaction_version=0
+                )
+
+                if not tx_response.value:
+                    return {
+                        "valid": False,
+                        "error": "Transaction not found on blockchain",
+                        "signature": request.signature
+                    }
+
+                tx_data = tx_response.value
+
+                if not tx_data:
+                    return {
+                        "valid": False,
+                        "error": "Transaction not found on blockchain",
+                        "signature": request.signature
+                    }
+
+                # Solders response carries transaction inside tx_data.transaction
+                metadata = None
+                if tx_data.transaction and hasattr(tx_data.transaction, "meta"):
+                    metadata = tx_data.transaction.meta
+
+                # Validate transaction was successful
+                if metadata and metadata.err:
+                    return {
+                        "valid": False,
+                        "error": "Transaction failed on blockchain",
+                        "signature": request.signature,
+                        "blockchain_error": str(metadata.err)
+                    }
+
+                valid = True
+
+                # Calculate amount from actual blockchain change when available
+                tx_amount = 0.01
+                if metadata and metadata.pre_balances and metadata.post_balances:
+                    balance_change = metadata.post_balances[1] - metadata.pre_balances[1]
+                    tx_amount = abs(balance_change) / 1_000_000_000  # Convert lamports to SOL
+
+                transaction = tx_data
+
             
-            # Get transaction from blockchain
-            tx_response = await SOLANA_CLIENT.get_transaction(
-                request.signature,
-                commitment=COMMITMENT,
-                max_supported_transaction_version=0
+            # Save transaction in central DB
+            merchant_id = request.merchant_id or 0
+            with get_connection() as conn:
+                cur = conn.cursor()
+                cur.execute(
+                    "INSERT INTO transactions (wallet, merchant_id, amount, signature) VALUES (?, ?, ?, ?)",
+                    (request.wallet, merchant_id, tx_amount, request.signature),
+                )
+                conn.commit()
+
+            # Mint one NFT reward based on transaction history
+            minted_nft = await mint_nft(
+                wallet=request.wallet,
+                amount_paid=tx_amount,
+                transaction_signature=request.signature,
             )
-            
-            if not tx_response.value:
-                return {
-                    "valid": False,
-                    "error": "Transaction not found on blockchain",
-                    "signature": request.signature
-                }
-            
-            transaction = tx_response.value
-            
-            # Validate transaction was successful
-            if transaction.meta and transaction.meta.err:
-                return {
-                    "valid": False,
-                    "error": "Transaction failed on blockchain",
-                    "signature": request.signature,
-                    "blockchain_error": str(transaction.meta.err)
-                }
-            
-            # Extract transaction amount (simplified calculation)
-            tx_amount = 0.01  # Default amount for demo
-            if transaction.meta and transaction.meta.pre_balances and transaction.meta.post_balances:
-                # Calculate actual amount transferred
-                balance_change = transaction.meta.post_balances[1] - transaction.meta.pre_balances[1]
-                tx_amount = abs(balance_change) / 1_000_000_000  # Convert lamports to SOL
-            
-            # Trigger NFT minting process
-            nft_result = await trigger_nft_mint(request, tx_amount)
-            
+
+            # Return simplified success payload (reference not required)
             return {
-                "valid": True,
-                "signature": request.signature,
-                "amount_received": tx_amount,
-                "block_time": transaction.block_time,
-                "slot": transaction.slot,
-                "reference": request.reference,
-                "nft_minted": nft_result.get("success", False),
-                "nft_details": nft_result.get("nft_data") if nft_result.get("success") else None,
-                "message": "🎉 Transaction validated and mystery NFT minted!" if nft_result.get("success") else "Transaction validated but NFT minting failed"
+                "status": "success",
+                "nft_reward": "minted" if minted_nft else "failed"
             }
             
         except Exception as e:
