@@ -246,7 +246,117 @@ def create_fastapi_app():
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    
+
+    async def transaction_watcher():
+        """Background task to detect and process new merchant transactions."""
+        while True:
+            print("🔄 Checking for new transactions...")
+
+            try:
+                if MERCHANT_WALLET is None:
+                    print("⚠️ Merchant wallet not configured, skipping check")
+                    await asyncio.sleep(10)
+                    continue
+
+                signatures_resp = await SOLANA_CLIENT.get_signatures_for_address(
+                    MERCHANT_WALLET,
+                    limit=20,
+                )
+
+                if not signatures_resp or not signatures_resp.value:
+                    print("ℹ️ No recent signatures found")
+                    await asyncio.sleep(10)
+                    continue
+
+                for signature_info in signatures_resp.value:
+                    signature = str(signature_info.signature)
+                    print(f"➡️ Found signature: {signature}")
+
+                    # Skip already processed transactions
+                    with get_connection() as conn:
+                        cur = conn.cursor()
+                        cur.execute("SELECT 1 FROM transactions WHERE signature = ?", (signature,))
+                        if cur.fetchone():
+                            print("⏭️ Already processed, skipping")
+                            continue
+
+                    print("🆕 New transaction detected")
+                    try:
+                        sig_obj = Signature.from_string(signature)
+                    except Exception as exc:
+                        print(f"❌ Invalid signature format {signature}: {exc}")
+                        continue
+
+                    tx_resp = await SOLANA_CLIENT.get_transaction(
+                        sig_obj,
+                        commitment=COMMITMENT,
+                        max_supported_transaction_version=0,
+                    )
+
+                    if not tx_resp or not tx_resp.value:
+                        print("❌ Transaction not found")
+                        continue
+
+                    tx_data = tx_resp.value
+                    metadata = None
+                    if tx_data.transaction and hasattr(tx_data.transaction, "meta"):
+                        metadata = tx_data.transaction.meta
+
+                    if metadata and metadata.err:
+                        print(f"❌ Transaction has blockchain error: {metadata.err}")
+                        continue
+
+                    print("✅ Transaction fetched successfully")
+
+                    tx_amount = 0.01
+                    if metadata and metadata.pre_balances and metadata.post_balances:
+                        balance_change = metadata.post_balances[1] - metadata.pre_balances[1]
+                        tx_amount = abs(balance_change) / 1_000_000_000
+
+                    user_wallet = None
+                    try:
+                        account_keys = tx_data.transaction.transaction.message.account_keys
+                        if account_keys and len(account_keys) > 0:
+                            user_wallet = str(account_keys[0])
+                    except Exception as exc:
+                        print(f"⚠️ Could not extract wallet from account_keys: {exc}")
+
+                    if not user_wallet:
+                        print("⚠️ Could not determine buyer wallet from transaction; using fallback merchant wallet")
+                        user_wallet = str(MERCHANT_WALLET) if MERCHANT_WALLET else "unknown"
+
+                    print("👤 User wallet detected:", user_wallet)
+
+                    with get_connection() as conn:
+                        cur = conn.cursor()
+                        cur.execute(
+                            "INSERT INTO transactions (wallet, merchant_id, amount, signature) VALUES (?, ?, ?, ?)",
+                            (user_wallet, 0, tx_amount, signature),
+                        )
+                        conn.commit()
+
+                    print("💾 Transaction saved to DB")
+
+                    minted_nft = await mint_nft(
+                        wallet=user_wallet,
+                        amount_paid=tx_amount,
+                        transaction_signature=signature,
+                    )
+
+                    if minted_nft:
+                        print("🎁 NFT minted successfully")
+                    else:
+                        print("❌ NFT minting failed")
+
+            except Exception as exc:
+                print(f"❌ Transaction watcher error: {exc}")
+
+            await asyncio.sleep(10)
+
+    @app.on_event("startup")
+    async def start_transaction_watcher():
+        app.state.transaction_watcher = asyncio.create_task(transaction_watcher())
+
     @app.get("/")
     async def root():
         """API information and status"""

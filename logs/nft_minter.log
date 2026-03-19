@@ -175,3 +175,19 @@ nft_minting.nft_minter.TransactionVerificationError: rpc failure
 2026-03-19 20:20:42,323 INFO     saved metadata https://ipfs.io/ipfs/90ea030db8f4d79da7eab61e928c24ec
 2026-03-19 20:20:42,326 INFO     loyalty points updated for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ: +50 (epic_mystery)
 2026-03-19 20:20:42,326 INFO     minted mystery nft 3mtBvfEL6vr48D7k3KjbYTdPdJEXvUsdJd3rCP2hLiXe for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ tx=33txYGAnCd35H5tbQ8DDM5gtqWfqyPwXjPZTR4u5pUxX52nJysNAwAPiNN19N6Z4am3SgWFpnr9Ns2zJ35yCkUHo
+2026-03-19 20:35:01,362 ERROR    invalid wallet address unknown
+2026-03-19 20:35:01,363 ERROR    Mystery NFT minting failed: invalid wallet unknown
+Traceback (most recent call last):
+  File "/Users/manjotsingh/Downloads/SolClub/nft_minting/nft_minter.py", line 603, in mint_mystery_nft
+    raise WalletValidationError(f"invalid wallet {user_wallet}")
+nft_minting.nft_minter.WalletValidationError: invalid wallet unknown
+2026-03-19 20:35:58,055 ERROR    invalid wallet address unknown
+2026-03-19 20:35:58,055 ERROR    Mystery NFT minting failed: invalid wallet unknown
+Traceback (most recent call last):
+  File "/Users/manjotsingh/Downloads/SolClub/nft_minting/nft_minter.py", line 603, in mint_mystery_nft
+    raise WalletValidationError(f"invalid wallet {user_wallet}")
+nft_minting.nft_minter.WalletValidationError: invalid wallet unknown
+2026-03-19 20:42:39,581 INFO     demo mode active, skipping verification for 2mHfuWyMAdpvzKda4vnMhoif2TzSHLA3HsM6Vp3HnyPToDRj6JeXmrgrFQfWKGjfTnibvKREy54rbe1FLQF2yx33
+2026-03-19 20:42:39,582 INFO     saved metadata https://ipfs.io/ipfs/de593e405815a5a685d7d0727d6dc3ce
+2026-03-19 20:42:39,586 INFO     loyalty points updated for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ: +10 (common_mystery)
+2026-03-19 20:42:39,586 INFO     minted mystery nft Eht6qwePG2FAQpaFGwzQiZBttW9AMuyL7kyL98cJ4sR8 for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ tx=2mHfuWyMAdpvzKda4vnMhoif2TzSHLA3HsM6Vp3HnyPToDRj6JeXmrgrFQfWKGjfTnibvKREy54rbe1FLQF2yx33

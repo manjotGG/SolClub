@@ -236,5 +236,22 @@
     "mystery_revealed": false,
     "reveal_date": "2026-03-26T20:20:42.322202",
     "network": "devnet"
+  },
+  {
+    "mint_address": "Eht6qwePG2FAQpaFGwzQiZBttW9AMuyL7kyL98cJ4sR8",
+    "owner": "HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ",
+    "minted_by": "Wd1GGSZQsdosW9qpeFoXRi8YNfe4281YDxNKgYmdnXs",
+    "metadata_uri": "https://ipfs.io/ipfs/de593e405815a5a685d7d0727d6dc3ce",
+    "nft_type": "common_mystery",
+    "rarity": "common_mystery",
+    "seasonal_theme": "butterfly",
+    "transaction_signature": "2mHfuWyMAdpvzKda4vnMhoif2TzSHLA3HsM6Vp3HnyPToDRj6JeXmrgrFQfWKGjfTnibvKREy54rbe1FLQF2yx33",
+    "amount_paid": 0.01,
+    "minted_at": "2026-03-19T20:42:39.583106",
+    "minter": "Wd1GGSZQsdosW9qpeFoXRi8YNfe4281YDxNKgYmdnXs",
+    "status": "minted",
+    "mystery_revealed": false,
+    "reveal_date": "2026-03-26T20:42:39.582523",
+    "network": "devnet"
   }
 ]
