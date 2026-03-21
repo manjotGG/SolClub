@@ -195,3 +195,7 @@ nft_minting.nft_minter.WalletValidationError: invalid wallet unknown
 2026-03-19 21:27:23,733 INFO     saved metadata https://ipfs.io/ipfs/d6f11ff282b9fae776e5a2ce6e7b6083
 2026-03-19 21:27:23,736 INFO     loyalty points updated for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ: +25 (rare_mystery)
 2026-03-19 21:27:23,736 INFO     minted mystery nft 5HpXqYmAcXLBjYyA8CmauFkLWmphDimMXtARizJkH5Vg for HgDAgAJPPHCrazgFcGjutzy1dPKtVtUWu3StVd2jVjrZ tx=4w7UM36cGDcd87Hpkb8g8wJJCtWgMtybvndMCwdj1AwkkPGmo3V9yzJTC6byS4QAM11cY1gih1PWwswt6PL4dqt9
+2026-03-19 21:37:32,102 INFO     demo mode active, skipping verification for DGaTBke4ciFYmmipUbC2i1oHB4DMVeVYw6PdGWCgasFDtap2be42sTN2kjn9SWJBXePNjzoH7TDX923NkfPmF97
+2026-03-19 21:37:32,104 INFO     saved metadata https://ipfs.io/ipfs/b380a3adbe7029b0108cc6792cbc9721
+2026-03-19 21:37:32,107 INFO     loyalty points updated for GruZpDkmepvQqVQnXB4gNggjiv9QYSxqTXuHPRft571b: +10 (common_mystery)
+2026-03-19 21:37:32,107 INFO     minted mystery nft 5oXnrBXYXaVAxioK8QtoXuPkxzE6tk19B2Xngg8koS1v for GruZpDkmepvQqVQnXB4gNggjiv9QYSxqTXuHPRft571b tx=DGaTBke4ciFYmmipUbC2i1oHB4DMVeVYw6PdGWCgasFDtap2be42sTN2kjn9SWJBXePNjzoH7TDX923NkfPmF97
