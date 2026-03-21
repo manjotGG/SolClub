@@ -1,1 +1,11 @@
 venv/
+solclub.db
+loyalty.db
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+logs/
+*.log
+
