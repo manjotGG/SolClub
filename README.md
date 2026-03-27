@@ -1,4 +1,4 @@
-# 🎯 REAL SolClub - Production Solana Loyalty Program
+# 🎯  SolClub - Production Solana Loyalty Program
 
 **A REAL, WORKING loyalty program built on Solana with actual blockchain transactions, wallet integrations, and NFT rewards.**
 

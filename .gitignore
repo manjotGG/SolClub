@@ -9,3 +9,6 @@ __pycache__/
 logs/
 *.log
 node_modules/
+data/nft_minter_keypair.json
+*.json
+logs/

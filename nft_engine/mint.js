@@ -1,16 +1,37 @@
 import fs from 'fs';
 import path from 'path';
-import { clusterApiUrl, Keypair, Connection } from '@solana/web3.js';
+import { fileURLToPath } from 'url';
+import { clusterApiUrl, Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { Metaplex, keypairIdentity } from '@metaplex-foundation/js';
 
-async function mintNft() {
-  try {
-    console.log('🚀 Minting NFT...');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const KEYPAIR_PATH = path.join(__dirname, '../data/nft_minter_keypair.json');
 
-    const keypairPath = path.resolve(new URL('../data/nft_minter_keypair.json', import.meta.url));
-    const raw = fs.readFileSync(keypairPath, 'utf8');
-    const keypairArray = JSON.parse(raw);
-    const walletKeypair = Keypair.fromSecretKey(Uint8Array.from(keypairArray));
+function loadKeypairFromFile(filePath) {
+  const raw = fs.readFileSync(filePath, 'utf8');
+  const secretKey = JSON.parse(raw);
+
+  if (!Array.isArray(secretKey) || secretKey.length === 0) {
+    throw new Error('Invalid keypair file format: expected non-empty array');
+  }
+
+  return Keypair.fromSecretKey(Uint8Array.from(secretKey));
+}
+
+export async function mintNftToWallet(recipientWalletAddress) {
+  try {
+    console.log('FUNCTION CALLED');
+    console.log('Minting NFT...');
+
+    if (!recipientWalletAddress) {
+      throw new Error('recipientWalletAddress argument is required');
+    }
+
+    const recipientPublicKey = new PublicKey(recipientWalletAddress);
+    const walletKeypair = loadKeypairFromFile(KEYPAIR_PATH);
+
+    console.log("Minter wallet:", walletKeypair.publicKey.toString());
 
     const connection = new Connection(clusterApiUrl('devnet'));
     const metaplex = Metaplex.make(connection).use(keypairIdentity(walletKeypair));
@@ -19,14 +40,34 @@ async function mintNft() {
       uri: 'https://arweave.net/123',
       name: 'SolClub NFT',
       sellerFeeBasisPoints: 0,
+      tokenOwner: recipientPublicKey,
     });
 
-    console.log('✅ NFT Minted!');
+    console.log('NFT Minted');
     console.log('Mint address:', nft.address.toString());
+
+    return nft;
   } catch (error) {
-    console.error('❌ Minting failed:', error);
-    process.exitCode = 1;
+    console.error('Minting failed:', error);
+    throw error;
   }
 }
 
-mintNft();
+const recipientArg = process.argv[2];
+
+(async () => {
+  console.log('FILE STARTED');
+  if (!recipientArg) {
+    console.log('No recipient public key passed. To test call `node mint.js <recipientPublicKey>`.');
+    return;
+  }
+
+  try {
+    await mintNftToWallet(recipientArg);
+  } catch (error) {
+    console.error('Error in IIFE execution:', error);
+    process.exitCode = 1;
+  }
+})();
+
+
