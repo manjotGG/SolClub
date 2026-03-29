@@ -21,7 +21,6 @@ function loadKeypairFromFile(filePath) {
 
 export async function mintNftToWallet(recipientWalletAddress) {
   try {
-    console.log('FUNCTION CALLED');
     console.log('Minting NFT...');
 
     if (!recipientWalletAddress) {
@@ -31,9 +30,10 @@ export async function mintNftToWallet(recipientWalletAddress) {
     const recipientPublicKey = new PublicKey(recipientWalletAddress);
     const walletKeypair = loadKeypairFromFile(KEYPAIR_PATH);
 
-    console.log("Minter wallet:", walletKeypair.publicKey.toString());
+    console.log('Minter wallet:', walletKeypair.publicKey.toString());
+    console.log('Recipient wallet:', recipientPublicKey.toString());
 
-    const connection = new Connection(clusterApiUrl('devnet'));
+    const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
     const metaplex = Metaplex.make(connection).use(keypairIdentity(walletKeypair));
 
     const { nft } = await metaplex.nfts().create({
@@ -43,8 +43,8 @@ export async function mintNftToWallet(recipientWalletAddress) {
       tokenOwner: recipientPublicKey,
     });
 
-    console.log('NFT Minted');
     console.log('Mint address:', nft.address.toString());
+    console.log('NFT Minted successfully');
 
     return nft;
   } catch (error) {
