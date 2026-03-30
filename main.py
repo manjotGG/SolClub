@@ -196,6 +196,53 @@ def create_fastapi_app():
                 return json.load(f)
         return []
     
+    async def trigger_real_nft_mint(wallet: str, rarity: str, signature: str):
+        """Trigger real NFT minting using Node.js Metaplex script.
+        
+        This runs alongside the existing Python-based NFT system.
+        Does not replace or interfere with existing functionality.
+        """
+        try:
+            print("🚀 Triggering real NFT mint...")
+            print(f"   Wallet: {wallet}")
+            print(f"   Rarity: {rarity}")
+            print(f"   Signature: {signature}")
+            
+            # 3-second delay for devnet stability
+            print("⏳ Waiting for devnet stability...")
+            await asyncio.sleep(3)
+            
+            # Call Node.js minting script
+            import subprocess
+            
+            print("🔨 Calling Node.js mint script...")
+            result = subprocess.run(
+                ["node", "nft_engine/mint.js", wallet, rarity],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=BASE_DIR  # Run from project root
+            )
+            
+            if result.returncode == 0:
+                print("✅ Real NFT minted successfully!")
+                print(f"   Output: {result.stdout.strip()}")
+                return True
+            else:
+                print("❌ Real NFT minting failed!")
+                print(f"   Error: {result.stderr.strip()}")
+                return False
+                
+        except subprocess.TimeoutExpired:
+            print("❌ Real NFT minting timeout (30s)")
+            return False
+        except FileNotFoundError:
+            print("❌ Node.js or mint.js not found - check installation")
+            return False
+        except Exception as e:
+            print(f"❌ Real NFT minting error: {e}")
+            return False
+    
     async def trigger_nft_mint(validation_request, amount_received):
         """Trigger NFT minting based on validated transaction"""
         try:
@@ -249,6 +296,9 @@ def create_fastapi_app():
 
     async def transaction_watcher():
         """Background task to detect and process new merchant transactions."""
+        # Track processed transactions for real NFT minting (duplicate prevention)
+        minted_signatures = set()
+        
         while True:
             print("🔄 Checking for new transactions...")
 
@@ -337,6 +387,7 @@ def create_fastapi_app():
 
                     print("💾 Transaction saved to DB")
 
+                    # EXISTING: Python-based NFT minting (DB storage)
                     minted_nft = await mint_nft(
                         wallet=user_wallet,
                         amount_paid=tx_amount,
@@ -344,9 +395,58 @@ def create_fastapi_app():
                     )
 
                     if minted_nft:
-                        print("🎁 NFT minted successfully")
+                        print("🎁 DB NFT record created successfully")
                     else:
-                        print("❌ NFT minting failed")
+                        print("❌ DB NFT record creation failed")
+
+                    # NEW: Real blockchain NFT minting (Node.js + Metaplex)
+                    # Only proceed if we haven't already minted for this transaction
+                    if signature not in minted_signatures:
+                        try:
+                            # Get user's transaction count for rarity calculation
+                            with get_connection() as conn:
+                                cur = conn.cursor()
+                                cur.execute(
+                                    "SELECT COUNT(*) FROM transactions WHERE wallet = ?",
+                                    (user_wallet,)
+                                )
+                                result = cur.fetchone()
+                                user_tx_count = (result[0] if result else 1)
+                            
+                            # Calculate rarity using loyalty engine (same logic as mint_nft)
+                            from loyalty_engine.loyalty_engine import get_nft_rarity
+                            rarity = get_nft_rarity(user_tx_count)
+                            
+                            # Convert to metadata tier format (common, mystery, epic, legendary)
+                            rarity_mapping = {
+                                "common_mystery": "common",
+                                "rare_mystery": "mystery", 
+                                "epic_mystery": "epic",
+                                "legendary_mystery": "legendary"
+                            }
+                            metadata_rarity = rarity_mapping.get(rarity, "common")
+                            
+                            print(f"🎲 Calculated rarity: {rarity} → {metadata_rarity}")
+                            
+                            # Trigger real NFT minting
+                            real_mint_success = await trigger_real_nft_mint(
+                                wallet=user_wallet,
+                                rarity=metadata_rarity,
+                                signature=signature
+                            )
+                            
+                            if real_mint_success:
+                                # Mark as processed to prevent duplicates
+                                minted_signatures.add(signature)
+                                print("✅ Real NFT minting completed")
+                            else:
+                                print("⚠️ Real NFT minting failed, will retry on next detection")
+                                
+                        except Exception as real_mint_error:
+                            print(f"⚠️ Real NFT minting setup failed: {real_mint_error}")
+                            print("   Continuing with transaction processing...")
+                    else:
+                        print("⏭️ Real NFT already minted for this transaction")
 
             except Exception as exc:
                 print(f"❌ Transaction watcher error: {exc}")
