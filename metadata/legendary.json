@@ -1,0 +1,10 @@
+{
+  "name": "Solclub Legendary Reward",
+  "symbol": "SOLCLUB",
+  "description": "Ultra rare exclusive reward",
+  "image": "https://raw.githubusercontent.com/manjotGG/SolClub/ce5411fb953e5f4c1cf673954c21d7b72ca6c080/assets/legendary.png",
+  "attributes": [
+    { "trait_type": "rarity", "value": "Legendary" },
+    { "trait_type": "reward", "value": "Free Premium Item" }
+  ]
+}

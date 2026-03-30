@@ -1,0 +1,10 @@
+{
+  "name": "Solclub Mystery Box",
+  "symbol": "SOLCLUB",
+  "description": "Mystery reward NFT (reveals later)",
+  "image": "https://raw.githubusercontent.com/manjotGG/SolClub/ce5411fb953e5f4c1cf673954c21d7b72ca6c080/assets/mystery.png",
+  "attributes": [
+    { "trait_type": "rarity", "value": "Mystery" },
+    { "trait_type": "reward", "value": "Unknown" }
+  ]
+}

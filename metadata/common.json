@@ -1,0 +1,11 @@
+{
+  "name": "Solclub Common Reward",
+  "symbol": "SOLCLUB",
+  "description": "Basic loyalty reward NFT",
+  "image": "https://raw.githubusercontent.com/manjotGG/SolClub/ce5411fb953e5f4c1cf673954c21d7b72ca6c080/assets/common.png",
+  "attributes": [
+    { "trait_type": "rarity", "value": "Common" },
+    { "trait_type": "reward", "value": "5% Discount" }
+  ]
+}
+

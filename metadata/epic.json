@@ -1,0 +1,10 @@
+{
+  "name": "Solclub Epic Reward",
+  "symbol": "SOLCLUB",
+  "description": "High-value reward NFT",
+  "image": "https://raw.githubusercontent.com/manjotGG/SolClub/ce5411fb953e5f4c1cf673954c21d7b72ca6c080/assets/epic.png",
+  "attributes": [
+    { "trait_type": "rarity", "value": "Epic" },
+    { "trait_type": "reward", "value": "Free Coffee" }
+  ]
+}
