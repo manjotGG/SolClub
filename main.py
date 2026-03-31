@@ -1049,6 +1049,7 @@ async def generate_qr():
             print("2. Bookstore (0.05 SOL)")
             print("3. Electronics (0.1 SOL)")
             print("4. Custom amount")
+            print("5. Unlimited / Any Amount QR")
             print("0. Exit")
             
             choice = input("\nSelect option: ").strip()
@@ -1066,6 +1067,10 @@ async def generate_qr():
                 store = input("Store ID: ")
                 product = input("Product name: ")
                 await generate_store_qr(generator, amount, store, product)
+            elif choice == "5":
+                store = input("Store ID: ")
+                product = input("Product name: ")
+                await generate_dynamic_qr(generator, store, product)
             else:
                 print("Invalid option")
         
@@ -1073,6 +1078,23 @@ async def generate_qr():
         
     except Exception as e:
         print(f"❌ QR generation failed: {e}")
+
+async def generate_dynamic_qr(generator, store_id: str, product: str):
+    """Generate a dynamic Solana Pay QR that lets the user enter the amount manually."""
+    try:
+        print(f"\n📸 Generating dynamic QR for: {product}")
+        solana_url, reference = generator.create_solana_pay_url(
+            store_id=store_id,
+            product_name=product
+        )
+        qr_filename = f"main_{store_id}_dynamic.png"
+        qr_path = generator.generate_qr_code(solana_url, qr_filename, "main")
+        print("✅ Dynamic QR generated (user will enter amount in wallet)")
+        print(f"✅ QR Code saved: {qr_path}")
+        print(f"🔗 Solana Pay URL: {solana_url}")
+        print(f"📱 Scan with any Solana wallet!")
+    except Exception as e:
+        print(f"❌ Failed to generate dynamic QR: {e}")
 
 async def generate_store_qr(generator, amount: float, store_id: str, product: str):
     """Generate QR code for a specific store"""

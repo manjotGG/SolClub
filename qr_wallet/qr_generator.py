@@ -86,9 +86,8 @@ class SolanaPayQRGenerator:
         """Create a REAL Solana Pay URL that works with actual wallets"""
         reference = self.generate_reference_key()
         
-        # Solana Pay specification URL
+        # Solana Pay specification URL without fixed amount
         params = {
-            'amount': str(amount_sol),
             'reference': reference,
             'label': f"SolClub - {product_name}",
             'message': f"Complete purchase at {store_id} to earn mystery NFTs!",

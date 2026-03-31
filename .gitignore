@@ -11,5 +11,10 @@ logs/
 node_modules/
 nft_minter_keypair.json
 real_nft_records.json
+transactions_metadata.json
 logs/
 *.json
+__pycache__/
+*.pyc
+logs/
+data/*.json
