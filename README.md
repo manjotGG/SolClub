@@ -13,6 +13,35 @@
 ✅ **Mystery NFT System** - Time-based reveals with rarity mechanics  
 ✅ **Seasonal Collections** - Limited-time NFT drops with themes  
 
+## 🖥️ Flask Frontend (New)
+
+The interactive dashboard UI now lives as real HTML/CSS/JS files served by Flask.
+
+```bash
+# 1) Install dependencies
+pip install -r requirements.txt
+
+# 2) Run the existing API/backend engine (FastAPI)
+python main.py server
+
+# 3) In another terminal, run the frontend server (Flask)
+python frontend/run_frontend.py
+```
+
+Open `http://localhost:5050` for the dashboard.
+
+Windows one-command launcher:
+
+```bash
+run_full_stack.bat
+```
+
+Frontend files:
+- `frontend/templates/index.html`
+- `frontend/static/css/app.css`
+- `frontend/static/js/app.js`
+- `frontend/flask_app.py`
+
 ## 🏗️ Project Architecture
 
 ```

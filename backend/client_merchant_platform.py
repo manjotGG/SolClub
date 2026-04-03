@@ -9,7 +9,6 @@ from urllib.parse import urlencode
 import requests
 from cryptography.fernet import Fernet
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
@@ -134,109 +133,12 @@ def _verify_wallet_signature(wallet_address: str, nonce: str, signature: str) ->
     return bool(sig.verify(pubkey, message))
 
 
-@router.get("/dashboard", response_class=HTMLResponse)
+@router.get("/dashboard")
 async def platform_dashboard():
-    return """
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset='utf-8'/>
-  <meta name='viewport' content='width=device-width, initial-scale=1'/>
-  <title>SolClub Platform</title>
-  <style>
-    :root {
-      --bg: #f5f3ef;
-      --ink: #1f1e1b;
-      --muted: #66625a;
-      --accent: #0f766e;
-      --accent-2: #ea580c;
-      --panel: #fffdfa;
-      --line: #ded6ca;
-    }
-    body { margin: 0; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; background: radial-gradient(circle at 10% 10%, #fff7e8, var(--bg)); color: var(--ink); }
-    .wrap { max-width: 1100px; margin: 0 auto; padding: 28px; }
-    .hero { background: linear-gradient(120deg, #fff, #f3f6f4); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
-    .hero h1 { margin: 0 0 8px 0; letter-spacing: 0.6px; }
-    .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
-    .chip { background: #f8efe3; border: 1px solid #eccfb0; color: #7a4615; border-radius: 999px; padding: 4px 10px; font-size: 12px; }
-    .grid { margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
-    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
-    .card h3 { margin: 0 0 8px 0; font-size: 16px; }
-    .row { display: flex; gap: 8px; margin: 8px 0; }
-    input, button, select, textarea { border: 1px solid var(--line); border-radius: 10px; padding: 10px; width: 100%; font-size: 13px; }
-    button { background: var(--accent); color: #fff; border: none; cursor: pointer; font-weight: bold; }
-    button.secondary { background: var(--accent-2); }
-    pre { background: #121212; color: #f3f3f3; padding: 12px; border-radius: 10px; overflow-x: auto; min-height: 110px; }
-    .muted { color: var(--muted); font-size: 12px; }
-  </style>
-</head>
-<body>
-  <div class='wrap'>
-    <div class='hero'>
-      <h1>SolClub Client + Merchant Platform</h1>
-      <div class='muted'>Interactive dashboard for auth, wallet ops, cashback config, and loyalty visibility.</div>
-      <div class='chips'>
-        <span class='chip'>Google OAuth</span>
-        <span class='chip'>Wallet Authentication</span>
-        <span class='chip'>Managed Wallets</span>
-        <span class='chip'>Cashback Pools</span>
-      </div>
-    </div>
-
-    <div class='grid'>
-      <div class='card'>
-        <h3>Client Reward Preview</h3>
-        <input id='wallet' placeholder='Wallet address'/>
-        <div class='row'>
-          <input id='merchantId' placeholder='Merchant ID' value='1'/>
-          <input id='amount' placeholder='Amount' value='0.1'/>
-        </div>
-        <button onclick='preview()'>Preview Reward</button>
-      </div>
-
-      <div class='card'>
-        <h3>Managed Wallet</h3>
-        <button class='secondary' onclick='createWallet()'>Auto Create Wallet</button>
-        <div class='muted'>Requires WALLET_ENCRYPTION_KEY in environment.</div>
-      </div>
-
-      <div class='card'>
-        <h3>Merchant Analytics</h3>
-        <input id='merchantAnalyticsId' placeholder='Merchant ID' value='1'/>
-        <button onclick='analytics()'>Load Analytics</button>
-      </div>
-    </div>
-
-    <div class='card' style='margin-top:12px;'>
-      <h3>Output</h3>
-      <pre id='out'>{"status":"ready"}</pre>
-    </div>
-  </div>
-
-<script>
-async function show(res){
-  document.getElementById('out').textContent = JSON.stringify(res, null, 2)
-}
-async function preview(){
-  const w = document.getElementById('wallet').value
-  const m = document.getElementById('merchantId').value
-  const a = document.getElementById('amount').value
-  const r = await fetch(`/platform/client/${w}/reward-preview?merchant_id=${m}&amount=${a}`)
-  show(await r.json())
-}
-async function createWallet(){
-  const r = await fetch('/platform/wallet/auto-create', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({})})
-  show(await r.json())
-}
-async function analytics(){
-  const m = document.getElementById('merchantAnalyticsId').value
-  const r = await fetch(`/platform/merchant/${m}/analytics`)
-  show(await r.json())
-}
-</script>
-</body>
-</html>
-    """
+        return {
+                "message": "Frontend moved to Flask UI.",
+                "flask_ui_url": os.getenv("FLASK_UI_URL", "http://localhost:5050/"),
+        }
 
 
 @router.get("/auth/google/start")
