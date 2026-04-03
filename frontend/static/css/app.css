@@ -243,6 +243,14 @@ button:hover { transform: translateY(-1px); }
   border: 1px solid rgba(59, 130, 246, 0.25);
 }
 
+canvas {
+  width: 100% !important;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 8px;
+}
+
 .timeline, .stack { display: grid; gap: 10px; margin-top: 12px; }
 
 .timeline-item, .stack-item {

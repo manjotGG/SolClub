@@ -48,4 +48,21 @@
   <h2>Next Reward Unlock</h2>
   <div class="unlock-card" id="unlockCard">Preview the next payment reward to trigger the glow.</div>
 </section>
+
+<section class="panel glass span-2">
+  <h2>Reward Trend (Area)</h2>
+  <canvas id="clientAreaChart" height="120"></canvas>
+</section>
+
+<section class="panel glass">
+  <h2>Payment Methods</h2>
+  <label>Store ID
+    <input id="storeId" type="text" value="web_store" />
+  </label>
+  <div class="actions wrap-actions">
+    <button id="generatePaymentRequest">Generate Payment Request</button>
+    <button id="openSolanaPayRequest" class="secondary">Open Solana Pay Handler</button>
+  </div>
+  <pre id="paymentOut" class="output">{}</pre>
+</section>
 {% endblock %}

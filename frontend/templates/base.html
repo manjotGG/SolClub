@@ -46,6 +46,7 @@
         </div>
         <div class="topbar-right">
           <div class="pill">Wallet: Ready</div>
+          <div class="pill" id="sessionRolePill">Role: {{ role or 'client' }}</div>
           <div class="pill secondary">Network: testnet</div>
           <div class="pill">Notifications</div>
         </div>
@@ -56,6 +57,7 @@
       </main>
     </section>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="/ui/static/js/ui-pages.js"></script>
 </body>
 </html>

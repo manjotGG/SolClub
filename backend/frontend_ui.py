@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional
 from urllib.parse import urlencode
 
 from cryptography.fernet import Fernet
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from solders.keypair import Keypair
@@ -342,6 +342,21 @@ async def ui_google_start(role: str = Query(default="client")):
         "prompt": "consent",
     }
     return {"state": state, "auth_url": f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"}
+
+
+@router.post("/api/auth/session-role")
+async def ui_set_session_role(payload: Dict[str, Any], response: Response):
+    role = str(payload.get("role", "client")).strip().lower()
+    if role not in {"client", "merchant"}:
+        raise HTTPException(status_code=400, detail="role must be either 'client' or 'merchant'")
+    response.set_cookie("solclub_role", role, max_age=60 * 60 * 12, samesite="lax", secure=False)
+    return {"success": True, "role": role}
+
+
+@router.get("/api/auth/session")
+async def ui_get_session_role(request: Request):
+    role = (request.headers.get("x-solclub-role") or request.cookies.get("solclub_role") or "client").strip().lower()
+    return {"role": role}
 
 
 @router.get("/events")

@@ -93,7 +93,8 @@ def start_server():
 
 def create_fastapi_app():
     """Create and configure the FastAPI application with full blockchain integration"""
-    from fastapi import FastAPI, HTTPException, Query
+    from fastapi import FastAPI, HTTPException, Query, Request
+    from fastapi.responses import JSONResponse, RedirectResponse
     from fastapi.staticfiles import StaticFiles
     from fastapi.middleware.gzip import GZipMiddleware
     from fastapi.middleware.cors import CORSMiddleware
@@ -349,6 +350,29 @@ def create_fastapi_app():
         app.include_router(frontend_ui_router)
     except Exception as exc:
         print(f"⚠️ Frontend UI router not loaded: {exc}")
+
+    @app.middleware("http")
+    async def merchant_route_guard(request: Request, call_next):
+        path = request.url.path or ""
+        is_merchant_page = path.startswith("/ui/merchant")
+        is_merchant_api = path.startswith("/ui/api/merchant")
+
+        if is_merchant_page or is_merchant_api:
+            role = (
+                request.headers.get("x-solclub-role")
+                or request.cookies.get("solclub_role")
+                or "client"
+            ).strip().lower()
+
+            if role != "merchant":
+                if is_merchant_api:
+                    return JSONResponse(
+                        status_code=403,
+                        content={"detail": "Merchant authentication required for this route."},
+                    )
+                return RedirectResponse(url="/ui/auth?required=merchant", status_code=307)
+
+        return await call_next(request)
 
     async def transaction_watcher():
         """Background task to detect and process new merchant transactions."""

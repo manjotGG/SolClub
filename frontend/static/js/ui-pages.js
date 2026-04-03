@@ -1,11 +1,36 @@
 const $ = (id) => document.getElementById(id);
 const pretty = (v) => JSON.stringify(v, null, 2);
+const charts = {};
+
+function currentRole() {
+  return localStorage.getItem("solclub_role") || document.body.dataset.role || "client";
+}
+
+function roleHeaders(extra = {}) {
+  return { "x-solclub-role": currentRole(), ...extra };
+}
+
+function setRolePill() {
+  const el = $("sessionRolePill");
+  if (el) el.textContent = `Role: ${currentRole()}`;
+}
 
 async function getJson(url, options = {}) {
-  const res = await fetch(url, options);
+  const mergedHeaders = {
+    ...(options.headers || {}),
+    "x-solclub-role": (options.headers && options.headers["x-solclub-role"]) || currentRole(),
+  };
+  const res = await fetch(url, { ...options, headers: mergedHeaders });
   const data = await res.json();
   if (!res.ok) throw new Error(pretty(data));
   return data;
+}
+
+function setChart(id, config) {
+  const canvas = $(id);
+  if (!canvas || typeof Chart === "undefined") return;
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(canvas.getContext("2d"), config);
 }
 
 function pageId() {
@@ -58,6 +83,34 @@ function initClientDashboard() {
     $("streakValue").textContent = String(Math.max(1, txCount));
     $("unlockCard").textContent = `Next payment unlock preview: ${preview.nft_rarity} NFT + ${preview.cashback_amount} SOL cashback.`;
     $("clientOutput").textContent = pretty({ snapshot, preview });
+
+    const txs = snapshot.recent_transactions || [];
+    const labels = txs.map((_, i) => `T${i + 1}`).reverse();
+    const amounts = txs.map((t) => Number(t.amount || 0)).reverse();
+    setChart("clientAreaChart", {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Spend (SOL)",
+            data: amounts,
+            fill: true,
+            borderColor: "#22d3ee",
+            backgroundColor: "rgba(34,211,238,0.18)",
+            tension: 0.35,
+          },
+        ],
+      },
+      options: {
+        animation: { duration: 650 },
+        plugins: { legend: { labels: { color: "#eaf2ff" } } },
+        scales: {
+          x: { ticks: { color: "#9eb0d1" }, grid: { color: "rgba(255,255,255,0.08)" } },
+          y: { ticks: { color: "#9eb0d1" }, grid: { color: "rgba(255,255,255,0.08)" } },
+        },
+      },
+    });
   };
 
   $("loadClientData")?.addEventListener("click", () => load().catch((e) => alert(e.message)));
@@ -67,6 +120,29 @@ function initClientDashboard() {
     if (window.__clientTimer) clearInterval(window.__clientTimer);
     if (ms > 0) {
       window.__clientTimer = setInterval(() => load().catch(() => {}), ms);
+    }
+  });
+
+  $("generatePaymentRequest")?.addEventListener("click", async () => {
+    try {
+      const wallet = $("wallet").value.trim();
+      const store = $("storeId").value.trim() || "web_store";
+      if (!wallet) return alert("Enter wallet");
+      const ref = `ui_${Date.now()}`;
+      const out = await getJson(`/transaction-request?user_wallet=${encodeURIComponent(wallet)}&store_id=${encodeURIComponent(store)}&reference=${encodeURIComponent(ref)}`);
+      $("paymentOut").textContent = pretty(out);
+    } catch (e) {
+      alert(e.message);
+    }
+  });
+
+  $("openSolanaPayRequest")?.addEventListener("click", async () => {
+    try {
+      const ref = `solana_ui_${Date.now()}`;
+      const out = await getJson(`/solana-pay-request?reference=${encodeURIComponent(ref)}&amount=0.1`);
+      $("paymentOut").textContent = pretty(out);
+    } catch (e) {
+      alert(e.message);
     }
   });
 }
@@ -227,6 +303,50 @@ function initMerchantDashboard() {
     $("mdUsers").textContent = String(analytics.unique_clients || 0);
     $("mdNfts").textContent = String((nfts.items || []).length);
     $("merchantOutput").textContent = pretty({ analytics, nft_preview: nfts.items || [] });
+
+    const dist = analytics.reward_tier_distribution || {};
+    setChart("merchantDistributionChart", {
+      type: "doughnut",
+      data: {
+        labels: Object.keys(dist),
+        datasets: [{
+          data: Object.values(dist),
+          backgroundColor: ["#a855f7", "#22d3ee", "#22c55e", "#f59e0b"],
+          borderColor: "#0b0f1a",
+          borderWidth: 2,
+        }],
+      },
+      options: {
+        animation: { duration: 650 },
+        plugins: { legend: { labels: { color: "#eaf2ff" } } },
+      },
+    });
+
+    const nftItems = nfts.items || [];
+    const labels = nftItems.slice(0, 10).map((_, i) => `N${i + 1}`);
+    const data = nftItems.slice(0, 10).map((_, i) => i + 1);
+    setChart("merchantLineChart", {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          label: "NFT Distribution Momentum",
+          data,
+          borderColor: "#22d3ee",
+          backgroundColor: "rgba(168,85,247,0.18)",
+          fill: true,
+          tension: 0.35,
+        }],
+      },
+      options: {
+        animation: { duration: 700 },
+        plugins: { legend: { labels: { color: "#eaf2ff" } } },
+        scales: {
+          x: { ticks: { color: "#9eb0d1" }, grid: { color: "rgba(255,255,255,0.08)" } },
+          y: { ticks: { color: "#9eb0d1" }, grid: { color: "rgba(255,255,255,0.08)" } },
+        },
+      },
+    });
   };
 
   $("loadMerchantData")?.addEventListener("click", () => load().catch((e) => alert(e.message)));
@@ -442,9 +562,41 @@ function initAuth() {
       alert(e.message);
     }
   });
+
+  $("setClientMode")?.addEventListener("click", async () => {
+    try {
+      const outResp = await getJson("/ui/api/auth/session-role", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...roleHeaders() },
+        body: JSON.stringify({ role: "client" }),
+      });
+      localStorage.setItem("solclub_role", outResp.role || "client");
+      setRolePill();
+      out.textContent = pretty(outResp);
+    } catch (e) {
+      alert(e.message);
+    }
+  });
+
+  $("setMerchantMode")?.addEventListener("click", async () => {
+    try {
+      const outResp = await getJson("/ui/api/auth/session-role", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...roleHeaders() },
+        body: JSON.stringify({ role: "merchant" }),
+      });
+      localStorage.setItem("solclub_role", outResp.role || "merchant");
+      setRolePill();
+      out.textContent = pretty(outResp);
+      window.location.href = "/ui/merchant";
+    } catch (e) {
+      alert(e.message);
+    }
+  });
 }
 
 (function boot() {
+  setRolePill();
   const p = pageId();
   const map = {
     "client-dashboard": initClientDashboard,
