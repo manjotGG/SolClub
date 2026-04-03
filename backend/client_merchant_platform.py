@@ -4,8 +4,9 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from database.db import (
-    get_connection,
+    count_nft_records,
     get_merchant_profile,
+    list_cashback_rewards,
     upsert_merchant_profile,
 )
 from loyalty_engine.loyalty_engine import LoyaltyRulesEngine
@@ -48,51 +49,16 @@ async def configure_cashback_pool(merchant_id: int, payload: CashbackPoolRequest
 @router.get("/client/{wallet}/rewards")
 async def get_client_rewards(wallet: str, merchant_id: Optional[int] = None):
     normalized_wallet = wallet.strip()
-    with get_connection() as conn:
-        cur = conn.cursor()
-
-        if merchant_id is None:
-            cur.execute(
-                """
-                SELECT transaction_signature, transaction_amount, cashback_amount, reward_tier, created_at
-                FROM cashback_rewards
-                WHERE wallet = ?
-                ORDER BY created_at DESC
-                LIMIT 50
-                """,
-                (normalized_wallet,),
-            )
-        else:
-            cur.execute(
-                """
-                SELECT transaction_signature, transaction_amount, cashback_amount, reward_tier, created_at
-                FROM cashback_rewards
-                WHERE wallet = ? AND merchant_id = ?
-                ORDER BY created_at DESC
-                LIMIT 50
-                """,
-                (normalized_wallet, merchant_id),
-            )
-        rows = cur.fetchall()
-
-        cur.execute(
-            """
-            SELECT COUNT(*)
-            FROM nft_records
-            WHERE wallet = ?
-            """,
-            (normalized_wallet,),
-        )
-        nft_count_row = cur.fetchone()
-        nft_count = int(nft_count_row[0] if nft_count_row else 0)
+    rows = list_cashback_rewards(normalized_wallet, merchant_id=merchant_id, limit=50)
+    nft_count = count_nft_records(normalized_wallet)
 
     cashback_history: List[Dict[str, Any]] = [
         {
-            "transaction_signature": row[0],
-            "transaction_amount": row[1],
-            "cashback_amount": row[2],
-            "reward_tier": row[3],
-            "created_at": row[4],
+            "transaction_signature": row.get("transaction_signature"),
+            "transaction_amount": row.get("transaction_amount"),
+            "cashback_amount": row.get("cashback_amount"),
+            "reward_tier": row.get("reward_tier"),
+            "created_at": row.get("created_at"),
         }
         for row in rows
     ]

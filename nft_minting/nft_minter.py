@@ -14,7 +14,7 @@ from solders.pubkey import Pubkey
 from solana.rpc.async_api import AsyncClient
 from solana.rpc.commitment import Commitment
 from loyalty_engine.loyalty_engine import get_nft_rarity
-from database.db import get_connection
+from database.db import count_wallet_transactions, insert_nft_record
 import hashlib
 import random
 import logging
@@ -419,11 +419,7 @@ class NFTMinter:
         """Query centralized DB for wallet transaction count."""
         wallet = wallet.strip()
         try:
-            with get_connection() as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT COUNT(*) FROM transactions WHERE wallet = ?", (wallet,))
-                row = cursor.fetchone()
-                return int(row[0] if row else 0)
+            return count_wallet_transactions(wallet)
         except Exception as ex:
             logger.warning("could not query transaction count for %s: %s", wallet, ex)
             return 0
@@ -685,13 +681,12 @@ class NFTMinter:
 
             # Store minted NFT record in DB
             try:
-                with get_connection() as conn:
-                    cur = conn.cursor()
-                    cur.execute(
-                        "INSERT INTO nft_records (wallet, nft_type, mint_address) VALUES (?, ?, ?)",
-                        (user_wallet, nft_type, str(mint_address)),
-                    )
-                    conn.commit()
+                insert_nft_record(
+                    wallet=user_wallet,
+                    nft_type=nft_type,
+                    mint_address=str(mint_address),
+                    metadata_uri=metadata_uri,
+                )
                 print("💾 NFT stored in DB:", user_wallet, nft_type, mint_address)
             except Exception as e:
                 print("❌ Failed to store NFT in DB:", e)
@@ -731,12 +726,7 @@ async def mint_nft(wallet: str, amount_paid: float, transaction_signature: str) 
     # determine nth purchases from central transaction table
     transaction_count = 0
     try:
-        from database.db import get_connection
-        with get_connection() as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT COUNT(*) FROM transactions WHERE wallet = ?", (wallet.strip(),))
-            row = cur.fetchone()
-            transaction_count = int(row[0] if row else 0)
+        transaction_count = count_wallet_transactions(wallet.strip())
     except Exception as e:
         logger.warning("failed to query transaction_count for %s: %s", wallet, e)
         transaction_count = 0

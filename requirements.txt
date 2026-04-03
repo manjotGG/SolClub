@@ -9,3 +9,4 @@ solders
 solana
 jinja2
 supabase
+python-dotenv

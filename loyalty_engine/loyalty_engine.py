@@ -11,7 +11,11 @@ from typing import Dict, List, Any, Optional
 import asyncio
 from dataclasses import dataclass
 
-from database.db import get_connection, get_merchant_profile
+from database.db import (
+    count_wallet_transactions_since,
+    get_merchant_profile,
+    get_merchant_revenue_since,
+)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
@@ -40,7 +44,7 @@ class CashbackDecision:
     nft_rarity: str
 
 class LoyaltyRulesEngine:
-    def __init__(self, db_path=os.path.join(DATA_DIR, "loyalty.db"), use_sqlite=True):
+    def __init__(self, db_path=os.path.join(DATA_DIR, "loyalty.db"), use_sqlite=False):
         self.db_path = db_path
         self.use_sqlite = use_sqlite
         self.json_file = os.path.join(DATA_DIR, "loyalty_data.json")
@@ -462,33 +466,11 @@ class LoyaltyRulesEngine:
 
     def _weekly_transaction_count_central(self, wallet: str, now: datetime) -> int:
         start = (now - timedelta(days=7)).isoformat()
-        with get_connection() as conn:
-            cur = conn.cursor()
-            cur.execute(
-                """
-                SELECT COUNT(*)
-                FROM transactions
-                WHERE wallet = ? AND created_at >= ?
-                """,
-                (wallet, start),
-            )
-            row = cur.fetchone()
-            return int(row[0] if row else 0)
+        return count_wallet_transactions_since(wallet, start)
 
     def _weekly_revenue_central(self, merchant_id: int, now: datetime) -> float:
         start = (now - timedelta(days=7)).isoformat()
-        with get_connection() as conn:
-            cur = conn.cursor()
-            cur.execute(
-                """
-                SELECT COALESCE(SUM(amount), 0)
-                FROM transactions
-                WHERE merchant_id = ? AND created_at >= ?
-                """,
-                (merchant_id, start),
-            )
-            row = cur.fetchone()
-            return float(row[0] if row else 0.0)
+        return get_merchant_revenue_since(merchant_id, start)
 
     def _resolve_cashback_rate(self, base_rate: float, tiers: List[Dict[str, Any]], weekly_count: int) -> float:
         chosen_rate = base_rate
@@ -655,7 +637,7 @@ def test_loyalty_engine():
     print("=" * 60)
     
     # Initialize engine
-    engine = LoyaltyRulesEngine(use_sqlite=True)
+    engine = LoyaltyRulesEngine(use_sqlite=False)
     
     # Test wallet
     test_wallet = "8WzDXbvfdkVeVZV5cRgQzrNyKaEP5qN7nJtfxQG3BqLk"

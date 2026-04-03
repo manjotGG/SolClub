@@ -1,166 +1,139 @@
-import sqlite3
-from pathlib import Path
+import os
 import json
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-DB_PATH = Path(__file__).resolve().parents[1] / "solclub.db"
+from database.db_manager import DBManager
+
+_db = DBManager()
+
+
+def _now_iso() -> str:
+    return datetime.utcnow().isoformat()
+
+
+def init_db() -> bool:
+    """Supabase migration note: schema is managed in database/supabase_schema.sql."""
+    health = _db.health_check()
+    return health.get("status") in {"ok", "not_configured"}
+
+
+def _require_data(result: Any) -> List[Dict[str, Any]]:
+    data = getattr(result, "data", None)
+    return data if isinstance(data, list) else []
+
+
+def _require_client():
+    if not _db.is_configured():
+        raise RuntimeError("Supabase is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_KEY.")
 
 
 def get_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    raise RuntimeError("SQLite connections are removed. Use database helper functions backed by Supabase.")
 
 
-def init_db():
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS merchants (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                wallet_address TEXT NOT NULL,
-                api_key TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS customers (
-                wallet TEXT PRIMARY KEY,
-                total_points INTEGER NOT NULL DEFAULT 0,
-                tier TEXT NOT NULL DEFAULT 'Silver'
-            )
-            """
-        )
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS transactions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                wallet TEXT NOT NULL,
-                merchant_id INTEGER NOT NULL,
-                amount REAL NOT NULL,
-                signature TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (merchant_id) REFERENCES merchants (id)
-            )
-            """
-        )
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS nft_records (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                wallet TEXT NOT NULL,
-                nft_type TEXT NOT NULL,
-                mint_address TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS merchant_profiles (
-                id INTEGER PRIMARY KEY,
-                name TEXT,
-                cashback_pool_percentage REAL NOT NULL DEFAULT 2.0,
-                max_cashback_limit REAL NOT NULL DEFAULT 0.05,
-                weekly_distribution_rules TEXT NOT NULL DEFAULT '{"base_rate": 0.01, "tiers": [{"min_transactions": 3, "rate": 0.02}, {"min_transactions": 5, "rate": 0.03}, {"min_transactions": 10, "rate": 0.05}]}'
-            )
-            """
-        )
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS cashback_rewards (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                wallet TEXT NOT NULL,
-                merchant_id INTEGER NOT NULL,
-                transaction_signature TEXT NOT NULL UNIQUE,
-                transaction_amount REAL NOT NULL,
-                cashback_amount REAL NOT NULL,
-                reward_tier TEXT NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (merchant_id) REFERENCES merchant_profiles (id)
-            )
-            """
-        )
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS wallets (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_wallet TEXT NOT NULL,
-                network TEXT NOT NULL DEFAULT 'testnet',
-                wallet_provider TEXT,
-                is_primary INTEGER NOT NULL DEFAULT 1,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS franchises (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                merchant_id INTEGER NOT NULL,
-                franchise_name TEXT NOT NULL,
-                location TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (merchant_id) REFERENCES merchant_profiles (id)
-            )
-            """
-        )
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS loyalty_tiers (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                tier_name TEXT NOT NULL UNIQUE,
-                min_weekly_transactions INTEGER NOT NULL,
-                cashback_rate REAL NOT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
+def transaction_exists(signature: str) -> bool:
+    _require_client()
+    result = (
+        _db.client.table("transactions")
+        .select("id")
+        .eq("signature", signature)
+        .limit(1)
+        .execute()
+    )
+    return len(_require_data(result)) > 0
 
-        # Seed defaults so new modules can run without manual setup.
-        cur.execute(
-            """
-            INSERT OR IGNORE INTO merchant_profiles (id, name)
-            VALUES (1, 'Default Merchant')
-            """
-        )
-        cur.execute(
-            """
-            INSERT OR IGNORE INTO loyalty_tiers (tier_name, min_weekly_transactions, cashback_rate)
-            VALUES
-                ('Bronze', 0, 0.01),
-                ('Silver', 3, 0.02),
-                ('Gold', 5, 0.03),
-                ('Platinum', 10, 0.05)
-            """
-        )
-    return True
+
+def insert_transaction(wallet: str, merchant_id: int, amount: float, signature: str) -> Optional[Dict[str, Any]]:
+    _require_client()
+    payload = {
+        "wallet_address": wallet.strip(),
+        "merchant_id": int(merchant_id),
+        "amount": float(amount),
+        "signature": signature,
+        "network": os.getenv("SOLANA_NETWORK", "testnet"),
+        "created_at": _now_iso(),
+    }
+    result = _db.client.table("transactions").insert(payload).execute()
+    rows = _require_data(result)
+    return rows[0] if rows else None
+
+
+def list_wallet_transactions(wallet: str, limit: int = 100) -> List[Dict[str, Any]]:
+    _require_client()
+    result = (
+        _db.client.table("transactions")
+        .select("*")
+        .eq("wallet_address", wallet.strip())
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return _require_data(result)
+
+
+def count_wallet_transactions(wallet: str) -> int:
+    _require_client()
+    result = (
+        _db.client.table("transactions")
+        .select("id", count="exact")
+        .eq("wallet_address", wallet.strip())
+        .execute()
+    )
+    return int(getattr(result, "count", 0) or 0)
+
+
+def count_wallet_transactions_since(wallet: str, since_iso: str) -> int:
+    _require_client()
+    result = (
+        _db.client.table("transactions")
+        .select("id", count="exact")
+        .eq("wallet_address", wallet.strip())
+        .gte("created_at", since_iso)
+        .execute()
+    )
+    return int(getattr(result, "count", 0) or 0)
+
+
+def get_merchant_revenue_since(merchant_id: int, since_iso: str) -> float:
+    _require_client()
+    result = (
+        _db.client.table("transactions")
+        .select("amount")
+        .eq("merchant_id", int(merchant_id))
+        .gte("created_at", since_iso)
+        .execute()
+    )
+    rows = _require_data(result)
+    return float(sum(float(r.get("amount", 0) or 0) for r in rows))
 
 
 def get_merchant_profile(merchant_id: int):
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            """
-            SELECT id, name, cashback_pool_percentage, max_cashback_limit, weekly_distribution_rules
-            FROM merchant_profiles
-            WHERE id = ?
-            """,
-            (merchant_id,),
-        )
-        row = cur.fetchone()
-        if not row:
-            return None
-        return {
-            "id": row[0],
-            "name": row[1],
-            "cashback_pool_percentage": row[2],
-            "max_cashback_limit": row[3],
-            "weekly_distribution_rules": json.loads(row[4] or "{}"),
-        }
+    _require_client()
+    result = (
+        _db.client.table("merchant_profiles")
+        .select("id,name,cashback_pool_percentage,max_cashback_limit,weekly_distribution_rules")
+        .eq("id", int(merchant_id))
+        .limit(1)
+        .execute()
+    )
+    rows = _require_data(result)
+    if not rows:
+        return None
+    row = rows[0]
+    rules = row.get("weekly_distribution_rules") or {}
+    if isinstance(rules, str):
+        try:
+            rules = json.loads(rules)
+        except Exception:
+            rules = {}
+    return {
+        "id": row.get("id"),
+        "name": row.get("name"),
+        "cashback_pool_percentage": float(row.get("cashback_pool_percentage", 2.0) or 2.0),
+        "max_cashback_limit": float(row.get("max_cashback_limit", 0.05) or 0.05),
+        "weekly_distribution_rules": rules,
+    }
 
 
 def upsert_merchant_profile(
@@ -170,28 +143,15 @@ def upsert_merchant_profile(
     max_cashback_limit: float,
     weekly_distribution_rules: dict,
 ):
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            """
-            INSERT INTO merchant_profiles (
-                id, name, cashback_pool_percentage, max_cashback_limit, weekly_distribution_rules
-            ) VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
-                name = excluded.name,
-                cashback_pool_percentage = excluded.cashback_pool_percentage,
-                max_cashback_limit = excluded.max_cashback_limit,
-                weekly_distribution_rules = excluded.weekly_distribution_rules
-            """,
-            (
-                merchant_id,
-                name,
-                cashback_pool_percentage,
-                max_cashback_limit,
-                json.dumps(weekly_distribution_rules),
-            ),
-        )
-        conn.commit()
+    _require_client()
+    payload = {
+        "id": int(merchant_id),
+        "name": name,
+        "cashback_pool_percentage": float(cashback_pool_percentage),
+        "max_cashback_limit": float(max_cashback_limit),
+        "weekly_distribution_rules": weekly_distribution_rules,
+    }
+    _db.client.table("merchant_profiles").upsert(payload).execute()
 
 
 def save_cashback_reward(
@@ -202,22 +162,243 @@ def save_cashback_reward(
     cashback_amount: float,
     reward_tier: str,
 ):
-    with get_connection() as conn:
-        cur = conn.cursor()
-        cur.execute(
-            """
-            INSERT OR IGNORE INTO cashback_rewards (
-                wallet, merchant_id, transaction_signature, transaction_amount, cashback_amount, reward_tier
-            ) VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            (
-                wallet,
-                merchant_id,
-                transaction_signature,
-                transaction_amount,
-                cashback_amount,
-                reward_tier,
-            ),
-        )
-        conn.commit()
+    _require_client()
+    tx_res = (
+        _db.client.table("transactions")
+        .select("id")
+        .eq("signature", transaction_signature)
+        .limit(1)
+        .execute()
+    )
+    tx_rows = _require_data(tx_res)
+    transaction_id = tx_rows[0].get("id") if tx_rows else None
 
+    payload = {
+        "wallet_address": wallet.strip(),
+        "merchant_id": int(merchant_id),
+        "transaction_signature": transaction_signature,
+        "transaction_amount": float(transaction_amount),
+        "cashback_amount": float(cashback_amount),
+        "cashback_rate": float(cashback_amount / transaction_amount) if transaction_amount else 0.0,
+        "reward_tier": reward_tier,
+        "transaction_id": transaction_id,
+        "created_at": _now_iso(),
+    }
+    _db.client.table("cashback_rewards").upsert(payload, on_conflict="transaction_signature").execute()
+
+
+def list_cashback_rewards(wallet: str, merchant_id: Optional[int] = None, limit: int = 50) -> List[Dict[str, Any]]:
+    _require_client()
+    query = (
+        _db.client.table("cashback_rewards")
+        .select("transaction_signature,transaction_amount,cashback_amount,reward_tier,created_at")
+        .eq("wallet_address", wallet.strip())
+        .order("created_at", desc=True)
+        .limit(limit)
+    )
+    if merchant_id is not None:
+        query = query.eq("merchant_id", int(merchant_id))
+    return _require_data(query.execute())
+
+
+def insert_nft_record(wallet: str, nft_type: str, mint_address: str, metadata_uri: Optional[str] = None):
+    _require_client()
+    payload = {
+        "wallet_address": wallet.strip(),
+        "nft_type": nft_type,
+        "mint_address": mint_address,
+        "metadata_uri": metadata_uri,
+        "created_at": _now_iso(),
+    }
+    _db.client.table("nfts").upsert(payload, on_conflict="mint_address").execute()
+
+
+def list_nft_records(wallet: str) -> List[Dict[str, Any]]:
+    _require_client()
+    result = (
+        _db.client.table("nfts")
+        .select("wallet_address,nft_type,mint_address,metadata_uri,created_at")
+        .eq("wallet_address", wallet.strip())
+        .order("created_at", desc=True)
+        .execute()
+    )
+    rows = _require_data(result)
+    return [
+        {
+            "owner": r.get("wallet_address"),
+            "nft_type": r.get("nft_type"),
+            "mint_address": r.get("mint_address"),
+            "metadata_uri": r.get("metadata_uri"),
+            "minted_at": r.get("created_at"),
+            "mystery_revealed": False,
+        }
+        for r in rows
+    ]
+
+
+def count_nft_records(wallet: str) -> int:
+    _require_client()
+    result = (
+        _db.client.table("nfts")
+        .select("id", count="exact")
+        .eq("wallet_address", wallet.strip())
+        .execute()
+    )
+    return int(getattr(result, "count", 0) or 0)
+
+
+def upsert_client_profile(wallet: str, joined_date: Optional[str] = None, loyalty_tier: str = "bronze"):
+    _require_client()
+    payload = {
+        "wallet_address": wallet.strip(),
+        "joined_date": joined_date or _now_iso(),
+        "loyalty_tier": loyalty_tier,
+        "status": "active",
+    }
+    _db.client.table("client_profiles").upsert(payload, on_conflict="wallet_address").execute()
+
+
+def get_client_profile(wallet: str) -> Optional[Dict[str, Any]]:
+    _require_client()
+    result = (
+        _db.client.table("client_profiles")
+        .select("*")
+        .eq("wallet_address", wallet.strip())
+        .limit(1)
+        .execute()
+    )
+    rows = _require_data(result)
+    return rows[0] if rows else None
+
+
+def save_payment_request(reference: str, user_wallet: str, store_id: str, status: str, qr_type: str, amount: Optional[float] = None):
+    _require_client()
+    payload = {
+        "reference": reference,
+        "user_wallet": user_wallet.strip(),
+        "store_id": store_id,
+        "status": status,
+        "qr_type": qr_type,
+        "amount": amount,
+        "updated_at": _now_iso(),
+    }
+    _db.client.table("payment_requests").upsert(payload, on_conflict="reference").execute()
+
+
+def create_merchant(name: str, wallet_address: str, api_key: str) -> Dict[str, Any]:
+    _require_client()
+    payload = {
+        "name": name,
+        "wallet_address": wallet_address,
+        "api_key": api_key,
+        "created_at": _now_iso(),
+    }
+    result = _db.client.table("merchants").insert(payload).execute()
+    rows = _require_data(result)
+    return rows[0] if rows else payload
+
+
+def get_merchant_by_id(merchant_id: int) -> Optional[Dict[str, Any]]:
+    _require_client()
+    result = (
+        _db.client.table("merchants")
+        .select("id,name,wallet_address,api_key,created_at")
+        .eq("id", int(merchant_id))
+        .limit(1)
+        .execute()
+    )
+    rows = _require_data(result)
+    return rows[0] if rows else None
+
+
+def get_merchant_by_name(name: str) -> Optional[Dict[str, Any]]:
+    _require_client()
+    result = (
+        _db.client.table("merchants")
+        .select("id,name,wallet_address,api_key,created_at")
+        .eq("name", name)
+        .limit(1)
+        .execute()
+    )
+    rows = _require_data(result)
+    return rows[0] if rows else None
+
+
+def get_platform_stats() -> Dict[str, Any]:
+    _require_client()
+    tx_res = _db.client.table("transactions").select("id,wallet_address").execute()
+    tx_rows = _require_data(tx_res)
+
+    cb_res = _db.client.table("cashback_rewards").select("reward_tier").execute()
+    cb_rows = _require_data(cb_res)
+
+    nfts_res = _db.client.table("nfts").select("nft_type").execute()
+    nft_rows = _require_data(nfts_res)
+
+    unique_wallets = len({r.get("wallet_address") for r in tx_rows if r.get("wallet_address")})
+
+    reward_breakdown: Dict[str, int] = {}
+    for row in cb_rows:
+        key = row.get("reward_tier") or "unknown"
+        reward_breakdown[key] = reward_breakdown.get(key, 0) + 1
+
+    nft_breakdown: Dict[str, int] = {}
+    for row in nft_rows:
+        key = row.get("nft_type") or "unknown"
+        nft_breakdown[key] = nft_breakdown.get(key, 0) + 1
+
+    return {
+        "total_users": unique_wallets,
+        "total_transactions": len(tx_rows),
+        "total_rewards": len(cb_rows),
+        "reward_breakdown": reward_breakdown,
+        "nft_breakdown": nft_breakdown,
+    }
+
+
+def get_recent_wallet_activity(limit: int = 10) -> List[Dict[str, Any]]:
+    _require_client()
+    result = (
+        _db.client.table("transactions")
+        .select("wallet_address,created_at")
+        .order("created_at", desc=True)
+        .limit(max(1, limit * 5))
+        .execute()
+    )
+    rows = _require_data(result)
+    stats: Dict[str, Dict[str, Any]] = {}
+    for row in rows:
+        wallet = row.get("wallet_address")
+        if not wallet:
+            continue
+        if wallet not in stats:
+            stats[wallet] = {
+                "wallet": wallet,
+                "transactions": 0,
+                "last_activity": row.get("created_at"),
+            }
+        stats[wallet]["transactions"] += 1
+    ordered = sorted(stats.values(), key=lambda x: x.get("last_activity") or "", reverse=True)
+    return ordered[:limit]
+
+
+def get_recent_cashback_events(limit: int = 10) -> List[Dict[str, Any]]:
+    _require_client()
+    result = (
+        _db.client.table("cashback_rewards")
+        .select("wallet_address,reward_tier,cashback_amount,created_at")
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    rows = _require_data(result)
+    return [
+        {
+            "wallet": r.get("wallet_address"),
+            "reward_name": r.get("reward_tier"),
+            "reward_type": "cashback",
+            "earned_at": r.get("created_at"),
+            "cashback_amount": r.get("cashback_amount"),
+        }
+        for r in rows
+    ]

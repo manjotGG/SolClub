@@ -3,6 +3,11 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 try:
+    from dotenv import load_dotenv
+except Exception:  # pragma: no cover
+    load_dotenv = None
+
+try:
     from supabase import Client, create_client
 except Exception:  # pragma: no cover
     Client = Any
@@ -19,6 +24,8 @@ class DBManager:
     """Supabase-first DB abstraction for gradual migration from SQLite."""
 
     def __init__(self, config: Optional[SupabaseConfig] = None):
+        if load_dotenv is not None:
+            load_dotenv()
         self.config = config or SupabaseConfig(
             url=os.getenv("SUPABASE_URL", ""),
             key=os.getenv("SUPABASE_SERVICE_KEY", ""),

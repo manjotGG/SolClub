@@ -102,7 +102,21 @@ def create_fastapi_app():
     import json
     import os
     import uuid
-    from database.db import get_connection, save_cashback_reward
+    from database.db import (
+        count_wallet_transactions,
+        create_merchant,
+        get_client_profile,
+        get_platform_stats,
+        get_merchant_by_id as db_get_merchant_by_id,
+        get_merchant_by_name as db_get_merchant_by_name,
+        insert_transaction,
+        list_nft_records,
+        list_wallet_transactions,
+        save_cashback_reward,
+        save_payment_request,
+        transaction_exists,
+        upsert_client_profile,
+    )
     import asyncio
     from datetime import datetime, timedelta
     from solana.rpc.async_api import AsyncClient
@@ -168,33 +182,24 @@ def create_fastapi_app():
     
     # Utility functions
     def save_transaction_data(transactions: List[Dict]):
-        """Save transaction data to JSON file"""
+        """Persist transaction request metadata to Supabase."""
         try:
-            transactions_file = os.path.join(DATA_DIR, "transactions.json")
-            os.makedirs(os.path.dirname(transactions_file), exist_ok=True)
-            
-            # Load existing transactions
-            existing_transactions = []
-            if os.path.exists(transactions_file):
-                with open(transactions_file, 'r') as f:
-                    existing_transactions = json.load(f)
-            
-            # Add new transactions
-            existing_transactions.extend(transactions)
-            
-            # Save back to file
-            with open(transactions_file, 'w') as f:
-                json.dump(existing_transactions, f, indent=2)
-                
+            for tx in transactions:
+                if not tx.get("reference"):
+                    continue
+                save_payment_request(
+                    reference=tx.get("reference"),
+                    user_wallet=tx.get("user_wallet") or "unknown",
+                    store_id=tx.get("store_id") or "unknown",
+                    status=tx.get("status") or "pending",
+                    qr_type=tx.get("qr_type") or "backend",
+                    amount=tx.get("amount_sol"),
+                )
         except Exception as e:
             print(f"Error saving transaction data: {e}")
     
     def load_transaction_data():
-        """Load transaction metadata from JSON file"""
-        data_file = os.path.join(DATA_DIR, "transactions.json")
-        if os.path.exists(data_file):
-            with open(data_file, 'r') as f:
-                return json.load(f)
+        """Legacy loader kept for compatibility; data now comes from Supabase."""
         return []
     
     async def trigger_real_nft_mint(wallet: str, rarity: str, signature: str):
@@ -332,12 +337,9 @@ def create_fastapi_app():
                     print(f"➡️ Found signature: {signature}")
 
                     # Skip already processed transactions
-                    with get_connection() as conn:
-                        cur = conn.cursor()
-                        cur.execute("SELECT 1 FROM transactions WHERE signature = ?", (signature,))
-                        if cur.fetchone():
-                            print("⏭️ Already processed, skipping")
-                            continue
+                    if transaction_exists(signature):
+                        print("⏭️ Already processed, skipping")
+                        continue
 
                     print("🆕 New transaction detected")
                     try:
@@ -386,13 +388,12 @@ def create_fastapi_app():
 
                     print("👤 User wallet detected:", user_wallet)
 
-                    with get_connection() as conn:
-                        cur = conn.cursor()
-                        cur.execute(
-                            "INSERT INTO transactions (wallet, merchant_id, amount, signature) VALUES (?, ?, ?, ?)",
-                            (user_wallet, 0, tx_amount, signature),
-                        )
-                        conn.commit()
+                    insert_transaction(
+                        wallet=user_wallet,
+                        merchant_id=1,
+                        amount=tx_amount,
+                        signature=signature,
+                    )
 
                     print("💾 Transaction saved to DB")
 
@@ -434,14 +435,7 @@ def create_fastapi_app():
                     if signature not in minted_signatures:
                         try:
                             # Get user's transaction count for rarity calculation
-                            with get_connection() as conn:
-                                cur = conn.cursor()
-                                cur.execute(
-                                    "SELECT COUNT(*) FROM transactions WHERE wallet = ?",
-                                    (user_wallet,)
-                                )
-                                result = cur.fetchone()
-                                user_tx_count = (result[0] if result else 1)
+                            user_tx_count = max(count_wallet_transactions(user_wallet), 1)
                             
                             # Calculate rarity using loyalty engine (same logic as mint_nft)
                             from loyalty_engine.loyalty_engine import get_nft_rarity
@@ -616,13 +610,12 @@ def create_fastapi_app():
             
             # Save transaction in central DB
             merchant_id = request.merchant_id or 0
-            with get_connection() as conn:
-                cur = conn.cursor()
-                cur.execute(
-                    "INSERT INTO transactions (wallet, merchant_id, amount, signature) VALUES (?, ?, ?, ?)",
-                    (request.wallet, merchant_id, tx_amount, request.signature),
-                )
-                conn.commit()
+            insert_transaction(
+                wallet=request.wallet,
+                merchant_id=max(merchant_id, 1),
+                amount=tx_amount,
+                signature=request.signature,
+            )
 
             try:
                 decision = loyalty_core.evaluate_cashback_and_nft(
@@ -666,37 +659,21 @@ def create_fastapi_app():
     async def connect_wallet(request: WalletConnectRequest):
         """Register wallet in loyalty program"""
         try:
-            # Load or create user data
-            user_data = {
-                "wallet": request.publicKey,
-                "joined_date": datetime.now().isoformat(),
-                "loyalty_tier": "bronze",
-                "total_spent": 0.0,
-                "nft_count": 0,
-                "status": "active"
-            }
-            
-            # Save user data
-            users_file = os.path.join(DATA_DIR, "loyalty_users.json")
-            os.makedirs(os.path.dirname(users_file), exist_ok=True)
-            
-            users = []
-            if os.path.exists(users_file):
-                with open(users_file, 'r') as f:
-                    users = json.load(f)
-            
-            # Check if user already exists
-            existing_user = next((u for u in users if u["wallet"] == request.publicKey), None)
+            existing_user = get_client_profile(request.publicKey)
             if existing_user:
                 return {
                     "success": True,
                     "message": "Welcome back!",
                     "user": existing_user
                 }
-            
-            users.append(user_data)
-            with open(users_file, 'w') as f:
-                json.dump(users, f, indent=2)
+
+            upsert_client_profile(request.publicKey, joined_date=datetime.now().isoformat(), loyalty_tier="bronze")
+            user_data = get_client_profile(request.publicKey) or {
+                "wallet_address": request.publicKey,
+                "joined_date": datetime.now().isoformat(),
+                "loyalty_tier": "bronze",
+                "status": "active",
+            }
             
             return {
                 "success": True,
@@ -715,34 +692,8 @@ def create_fastapi_app():
     async def get_user_nfts(wallet: str):
         """Get user's mystery NFT collection"""
         try:
-            nft_file = NFT_RECORDS_FILE
             normalized_wallet = wallet.strip()
-
-            print(f"DEBUG: /mystery-nft/{normalized_wallet} - loading {nft_file}")
-
-            if not os.path.exists(nft_file):
-                print(f"DEBUG: nft file missing: {nft_file}")
-                return {
-                    "wallet": normalized_wallet,
-                    "nfts": [],
-                    "total_count": 0,
-                    "rarity_breakdown": {},
-                    "unrevealed_count": 0,
-                    "message": "No NFTs found. Complete a purchase to receive your first mystery NFT!"
-                }
-
-            with open(nft_file, 'r') as f:
-                raw = f.read().strip()
-                if not raw:
-                    print(f"DEBUG: nft file empty: {nft_file}")
-                    all_nfts = []
-                else:
-                    all_nfts = json.loads(raw)
-
-            print(f"DEBUG: loaded {len(all_nfts)} nft records")
-
-            user_nfts = [nft for nft in all_nfts if str(nft.get("owner", "")).strip() == normalized_wallet]
-            print(f"DEBUG: filtered to {len(user_nfts)} records for wallet {normalized_wallet}")
+            user_nfts = list_nft_records(normalized_wallet)
 
             rarity_counts = {}
             for nft in user_nfts:
@@ -840,33 +791,13 @@ def create_fastapi_app():
             except Exception:
                 raise HTTPException(status_code=400, detail="Invalid wallet address")
             
-            # Load existing transactions
-            transactions = load_transaction_data()
-            
-            # Find the transaction with this reference
-            transaction_found = False
-            for tx in transactions:
-                if tx.get("reference") == reference:
-                    tx["user_wallet"] = user_wallet
-                    tx["store_id"] = store_id
-                    tx["status"] = "initiated"
-                    tx["initiated_at"] = datetime.now().isoformat()
-                    transaction_found = True
-                    break
-            
-            if not transaction_found:
-                # Create new transaction record
-                new_tx = {
-                    "reference": reference,
-                    "user_wallet": user_wallet,
-                    "store_id": store_id,
-                    "status": "initiated",
-                    "initiated_at": datetime.now().isoformat(),
-                    "qr_type": "backend"
-                }
-                transactions.append(new_tx)
-            
-            save_transaction_data(transactions)
+            save_payment_request(
+                reference=reference,
+                user_wallet=user_wallet,
+                store_id=store_id,
+                status="initiated",
+                qr_type="backend",
+            )
             
             # Return Solana Pay response format
             return {
@@ -886,27 +817,12 @@ def create_fastapi_app():
     async def get_user_stats(wallet: str):
         """Get user's loyalty program statistics"""
         try:
-            # Load user's NFTs and transaction history
-            nft_file = NFT_RECORDS_FILE
-            transaction_file = os.path.join(DATA_DIR, "transactions.json")
             normalized_wallet = wallet.strip()
-            
-            user_nfts = []
-            user_transactions = []
-            
-            if os.path.exists(nft_file):
-                with open(nft_file, 'r') as f:
-                    raw = f.read().strip()
-                    all_nfts = json.loads(raw) if raw else []
-                user_nfts = [nft for nft in all_nfts if str(nft.get("owner", "")).strip() == normalized_wallet]
-            
-            if os.path.exists(transaction_file):
-                with open(transaction_file, 'r') as f:
-                    all_transactions = json.load(f)
-                user_transactions = [tx for tx in all_transactions if tx.get("user_wallet") == wallet]
+            user_nfts = list_nft_records(normalized_wallet)
+            user_transactions = list_wallet_transactions(normalized_wallet, limit=200)
             
             # Calculate statistics
-            total_spent = sum(tx.get("amount_sol", 0) for tx in user_transactions if tx.get("status") == "confirmed")
+            total_spent = sum(float(tx.get("amount", 0) or 0) for tx in user_transactions)
             nft_counts = {}
             for nft in user_nfts:
                 nft_type = nft.get("nft_type", "unknown")
@@ -928,7 +844,7 @@ def create_fastapi_app():
                 "total_spent": total_spent,
                 "total_nfts": len(user_nfts),
                 "nft_breakdown": nft_counts,
-                "recent_transactions": user_transactions[-5:],  # Last 5 transactions
+                "recent_transactions": user_transactions[:5],
                 "unrevealed_nfts": len([nft for nft in user_nfts if not nft.get("mystery_revealed", False)]),
                 "next_milestone": get_next_milestone(total_spent)
             }
@@ -941,16 +857,7 @@ def create_fastapi_app():
         """Register a merchant and return api_key"""
         try:
             api_key = uuid.uuid4().hex
-            with get_connection() as conn:
-                cur = conn.cursor()
-                cur.execute(
-                    """
-                    INSERT INTO merchants (name, wallet_address, api_key)
-                    VALUES (?, ?, ?)
-                    """,
-                    (name, wallet_address, api_key),
-                )
-                conn.commit()
+            create_merchant(name=name, wallet_address=wallet_address, api_key=api_key)
 
             return {"success": True, "api_key": api_key}
         except Exception as e:
@@ -959,42 +866,24 @@ def create_fastapi_app():
     @app.get("/merchant/{merchant_id}")
     async def get_merchant(merchant_id: int):
         """Fetch merchant details by id"""
-        with get_connection() as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT id, name, wallet_address, api_key, created_at FROM merchants WHERE id = ?", (merchant_id,))
-            row = cur.fetchone()
-            if not row:
-                raise HTTPException(status_code=404, detail="Merchant not found")
-
-            return dict(row)
+        row = db_get_merchant_by_id(merchant_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Merchant not found")
+        return row
 
     @app.get("/merchant/by-name/{name}")
     async def get_merchant_by_name(name: str):
         """Fetch merchant details by name"""
-        with get_connection() as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT id, name, wallet_address, api_key, created_at FROM merchants WHERE name = ?", (name,))
-            row = cur.fetchone()
-            if not row:
-                raise HTTPException(status_code=404, detail="Merchant not found")
-
-            return dict(row)
+        row = db_get_merchant_by_name(name)
+        if not row:
+            raise HTTPException(status_code=404, detail="Merchant not found")
+        return row
 
     @app.get("/customer/{wallet}")
     async def get_customer(wallet: str):
         """Fetch customer data with NFT history and tier"""
         normalized_wallet = wallet.strip()
-        nfts = []
-
-        if os.path.exists(NFT_RECORDS_FILE):
-            try:
-                with open(NFT_RECORDS_FILE, 'r') as f:
-                    raw = f.read().strip()
-                    all_nfts = json.loads(raw) if raw else []
-
-                nfts = [n for n in all_nfts if str(n.get("owner", "")).strip() == normalized_wallet]
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to load NFT records: {str(e)}")
+        nfts = list_nft_records(normalized_wallet)
 
         total_transactions = len(nfts)
 
@@ -1046,15 +935,13 @@ def create_fastapi_app():
             # Check Solana connection
             latest_blockhash = await SOLANA_CLIENT.get_latest_blockhash()
             blockchain_status = "connected" if latest_blockhash.value else "disconnected"
-            
-            # Check data files
-            required_files = [
-                NFT_RECORDS_FILE,
-                os.path.join(DATA_DIR, "transactions.json"),
-            ]
-            file_status = {}
-            for file_path in required_files:
-                file_status[file_path] = "exists" if os.path.exists(file_path) else "missing"
+
+            db_status = "connected"
+            stats_preview = {}
+            try:
+                stats_preview = get_platform_stats()
+            except Exception as db_exc:
+                db_status = f"error: {db_exc}"
             
             return {
                 "status": "healthy",
@@ -1062,9 +949,13 @@ def create_fastapi_app():
                 "services": {
                     "api": "online",
                     "blockchain": blockchain_status,
+                    "database": db_status,
                     "merchant_wallet": str(MERCHANT_WALLET) if MERCHANT_WALLET else "not_configured"
                 },
-                "data_files": file_status,
+                "stats_preview": {
+                    "total_users": stats_preview.get("total_users", 0),
+                    "total_transactions": stats_preview.get("total_transactions", 0),
+                },
                 "version": "2.0.0"
             }
             

@@ -8,9 +8,9 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 import json
 import os
-import sqlite3
 from datetime import datetime
 from loyalty_engine import LoyaltyRulesEngine
+from database.db import get_platform_stats, get_recent_cashback_events, get_recent_wallet_activity
 
 app = FastAPI(title="SolClub Loyalty Dashboard")
 templates = Jinja2Templates(directory="templates")
@@ -70,73 +70,9 @@ async def api_user(wallet: str):
 def get_program_stats():
     """Get overall program statistics"""
     try:
-        if loyalty_engine.use_sqlite:
-            conn = sqlite3.connect(loyalty_engine.db_path)
-            cursor = conn.cursor()
-            
-            # Get user count
-            cursor.execute("SELECT COUNT(*) FROM users")
-            total_users = cursor.fetchone()[0]
-            
-            # Get total transactions
-            cursor.execute("SELECT SUM(total_transactions) FROM users")
-            total_transactions = cursor.fetchone()[0] or 0
-            
-            # Get total rewards
-            cursor.execute("SELECT COUNT(*) FROM rewards")
-            total_rewards = cursor.fetchone()[0]
-            
-            # Get reward breakdown
-            cursor.execute('''
-                SELECT reward_type, COUNT(*) 
-                FROM rewards 
-                GROUP BY reward_type
-            ''')
-            reward_breakdown = dict(cursor.fetchall())
-            
-            # Get tier distribution
-            cursor.execute('''
-                SELECT tier, COUNT(*) 
-                FROM users 
-                GROUP BY tier
-            ''')
-            tier_distribution = dict(cursor.fetchall())
-            
-            conn.close()
-            
-            return {
-                "total_users": total_users,
-                "total_transactions": total_transactions,
-                "total_rewards": total_rewards,
-                "reward_breakdown": reward_breakdown,
-                "tier_distribution": tier_distribution
-            }
-        else:
-            # JSON file implementation
-            if os.path.exists(loyalty_engine.json_file):
-                with open(loyalty_engine.json_file, 'r') as f:
-                    data = json.load(f)
-                
-                users = data.get("users", {})
-                total_users = len(users)
-                total_transactions = sum(user.get("total_transactions", 0) for user in users.values())
-                total_rewards = sum(user.get("total_rewards", 0) for user in users.values())
-                
-                return {
-                    "total_users": total_users,
-                    "total_transactions": total_transactions,
-                    "total_rewards": total_rewards,
-                    "reward_breakdown": {},
-                    "tier_distribution": {}
-                }
-            else:
-                return {
-                    "total_users": 0,
-                    "total_transactions": 0,
-                    "total_rewards": 0,
-                    "reward_breakdown": {},
-                    "tier_distribution": {}
-                }
+        stats = get_platform_stats()
+        stats["tier_distribution"] = stats.get("reward_breakdown", {})
+        return stats
     except Exception as e:
         print(f"Error getting program stats: {e}")
         return {}
@@ -144,31 +80,10 @@ def get_program_stats():
 def get_recent_users(limit=10):
     """Get recently active users"""
     try:
-        if loyalty_engine.use_sqlite:
-            conn = sqlite3.connect(loyalty_engine.db_path)
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-                SELECT wallet_address, total_transactions, tier, last_activity
-                FROM users 
-                ORDER BY last_activity DESC 
-                LIMIT ?
-            ''', (limit,))
-            
-            users = cursor.fetchall()
-            conn.close()
-            
-            return [
-                {
-                    "wallet": user[0],
-                    "transactions": user[1],
-                    "tier": user[2],
-                    "last_activity": user[3]
-                }
-                for user in users
-            ]
-        else:
-            return []
+        users = get_recent_wallet_activity(limit=limit)
+        for user in users:
+            user["tier"] = "active"
+        return users
     except Exception as e:
         print(f"Error getting recent users: {e}")
         return []
@@ -176,31 +91,7 @@ def get_recent_users(limit=10):
 def get_recent_rewards(limit=10):
     """Get recently awarded rewards"""
     try:
-        if loyalty_engine.use_sqlite:
-            conn = sqlite3.connect(loyalty_engine.db_path)
-            cursor = conn.cursor()
-            
-            cursor.execute('''
-                SELECT r.wallet_address, r.reward_name, r.reward_type, r.earned_at
-                FROM rewards r
-                ORDER BY r.earned_at DESC 
-                LIMIT ?
-            ''', (limit,))
-            
-            rewards = cursor.fetchall()
-            conn.close()
-            
-            return [
-                {
-                    "wallet": reward[0],
-                    "reward_name": reward[1],
-                    "reward_type": reward[2],
-                    "earned_at": reward[3]
-                }
-                for reward in rewards
-            ]
-        else:
-            return []
+        return get_recent_cashback_events(limit=limit)
     except Exception as e:
         print(f"Error getting recent rewards: {e}")
         return []
