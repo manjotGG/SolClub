@@ -11,6 +11,8 @@ from typing import Dict, List, Any, Optional
 import asyncio
 from dataclasses import dataclass
 
+from database.db import get_connection, get_merchant_profile
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
 DATA_DIR = os.path.abspath(os.path.join(PROJECT_ROOT, "data"))
@@ -25,6 +27,17 @@ class LoyaltyRule:
     reward_description: str
     is_recurring: bool = False
     cooldown_days: int = 0
+
+
+@dataclass
+class CashbackDecision:
+    wallet: str
+    merchant_id: int
+    weekly_transaction_count: int
+    reward_tier: str
+    cashback_rate: float
+    cashback_amount: float
+    nft_rarity: str
 
 class LoyaltyRulesEngine:
     def __init__(self, db_path=os.path.join(DATA_DIR, "loyalty.db"), use_sqlite=True):
@@ -398,6 +411,101 @@ class LoyaltyRulesEngine:
         rarity = random.choices(rarities, weights=weights, k=1)[0]
         return rarity
 
+    def evaluate_cashback_and_nft(
+        self,
+        wallet: str,
+        merchant_id: int,
+        transaction_amount: float,
+        now: Optional[datetime] = None,
+    ) -> CashbackDecision:
+        """Centralized reward decision: cashback amount + tier + NFT rarity."""
+        now = now or datetime.utcnow()
+        normalized_wallet = wallet.strip()
+
+        weekly_count = self._weekly_transaction_count_central(normalized_wallet, now)
+        weekly_revenue = self._weekly_revenue_central(merchant_id, now)
+
+        profile = get_merchant_profile(merchant_id) or get_merchant_profile(1) or {}
+        rules = profile.get("weekly_distribution_rules", {})
+        base_rate = float(rules.get("base_rate", 0.01))
+        tiers = rules.get(
+            "tiers",
+            [
+                {"min_transactions": 3, "rate": 0.02},
+                {"min_transactions": 5, "rate": 0.03},
+                {"min_transactions": 10, "rate": 0.05},
+            ],
+        )
+
+        cashback_rate = self._resolve_cashback_rate(base_rate, tiers, weekly_count)
+        reward_tier = self._tier_from_cashback_rate(cashback_rate)
+
+        pool_pct = float(profile.get("cashback_pool_percentage", 2.0)) / 100.0
+        max_cashback_limit = float(profile.get("max_cashback_limit", 0.05))
+        pool_balance = max(weekly_revenue * pool_pct, 0.0)
+
+        projected_cashback = transaction_amount * cashback_rate
+        cashback_amount = min(projected_cashback, max_cashback_limit, pool_balance)
+        cashback_amount = max(round(cashback_amount, 6), 0.0)
+
+        nft_rarity = self.get_nft_rarity(max(weekly_count, 1))
+
+        return CashbackDecision(
+            wallet=normalized_wallet,
+            merchant_id=merchant_id,
+            weekly_transaction_count=weekly_count,
+            reward_tier=reward_tier,
+            cashback_rate=cashback_rate,
+            cashback_amount=cashback_amount,
+            nft_rarity=nft_rarity,
+        )
+
+    def _weekly_transaction_count_central(self, wallet: str, now: datetime) -> int:
+        start = (now - timedelta(days=7)).isoformat()
+        with get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT COUNT(*)
+                FROM transactions
+                WHERE wallet = ? AND created_at >= ?
+                """,
+                (wallet, start),
+            )
+            row = cur.fetchone()
+            return int(row[0] if row else 0)
+
+    def _weekly_revenue_central(self, merchant_id: int, now: datetime) -> float:
+        start = (now - timedelta(days=7)).isoformat()
+        with get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT COALESCE(SUM(amount), 0)
+                FROM transactions
+                WHERE merchant_id = ? AND created_at >= ?
+                """,
+                (merchant_id, start),
+            )
+            row = cur.fetchone()
+            return float(row[0] if row else 0.0)
+
+    def _resolve_cashback_rate(self, base_rate: float, tiers: List[Dict[str, Any]], weekly_count: int) -> float:
+        chosen_rate = base_rate
+        for tier in tiers:
+            if weekly_count >= int(tier.get("min_transactions", 0)):
+                chosen_rate = max(chosen_rate, float(tier.get("rate", base_rate)))
+        return chosen_rate
+
+    def _tier_from_cashback_rate(self, rate: float) -> str:
+        if rate >= 0.05:
+            return "Platinum"
+        if rate >= 0.03:
+            return "Gold"
+        if rate >= 0.02:
+            return "Silver"
+        return "Bronze"
+
     def get_next_milestone(self, current_count: int) -> Dict[str, Any]:
         """Get next reward milestone"""
         milestones = [1, 5, 10, 25, 50, 100]
@@ -533,6 +641,12 @@ def get_nft_rarity(transaction_count: int) -> str:
     """Module-level helper for determining NFT rarity based on transaction count."""
     engine = LoyaltyRulesEngine(use_sqlite=False)
     return engine.get_nft_rarity(transaction_count)
+
+
+def get_reward_decision(wallet: str, merchant_id: int, transaction_amount: float) -> CashbackDecision:
+    """Module-level helper to get a centralized cashback + NFT decision."""
+    engine = LoyaltyRulesEngine(use_sqlite=False)
+    return engine.evaluate_cashback_and_nft(wallet, merchant_id, transaction_amount)
 
 
 def test_loyalty_engine():

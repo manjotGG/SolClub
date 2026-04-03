@@ -102,7 +102,7 @@ def create_fastapi_app():
     import json
     import os
     import uuid
-    from database.db import get_connection
+    from database.db import get_connection, save_cashback_reward
     import asyncio
     from datetime import datetime, timedelta
     from solana.rpc.async_api import AsyncClient
@@ -111,6 +111,7 @@ def create_fastapi_app():
     from solders.signature import Signature
     from solders.keypair import Keypair
     from nft_minting.nft_minter import mint_nft
+    from loyalty_engine.loyalty_engine import LoyaltyRulesEngine
     
     # Pydantic models
     class ValidationRequest(BaseModel):
@@ -284,6 +285,8 @@ def create_fastapi_app():
         description="Production Solana loyalty program with blockchain transactions",
         version="2.0.0"
     )
+
+    loyalty_core = LoyaltyRulesEngine(use_sqlite=False)
     
     # Add CORS middleware
     app.add_middleware(
@@ -293,6 +296,12 @@ def create_fastapi_app():
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    try:
+        from backend.client_merchant_platform import router as client_merchant_router
+        app.include_router(client_merchant_router)
+    except Exception as exc:
+        print(f"⚠️ Platform router not loaded: {exc}")
 
     async def transaction_watcher():
         """Background task to detect and process new merchant transactions."""
@@ -386,6 +395,27 @@ def create_fastapi_app():
                         conn.commit()
 
                     print("💾 Transaction saved to DB")
+
+                    try:
+                        decision = loyalty_core.evaluate_cashback_and_nft(
+                            wallet=user_wallet,
+                            merchant_id=1,
+                            transaction_amount=tx_amount,
+                        )
+                        save_cashback_reward(
+                            wallet=user_wallet,
+                            merchant_id=1,
+                            transaction_signature=signature,
+                            transaction_amount=tx_amount,
+                            cashback_amount=decision.cashback_amount,
+                            reward_tier=decision.reward_tier,
+                        )
+                        print(
+                            f"💸 Cashback recorded: {decision.cashback_amount} SOL "
+                            f"({decision.reward_tier}, {decision.cashback_rate * 100:.2f}%)"
+                        )
+                    except Exception as cashback_exc:
+                        print(f"⚠️ Cashback evaluation skipped: {cashback_exc}")
 
                     # EXISTING: Python-based NFT minting (DB storage)
                     minted_nft = await mint_nft(
@@ -593,6 +623,23 @@ def create_fastapi_app():
                     (request.wallet, merchant_id, tx_amount, request.signature),
                 )
                 conn.commit()
+
+            try:
+                decision = loyalty_core.evaluate_cashback_and_nft(
+                    wallet=request.wallet,
+                    merchant_id=max(merchant_id, 1),
+                    transaction_amount=tx_amount,
+                )
+                save_cashback_reward(
+                    wallet=request.wallet,
+                    merchant_id=max(merchant_id, 1),
+                    transaction_signature=request.signature,
+                    transaction_amount=tx_amount,
+                    cashback_amount=decision.cashback_amount,
+                    reward_tier=decision.reward_tier,
+                )
+            except Exception as cashback_exc:
+                print(f"⚠️ Cashback evaluation skipped: {cashback_exc}")
 
             # Mint one NFT reward based on transaction history
             minted_nft = await mint_nft(
