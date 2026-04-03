@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 from solders.signature import Signature
+from solana.exceptions import SolanaRpcException
 from solana.rpc.async_api import AsyncClient
 
 from database.db import (
@@ -324,7 +325,7 @@ async def wallet_fund_testnet(payload: FundWalletRequest):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid wallet")
 
-    client = AsyncClient(os.getenv("SOLANA_RPC_URL", "https://api.testnet.solana.com"))
+    client = AsyncClient(os.getenv("SOLANA_AIRDROP_RPC_URL", os.getenv("SOLANA_RPC_URL", "https://api.testnet.solana.com")))
     try:
         sig = await client.request_airdrop(pubkey, int(payload.amount_sol * 1_000_000_000))
         return {
@@ -333,6 +334,19 @@ async def wallet_fund_testnet(payload: FundWalletRequest):
             "amount_sol": payload.amount_sol,
             "airdrop_signature": str(sig.value) if sig and sig.value else None,
         }
+    except SolanaRpcException as exc:
+        detail = str(exc)
+        if "429" in detail or "Too Many Requests" in detail:
+            raise HTTPException(
+                status_code=503,
+                detail="Solana testnet faucet is rate-limited right now. Please retry in a minute.",
+            )
+        raise HTTPException(
+            status_code=502,
+            detail="Solana RPC could not process the airdrop request. Please retry shortly.",
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Unexpected RPC error while funding wallet: {exc}")
     finally:
         await client.close()
 

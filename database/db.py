@@ -442,7 +442,18 @@ def upsert_wallet_record(
         "encrypted_secret": encrypted_secret,
         "created_by": created_by,
     }
-    _db.client.table("wallets").upsert(payload, on_conflict="wallet_address").execute()
+    try:
+        _db.client.table("wallets").upsert(payload, on_conflict="wallet_address").execute()
+        return
+    except Exception:
+        # Backward compatibility for environments where new columns are not yet migrated.
+        fallback_payload = {
+            "wallet_address": wallet_address.strip(),
+            "network": network,
+            "provider": provider,
+            "is_primary": bool(is_primary),
+        }
+        _db.client.table("wallets").upsert(fallback_payload, on_conflict="wallet_address").execute()
 
 
 def get_wallet_record(wallet_address: str) -> Optional[Dict[str, Any]]:
