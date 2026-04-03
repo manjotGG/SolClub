@@ -97,6 +97,7 @@ def create_fastapi_app():
     """Create and configure the FastAPI application with full blockchain integration"""
     from fastapi import FastAPI, HTTPException, Query
     from fastapi.middleware.cors import CORSMiddleware
+    from contextlib import asynccontextmanager
     from pydantic import BaseModel
     from typing import Optional, Dict, Any, List
     import json
@@ -235,8 +236,12 @@ def create_fastapi_app():
                 print(f"   Output: {result.stdout.strip()}")
                 return True
             else:
-                print("❌ Real NFT minting failed!")
-                print(f"   Error: {result.stderr.strip()}")
+                stderr = (result.stderr or "").strip()
+                short_error = "\n".join(stderr.splitlines()[:4])
+                print(f"❌ Real NFT minting failed (exit_code={result.returncode})")
+                print(f"   Error: {short_error}")
+                if "ERR_MODULE_NOT_FOUND" in stderr or "@solana/web3.js" in stderr:
+                    print("💡 Node dependencies missing. Run: cd nft_engine && npm install")
                 return False
                 
         except subprocess.TimeoutExpired:
@@ -285,10 +290,25 @@ def create_fastapi_app():
             return {"success": False, "error": str(e)}
     
     # Initialize FastAPI app
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        app.state.transaction_watcher = asyncio.create_task(transaction_watcher())
+        try:
+            yield
+        finally:
+            task = getattr(app.state, "transaction_watcher", None)
+            if task:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
     app = FastAPI(
         title="SolClub Loyalty Backend",
         description="Production Solana loyalty program with blockchain transactions",
-        version="2.0.0"
+        version="2.0.0",
+        lifespan=lifespan,
     )
 
     loyalty_core = LoyaltyRulesEngine(use_sqlite=False)
@@ -314,8 +334,6 @@ def create_fastapi_app():
         minted_signatures = set()
         
         while True:
-            print("🔄 Checking for new transactions...")
-
             try:
                 if MERCHANT_WALLET is None:
                     print("⚠️ Merchant wallet not configured, skipping check")
@@ -328,20 +346,23 @@ def create_fastapi_app():
                 )
 
                 if not signatures_resp or not signatures_resp.value:
-                    print("ℹ️ No recent signatures found")
                     await asyncio.sleep(10)
                     continue
 
+                fetched_count = len(signatures_resp.value)
+                skipped_existing = 0
+                processed_new = 0
+
                 for signature_info in signatures_resp.value:
                     signature = str(signature_info.signature)
-                    print(f"➡️ Found signature: {signature}")
 
                     # Skip already processed transactions
                     if transaction_exists(signature):
-                        print("⏭️ Already processed, skipping")
+                        skipped_existing += 1
                         continue
 
-                    print("🆕 New transaction detected")
+                    processed_new += 1
+                    print(f"🆕 Processing new transaction: {signature[:16]}...")
                     try:
                         sig_obj = Signature.from_string(signature)
                     except Exception as exc:
@@ -472,14 +493,16 @@ def create_fastapi_app():
                     else:
                         print("⏭️ Real NFT already minted for this transaction")
 
+                if processed_new > 0 or skipped_existing > 0:
+                    print(
+                        "🔎 Watcher summary: "
+                        f"fetched={fetched_count}, new={processed_new}, skipped={skipped_existing}"
+                    )
+
             except Exception as exc:
                 print(f"❌ Transaction watcher error: {exc}")
 
             await asyncio.sleep(10)
-
-    @app.on_event("startup")
-    async def start_transaction_watcher():
-        app.state.transaction_watcher = asyncio.create_task(transaction_watcher())
 
     @app.get("/")
     async def root():

@@ -363,15 +363,28 @@ class LoyaltyRulesEngine:
             conn.commit()
             conn.close()
         else:
-            # JSON implementation
-            with open(self.json_file, 'r') as f:
-                data = json.load(f)
-            
-            if wallet_address in data["users"]:
-                data["users"][wallet_address]["points_balance"] += points
-                
-                with open(self.json_file, 'w') as f:
-                    json.dump(data, f, indent=2)
+            # Legacy JSON fallback path for non-SQLite mode.
+            if os.path.exists(self.json_file):
+                with open(self.json_file, 'r') as f:
+                    data = json.load(f)
+            else:
+                data = {"users": {}}
+
+            if wallet_address not in data["users"]:
+                data["users"][wallet_address] = {
+                    "wallet_address": wallet_address,
+                    "total_transactions": 0,
+                    "total_rewards": 0,
+                    "points_balance": 0,
+                    "tier": "Bronze",
+                    "created_at": datetime.now().isoformat(),
+                    "last_activity": datetime.now().isoformat(),
+                }
+
+            data["users"][wallet_address]["points_balance"] += points
+
+            with open(self.json_file, 'w') as f:
+                json.dump(data, f, indent=2)
     
     def calculate_tier(self, transaction_count: int) -> str:
         """Calculate user tier based on transaction count"""

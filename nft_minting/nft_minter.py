@@ -653,7 +653,7 @@ class NFTMinter:
                 }
                 points_for_rarity = rarity_points.get(nft_type, 0)
 
-                loyalty_engine = LoyaltyRulesEngine(use_sqlite=True)
+                loyalty_engine = LoyaltyRulesEngine(use_sqlite=False)
                 if points_for_rarity > 0:
                     loyalty_engine.add_points(user_wallet.strip(), points_for_rarity)
                     logger.info(
