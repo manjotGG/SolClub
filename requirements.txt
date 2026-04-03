@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+pydantic
+requests
+qrcode
+Pillow
+base58
+solders
+solana
+jinja2
