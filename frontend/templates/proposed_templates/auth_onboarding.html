@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SolClub | Enter the Arena</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f131e;
+            overflow-x: hidden;
+        }
+        .font-headline {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        .glass-panel {
+            background: rgba(27, 31, 43, 0.7);
+            backdrop-filter: blur(20px);
+            position: relative;
+            overflow: hidden;
+        }
+        .glass-panel::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(221, 183, 255, 0.05) 0%, transparent 100%);
+            pointer-events: none;
+        }
+        .neon-glow-purple {
+            box-shadow: 0 0 40px rgba(168, 85, 247, 0.15);
+        }
+        .arcade-grid {
+            background-image: linear-gradient(rgba(76, 215, 246, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(76, 215, 246, 0.05) 1px, transparent 1px);
+            background-size: 40px 40px;
+            perspective: 1000px;
+            transform: rotateX(60deg) translateY(-200px);
+            height: 200%;
+            width: 200%;
+            position: absolute;
+            top: 0;
+            left: -50%;
+            z-index: 0;
+            opacity: 0.4;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-primary-fixed-variant": "#6900b3",
+                      "background": "#0f131e",
+                      "surface-container-high": "#262a36",
+                      "surface-container-low": "#171b27",
+                      "on-secondary-container": "#00424e",
+                      "secondary-fixed": "#acedff",
+                      "primary-fixed": "#f0dbff",
+                      "on-error-container": "#ffdad6",
+                      "on-primary-fixed": "#2c0051",
+                      "secondary": "#4cd7f6",
+                      "surface-variant": "#313441",
+                      "on-surface-variant": "#cfc2d6",
+                      "secondary-container": "#03b5d3",
+                      "inverse-on-surface": "#2c303c",
+                      "tertiary-container": "#00a74b",
+                      "on-tertiary-fixed": "#002109",
+                      "primary-fixed-dim": "#ddb7ff",
+                      "on-tertiary-fixed-variant": "#005321",
+                      "outline": "#988d9f",
+                      "surface-bright": "#353945",
+                      "surface-container-highest": "#313441",
+                      "surface": "#0f131e",
+                      "on-background": "#dfe2f2",
+                      "tertiary-fixed": "#6bff8f",
+                      "on-tertiary": "#003915",
+                      "on-secondary": "#003640",
+                      "inverse-primary": "#842bd2",
+                      "surface-container": "#1b1f2b",
+                      "on-primary-container": "#400071",
+                      "on-tertiary-container": "#003111",
+                      "on-secondary-fixed": "#001f26",
+                      "outline-variant": "#4d4354",
+                      "primary-container": "#b76dff",
+                      "surface-tint": "#ddb7ff",
+                      "surface-container-lowest": "#0a0e19",
+                      "tertiary-fixed-dim": "#4ae176",
+                      "primary": "#ddb7ff",
+                      "inverse-surface": "#dfe2f2",
+                      "secondary-fixed-dim": "#4cd7f6",
+                      "on-secondary-fixed-variant": "#004e5c",
+                      "error-container": "#93000a",
+                      "tertiary": "#4ae176",
+                      "surface-dim": "#0f131e",
+                      "on-primary": "#490080",
+                      "on-error": "#690005",
+                      "on-surface": "#dfe2f2",
+                      "error": "#ffb4ab"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "fontFamily": {
+                      "headline": [
+                              "Space Grotesk"
+                      ],
+                      "body": [
+                              "Inter"
+                      ],
+                      "label": [
+                              "Inter"
+                      ]
+              }
+      },
+          },
+        }
+      </script>
+</head>
+<body class="bg-background text-on-surface">
+<!-- Ambient Background Elements -->
+<div class="fixed inset-0 overflow-hidden pointer-events-none">
+<div class="arcade-grid"></div>
+<div class="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px]"></div>
+<div class="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-secondary/10 rounded-full blur-[120px]"></div>
+</div>
+<!-- Main Content Shell -->
+<main class="relative min-h-screen flex flex-col items-center justify-center px-6 py-12 z-10">
+<!-- Brand Header Section -->
+<header class="mb-12 text-center">
+<h1 class="font-headline text-5xl md:text-7xl font-black tracking-tighter text-primary uppercase mb-2">
+                SolClub
+            </h1>
+<div class="flex items-center justify-center gap-3">
+<span class="h-[1px] w-8 bg-secondary/40"></span>
+<span class="font-headline text-xs tracking-[0.3em] text-secondary font-bold uppercase">The Digital Arcade Gallery</span>
+<span class="h-[1px] w-8 bg-secondary/40"></span>
+</div>
+</header>
+<!-- Auth Module Bento-inspired Layout -->
+<div class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
+<!-- Left Panel: Visual Hero & Progress -->
+<div class="lg:col-span-7 flex flex-col gap-6">
+<div class="glass-panel p-8 rounded-xl flex-1 border border-outline-variant/15 flex flex-col justify-end min-h-[400px] relative">
+<img class="absolute inset-0 w-full h-full object-cover opacity-60 mix-blend-overlay" data-alt="Cinematic high-contrast digital art of a futuristic neon gaming arcade in a dark void with floating violet and cyan light crystals" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBNon5b5yLT6ZcTXeY6RhgsHieAc-MyngKEodGRKzbkFO-7FsYh-cH1NhwHmS3PtxFC3uj8nE1k1KrUHA5sThErMUuYmxBKSh0CL9DSXT4GaLr1mdLGmhLX4FIRi5aCZRiTmu3fT3zyg2meAnOJa7-VRWKPFjD_xlYeiEH3SOrEo5cLpYencxICyUxXJOmWSs1-uWD57Jcl1KopxFT5p9Nr75Tz5l-PBaIV4WsQYyIP5llZdWSAuXTqY-VumAx5FDV4jG62g3KaRLRX"/>
+<div class="relative z-10">
+<span class="inline-block bg-tertiary-container/20 text-tertiary text-[10px] font-bold tracking-widest uppercase px-3 py-1 rounded-full mb-4 border border-tertiary/20">
+                            Available Now
+                        </span>
+<h2 class="font-headline text-4xl md:text-6xl font-bold text-on-surface leading-none mb-6">
+                            LEVEL UP YOUR <br/> <span class="text-secondary">SOCIAL REWARDS.</span>
+</h2>
+<p class="text-on-surface-variant max-w-md text-lg font-light leading-relaxed mb-8">
+                            Join the premier gamified ecosystem where your interactions become assets. Stake, play, and dominate the leaderboard.
+                        </p>
+<!-- Reward Progress Segmented Bar (Signature Component) -->
+<div class="flex flex-col gap-2">
+<div class="flex justify-between text-[10px] font-headline font-bold text-outline uppercase tracking-tighter">
+<span>Platform Capacity</span>
+<span>88% Full</span>
+</div>
+<div class="flex gap-1">
+<div class="h-1.5 flex-1 bg-tertiary rounded-sm"></div>
+<div class="h-1.5 flex-1 bg-tertiary rounded-sm"></div>
+<div class="h-1.5 flex-1 bg-tertiary rounded-sm"></div>
+<div class="h-1.5 flex-1 bg-tertiary rounded-sm"></div>
+<div class="h-1.5 flex-1 bg-tertiary rounded-sm"></div>
+<div class="h-1.5 flex-1 bg-tertiary/30 rounded-sm"></div>
+<div class="h-1.5 flex-1 bg-surface-container-highest rounded-sm"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-6">
+<div class="glass-panel p-6 rounded-xl border border-outline-variant/15">
+<div class="flex items-center gap-3 mb-2">
+<span class="material-symbols-outlined text-primary" data-icon="token">token</span>
+<span class="font-headline text-2xl font-bold text-on-surface">500+</span>
+</div>
+<p class="text-xs text-on-surface-variant font-medium uppercase tracking-wider">Quests Active</p>
+</div>
+<div class="glass-panel p-6 rounded-xl border border-outline-variant/15">
+<div class="flex items-center gap-3 mb-2">
+<span class="material-symbols-outlined text-secondary" data-icon="groups">groups</span>
+<span class="font-headline text-2xl font-bold text-on-surface">12.4K</span>
+</div>
+<p class="text-xs text-on-surface-variant font-medium uppercase tracking-wider">Players Online</p>
+</div>
+</div>
+</div>
+<!-- Right Panel: Authentication Form -->
+<div class="lg:col-span-5 flex flex-col gap-8">
+<div class="glass-panel p-10 rounded-xl border border-outline-variant/15 neon-glow-purple h-full">
+<div class="mb-10">
+<h3 class="font-headline text-2xl font-bold text-on-surface mb-2">Initialize Session</h3>
+<p class="text-sm text-on-surface-variant">Select your preferred entry protocol to continue.</p>
+</div>
+<div class="flex flex-col gap-4">
+<!-- Primary Login Option -->
+<button class="group flex items-center justify-between w-full bg-primary text-on-primary font-headline font-bold uppercase tracking-wider py-5 px-6 rounded-xl transition-all duration-300 active:scale-95 hover:shadow-[0_0_25px_rgba(221,183,255,0.4)]">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined" data-icon="account_balance_wallet" data-weight="fill">account_balance_wallet</span>
+<span>Connect Wallet</span>
+</div>
+<span class="material-symbols-outlined text-on-primary/60 group-hover:translate-x-1 transition-transform" data-icon="chevron_right">chevron_right</span>
+</button>
+<div class="relative py-4 flex items-center">
+<div class="flex-grow border-t border-outline-variant/15"></div>
+<span class="flex-shrink mx-4 text-[10px] font-bold text-outline uppercase tracking-widest">or</span>
+<div class="flex-grow border-t border-outline-variant/15"></div>
+</div>
+<!-- Secondary Auth Options -->
+<button class="flex items-center gap-4 w-full bg-surface-container-highest text-on-surface font-headline font-medium py-4 px-6 rounded-xl border border-outline-variant/10 hover:bg-surface-bright transition-all active:scale-98">
+<img alt="Google Logo" class="w-5 h-5 grayscale group-hover:grayscale-0 transition-all" src="https://lh3.googleusercontent.com/aida-public/AB6AXuABFGccf5p-xhWJ7BgplHLfZf49rYHCBP9HxR-R9JZmW4hWR-XzT8RI6AqIm-4k7yO9cX2jsZUEaK_9MjVZ0n8oG-A__3PYZRheFpG9a6C0R_0yRX4uggPhM3KEUN1pqdABjSG61FslPArMsalhXOqSfoxTsAdBAJfo_FxklanTTGZ9GZ6GWFxYZiQQ2qrpcgyXNMOkE189ZwV8veFvipSb5gKFogNdg8biy4Hlpnl_t_ZGSIM0xnqp3XLz7Ea46y4E_XEujjjNtaqZ"/>
+<span class="flex-1 text-left">Continue with Google</span>
+<span class="text-[10px] text-outline px-2 py-0.5 rounded bg-background border border-outline-variant/20">WEB2</span>
+</button>
+<button class="flex items-center gap-4 w-full bg-surface-container-highest text-on-surface font-headline font-medium py-4 px-6 rounded-xl border border-outline-variant/10 hover:bg-surface-bright transition-all active:scale-98">
+<span class="material-symbols-outlined text-secondary" data-icon="add_circle">add_circle</span>
+<span class="flex-1 text-left">Create New Wallet</span>
+<span class="text-[10px] text-outline px-2 py-0.5 rounded bg-background border border-outline-variant/20">GUEST</span>
+</button>
+</div>
+<div class="mt-12">
+<div class="p-6 bg-surface-container-lowest/50 rounded-xl border border-outline-variant/5">
+<div class="flex gap-4 mb-4">
+<div class="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary text-sm" data-icon="verified_user">verified_user</span>
+</div>
+<div>
+<h4 class="text-xs font-headline font-bold text-on-surface uppercase tracking-tighter">Secure Vault Protocol</h4>
+<p class="text-[11px] text-on-surface-variant leading-relaxed">Your keys never leave your device. All transactions require manual authorization in your private enclave.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-auto pt-10 text-center">
+<p class="text-[10px] text-outline uppercase tracking-widest leading-loose">
+                            By continuing, you agree to the <br/>
+<a class="text-secondary hover:text-secondary-fixed underline underline-offset-4 decoration-secondary/30 transition-colors" href="#">Term of Service</a> 
+                            and 
+                            <a class="text-secondary hover:text-secondary-fixed underline underline-offset-4 decoration-secondary/30 transition-colors" href="#">Privacy Policy</a>
+</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Stats / Ticker -->
+<footer class="mt-16 w-full max-w-6xl flex flex-col md:flex-row justify-between items-center gap-8 border-t border-outline-variant/10 pt-10">
+<div class="flex items-center gap-8 overflow-x-auto no-scrollbar pb-4 md:pb-0">
+<div class="flex flex-col">
+<span class="text-[10px] font-bold text-outline uppercase tracking-widest mb-1">Treasury</span>
+<span class="font-headline text-lg font-bold text-on-surface">$1,240,491.00</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] font-bold text-outline uppercase tracking-widest mb-1">SOL/USD</span>
+<span class="font-headline text-lg font-bold text-tertiary">+$142.12 <span class="text-[10px] align-top ml-1">▲</span></span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] font-bold text-outline uppercase tracking-widest mb-1">Network Load</span>
+<span class="font-headline text-lg font-bold text-secondary">Optimal</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<a class="w-10 h-10 flex items-center justify-center rounded-lg bg-surface-container hover:bg-surface-bright transition-colors border border-outline-variant/10" href="#">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="hub">hub</span>
+</a>
+<a class="w-10 h-10 flex items-center justify-center rounded-lg bg-surface-container hover:bg-surface-bright transition-colors border border-outline-variant/10" href="#">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="help">help</span>
+</a>
+</div>
+</footer>
+</main>
+<!-- UI Noise Overlay -->
+<div class="fixed inset-0 pointer-events-none opacity-[0.03] mix-blend-overlay bg-[url('https://grainy-gradients.vercel.app/noise.svg')]"></div>
+</body></html>
