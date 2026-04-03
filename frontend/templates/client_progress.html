@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}SolClub Loyalty Progress{% endblock %}
+{% block content %}
+<section class="panel glass">
+  <h2>Loyalty Progress</h2>
+  <label>Wallet
+    <input id="wallet" type="text" placeholder="Wallet address" />
+  </label>
+  <label>Merchant ID
+    <input id="merchantId" type="number" min="1" value="1" />
+  </label>
+  <div class="actions"><button id="loadProgress">Load Progress</button></div>
+  <div class="ring-wrap">
+    <div class="ring" id="progressRing"><span id="ringPct">0%</span></div>
+  </div>
+  <div id="progressDetails" class="stack"></div>
+</section>
+<section class="panel glass">
+  <h2>Tier Ladder</h2>
+  <div class="tier-ladder" id="tierLadder">
+    <div class="tier-row">Bronze</div>
+    <div class="tier-row">Silver</div>
+    <div class="tier-row">Gold</div>
+    <div class="tier-row">Legendary</div>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Merchant Cashback Config{% endblock %}
+{% block content %}
+<section class="panel glass">
+  <h2>Cashback Pool Configuration</h2>
+  <label>Merchant ID
+    <input id="merchantId" type="number" min="1" value="1" />
+  </label>
+  <label>Merchant Name
+    <input id="merchantName" type="text" value="merchant-1" />
+  </label>
+  <label>Cashback Pool %
+    <input id="cashbackPct" type="range" min="0.1" max="20" step="0.1" value="2" />
+  </label>
+  <label>Max Cashback per Tx (SOL)
+    <input id="maxCashback" type="number" min="0.001" step="0.001" value="0.05" />
+  </label>
+  <label>Weekly Rules (JSON)
+    <textarea id="weeklyRules" rows="5">{"base_rate":0.01,"tiers":[{"min_transactions":3,"rate":0.02},{"min_transactions":5,"rate":0.03}]}</textarea>
+  </label>
+  <div class="actions"><button id="saveCashbackConfig">Save Config</button></div>
+  <pre id="cashbackConfigOut" class="output">{}</pre>
+</section>
+<section class="panel glass">
+  <h2>Live Reward Preview</h2>
+  <div class="hint">If user spends <span id="previewSpend">1.00</span> SOL, expected cashback is <span id="previewCashback">0.02</span> SOL.</div>
+</section>
+{% endblock %}

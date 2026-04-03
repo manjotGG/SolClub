@@ -1,8 +1,11 @@
 {% extends "base.html" %}
 {% block title %}SolClub Merchant{% endblock %}
 {% block content %}
-<section class="panel">
-  <h2>Merchant Dashboard</h2>
+<section class="panel glass span-2">
+  <div class="panel-head">
+    <h2>Merchant Dashboard</h2>
+    <div class="chip">Live Business Pulse</div>
+  </div>
   <div class="grid-2">
     <label>Merchant ID
       <input id="merchantId" type="number" min="1" value="1" />
@@ -18,7 +21,12 @@
   <div class="actions">
     <button id="loadMerchantData">Load Merchant Data</button>
   </div>
+  <div class="kpi-row">
+    <div class="kpi glass"><small>Revenue</small><strong id="mdRevenue">0</strong></div>
+    <div class="kpi glass"><small>Cashback</small><strong id="mdCashback">0</strong></div>
+    <div class="kpi glass"><small>Active Users</small><strong id="mdUsers">0</strong></div>
+    <div class="kpi glass"><small>NFT Events</small><strong id="mdNfts">0</strong></div>
+  </div>
   <pre id="merchantOutput" class="output">{}</pre>
 </section>
-<script src="/ui/static/js/merchant.js"></script>
 {% endblock %}

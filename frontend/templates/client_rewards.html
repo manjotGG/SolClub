@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}SolClub Rewards{% endblock %}
+{% block content %}
+<section class="panel glass span-2">
+  <div class="panel-head">
+    <h2>Rewards Timeline</h2>
+    <div class="chip">Cashback + NFT Events</div>
+  </div>
+  <div class="grid-3">
+    <label>Wallet
+      <input id="wallet" type="text" placeholder="Wallet address" />
+    </label>
+    <label>Merchant ID
+      <input id="merchantId" type="number" min="1" value="1" />
+    </label>
+    <label>Limit
+      <input id="limit" type="number" min="5" value="50" />
+    </label>
+  </div>
+  <div class="actions"><button id="loadRewards">Load Rewards</button></div>
+  <div id="rewardsTimeline" class="timeline"></div>
+</section>
+{% endblock %}

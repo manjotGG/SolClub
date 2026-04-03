@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Merchant NFT Distribution{% endblock %}
+{% block content %}
+<section class="panel glass span-2">
+  <h2>NFT Distribution Timeline</h2>
+  <div class="grid-3">
+    <label>Merchant ID
+      <input id="merchantId" type="number" min="1" value="1" />
+    </label>
+    <label>Limit
+      <input id="limit" type="number" min="5" value="50" />
+    </label>
+    <div class="actions"><button id="loadMerchantNfts">Load NFTs</button></div>
+  </div>
+  <div id="merchantNftTimeline" class="timeline"></div>
+</section>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Merchant Franchises{% endblock %}
+{% block content %}
+<section class="panel glass">
+  <h2>Franchise Manager</h2>
+  <label>Merchant ID
+    <input id="merchantId" type="number" min="1" value="1" />
+  </label>
+  <label>Franchise Name
+    <input id="franchiseName" type="text" placeholder="Downtown Branch" />
+  </label>
+  <label>Location
+    <input id="franchiseLocation" type="text" placeholder="City / Area" />
+  </label>
+  <div class="actions wrap-actions">
+    <button id="addFranchise">Add Franchise</button>
+    <button id="loadFranchises" class="secondary">Refresh List</button>
+  </div>
+</section>
+<section class="panel glass span-2">
+  <h2>Registered Franchises</h2>
+  <div id="franchiseList" class="stack"></div>
+</section>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}SolClub NFT Collection{% endblock %}
+{% block content %}
+<section class="panel glass span-2">
+  <div class="panel-head">
+    <h2>NFT Collection</h2>
+    <div class="chip">Rarity Glow and Reveal States</div>
+  </div>
+  <div class="grid-2">
+    <label>Wallet
+      <input id="wallet" type="text" placeholder="Wallet address" />
+    </label>
+    <label>Filter Rarity
+      <select id="rarityFilter">
+        <option value="all">All</option>
+        <option value="common">Common</option>
+        <option value="rare">Rare</option>
+        <option value="epic">Epic</option>
+        <option value="legendary">Legendary</option>
+      </select>
+    </label>
+  </div>
+  <div class="actions"><button id="loadNfts">Load NFTs</button></div>
+  <div id="nftGrid" class="nft-grid"></div>
+</section>
+{% endblock %}

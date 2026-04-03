@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}SolClub Feedback{% endblock %}
+{% block content %}
+<section class="panel glass span-2">
+  <h2>Reward Feedback</h2>
+  <div class="grid-3">
+    <label>Wallet
+      <input id="wallet" type="text" placeholder="Wallet address" />
+    </label>
+    <label>Merchant ID
+      <input id="merchantId" type="number" min="1" value="1" />
+    </label>
+    <label>Rating
+      <input id="rating" type="range" min="1" max="5" value="5" />
+    </label>
+  </div>
+  <label>Message
+    <input id="feedbackMessage" type="text" placeholder="Share your reward experience" />
+  </label>
+  <div class="actions"><button id="submitFeedback">Submit Feedback</button></div>
+  <pre id="feedbackOut" class="output">{}</pre>
+</section>
+{% endblock %}

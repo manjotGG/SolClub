@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Merchant Analytics{% endblock %}
+{% block content %}
+<section class="panel glass span-2">
+  <div class="panel-head">
+    <h2>Analytics</h2>
+    <div class="chip">Live KPI and Reward Distribution</div>
+  </div>
+  <div class="grid-3">
+    <label>Merchant ID
+      <input id="merchantId" type="number" min="1" value="1" />
+    </label>
+    <label>Auto Refresh
+      <select id="autoRefreshMs">
+        <option value="0">Off</option>
+        <option value="5000">5 sec</option>
+        <option value="10000" selected>10 sec</option>
+      </select>
+    </label>
+    <div class="actions"><button id="loadMerchantAnalytics">Load</button></div>
+  </div>
+  <div class="kpi-row">
+    <div class="kpi glass"><small>Revenue</small><strong id="kpiRevenue">0</strong></div>
+    <div class="kpi glass"><small>Cashback</small><strong id="kpiCashback">0</strong></div>
+    <div class="kpi glass"><small>Users</small><strong id="kpiUsers">0</strong></div>
+    <div class="kpi glass"><small>Transactions</small><strong id="kpiTx">0</strong></div>
+  </div>
+  <pre id="merchantAnalyticsOut" class="output">{}</pre>
+</section>
+{% endblock %}

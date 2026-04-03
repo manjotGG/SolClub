@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Merchant Feedback{% endblock %}
+{% block content %}
+<section class="panel glass span-2">
+  <h2>User Feedback</h2>
+  <div class="grid-3">
+    <label>Merchant ID
+      <input id="merchantId" type="number" min="1" value="1" />
+    </label>
+    <label>Limit
+      <input id="limit" type="number" min="10" value="50" />
+    </label>
+    <div class="actions"><button id="loadMerchantFeedback">Load Feedback</button></div>
+  </div>
+  <div id="merchantFeedbackList" class="stack"></div>
+</section>
+{% endblock %}

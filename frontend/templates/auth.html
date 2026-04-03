@@ -1,8 +1,11 @@
 {% extends "base.html" %}
 {% block title %}SolClub Auth{% endblock %}
 {% block content %}
-<section class="panel">
-  <h2>Auth and Wallet</h2>
+<section class="panel glass span-2">
+  <div class="panel-head">
+    <h2>Join SolClub</h2>
+    <div class="chip">Onboarding Quest</div>
+  </div>
   <div class="grid-2">
     <label>Wallet Address
       <input id="wallet" type="text" placeholder="Wallet" />
@@ -14,6 +17,12 @@
       </select>
     </label>
   </div>
+  <div class="quest-list">
+    <div class="quest-item">1. Connect account</div>
+    <div class="quest-item">2. Connect wallet</div>
+    <div class="quest-item">3. Complete first payment</div>
+    <div class="quest-item">4. Unlock first reward</div>
+  </div>
   <div class="actions wrap-actions">
     <button id="connectWallet">Connect Wallet</button>
     <button id="autoCreateWallet" class="secondary">Auto Create Managed Wallet</button>
@@ -21,5 +30,4 @@
   </div>
   <pre id="authOutput" class="output">{}</pre>
 </section>
-<script src="/ui/static/js/auth.js"></script>
 {% endblock %}

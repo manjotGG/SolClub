@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}SolClub Transactions{% endblock %}
+{% block content %}
+<section class="panel glass span-2">
+  <div class="panel-head">
+    <h2>Transactions</h2>
+    <div class="chip">Reward-triggering payments highlighted</div>
+  </div>
+  <div class="grid-3">
+    <label>Wallet
+      <input id="wallet" type="text" placeholder="Wallet address" />
+    </label>
+    <label>Merchant ID
+      <input id="merchantId" type="number" min="1" value="1" />
+    </label>
+    <label>Limit
+      <input id="limit" type="number" min="5" value="50" />
+    </label>
+  </div>
+  <div class="actions"><button id="loadTx">Load Transactions</button></div>
+  <div id="txTableWrap" class="table-wrap"></div>
+</section>
+{% endblock %}

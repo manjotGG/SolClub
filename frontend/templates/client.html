@@ -1,8 +1,11 @@
 {% extends "base.html" %}
 {% block title %}SolClub Client{% endblock %}
 {% block content %}
-<section class="panel">
-  <h2>Client Dashboard</h2>
+<section class="panel glass span-2">
+  <div class="panel-head">
+    <h2>Client Dashboard</h2>
+    <div class="chip">Gamified Reward HUD</div>
+  </div>
   <div class="grid-2">
     <label>Wallet Address
       <input id="wallet" type="text" placeholder="Wallet" />
@@ -26,13 +29,23 @@
   <div class="actions">
     <button id="loadClientData">Load Client Data</button>
   </div>
+  <div class="streak">Streak: <span id="streakValue">0</span> days</div>
   <div class="kpi-row">
-    <div class="kpi"><small>Tier</small><strong id="tier">-</strong></div>
-    <div class="kpi"><small>Transactions</small><strong id="txCount">0</strong></div>
-    <div class="kpi"><small>Cashback</small><strong id="cashback">0</strong></div>
-    <div class="kpi"><small>NFTs</small><strong id="nftCount">0</strong></div>
+    <div class="kpi glass"><small>Tier</small><strong id="tier">-</strong></div>
+    <div class="kpi glass"><small>Transactions</small><strong id="txCount">0</strong></div>
+    <div class="kpi glass"><small>Cashback</small><strong id="cashback">0</strong></div>
+    <div class="kpi glass"><small>NFTs</small><strong id="nftCount">0</strong></div>
+  </div>
+  <div class="progress-wrap">
+    <div class="progress-title">XP Progress to Next Tier</div>
+    <div class="progress-track"><div class="progress-bar neon" id="xpProgress"></div></div>
+    <div class="hint" id="progressHint">Load data to calculate next unlock.</div>
   </div>
   <pre id="clientOutput" class="output">{}</pre>
 </section>
-<script src="/ui/static/js/client.js"></script>
+
+<section class="panel glass">
+  <h2>Next Reward Unlock</h2>
+  <div class="unlock-card" id="unlockCard">Preview the next payment reward to trigger the glow.</div>
+</section>
 {% endblock %}
