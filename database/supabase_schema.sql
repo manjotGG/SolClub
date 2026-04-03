@@ -7,6 +7,7 @@ create table if not exists public.users (
   id uuid primary key default gen_random_uuid(),
   email text unique,
   display_name text,
+  google_sub text unique,
   role text not null default 'client' check (role in ('client', 'merchant', 'admin')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -28,6 +29,9 @@ create table if not exists public.wallets (
   network text not null default 'testnet',
   provider text,
   is_primary boolean not null default true,
+  managed_wallet boolean not null default false,
+  encrypted_secret text,
+  created_by text,
   created_at timestamptz not null default now()
 );
 
@@ -120,6 +124,26 @@ create table if not exists public.payment_requests (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.auth_challenges (
+  id bigserial primary key,
+  wallet_address text not null,
+  nonce text not null,
+  expires_at timestamptz not null,
+  used boolean not null default false,
+  used_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique(wallet_address, nonce)
+);
+
+create table if not exists public.reward_feedback (
+  id bigserial primary key,
+  wallet_address text not null,
+  merchant_id bigint not null references public.merchant_profiles(id),
+  rating int not null check (rating between 1 and 5),
+  message text,
+  created_at timestamptz not null default now()
+);
+
 create index if not exists idx_transactions_wallet_created_at on public.transactions(wallet_address, created_at desc);
 create index if not exists idx_transactions_merchant_created_at on public.transactions(merchant_id, created_at desc);
 create index if not exists idx_cashback_wallet_created_at on public.cashback_rewards(wallet_address, created_at desc);
@@ -136,6 +160,8 @@ alter table public.transactions enable row level security;
 alter table public.nfts enable row level security;
 alter table public.cashback_rewards enable row level security;
 alter table public.payment_requests enable row level security;
+alter table public.auth_challenges enable row level security;
+alter table public.reward_feedback enable row level security;
 
 -- Minimal read policies (adjust with your auth model in production)
 do $$

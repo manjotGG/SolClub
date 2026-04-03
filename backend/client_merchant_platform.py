@@ -1,18 +1,49 @@
+import base64
+import os
+import secrets
+import time
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlencode
 
-from fastapi import APIRouter, HTTPException
+import requests
+from cryptography.fernet import Fernet
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
+from solders.keypair import Keypair
+from solders.pubkey import Pubkey
+from solders.signature import Signature
+from solana.rpc.async_api import AsyncClient
 
 from database.db import (
     count_nft_records,
+    create_franchise,
+    create_merchant,
+    get_merchant_analytics,
+    get_merchant_nft_tracking,
     get_merchant_profile,
+    get_wallet_record,
     list_cashback_rewards,
+    list_franchises,
+    list_nft_records,
+    list_reward_feedback,
+    list_wallet_transactions,
+    mark_wallet_auth_challenge_used,
+    save_reward_feedback,
+    save_wallet_auth_challenge,
+    upsert_client_profile,
     upsert_merchant_profile,
+    upsert_user_account,
+    upsert_wallet_record,
+    get_wallet_auth_challenge,
 )
 from loyalty_engine.loyalty_engine import LoyaltyRulesEngine
 
-
 router = APIRouter(prefix="/platform", tags=["client-merchant-platform"])
+
+
+_google_state_store: Dict[str, float] = {}
 
 
 class CashbackPoolRequest(BaseModel):
@@ -20,6 +51,425 @@ class CashbackPoolRequest(BaseModel):
     cashback_pool_percentage: float = Field(..., gt=0, le=100)
     max_cashback_limit: float = Field(..., gt=0)
     weekly_distribution_rules: Dict[str, Any]
+
+
+class MerchantAccountRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=120)
+    wallet_address: str = Field(..., min_length=32)
+    email: Optional[str] = None
+
+
+class FranchiseRequest(BaseModel):
+    franchise_name: str = Field(..., min_length=2, max_length=120)
+    location: Optional[str] = None
+
+
+class WalletConnectRequest(BaseModel):
+    wallet_address: str = Field(..., min_length=32)
+    network: str = Field(default="testnet")
+    provider: Optional[str] = None
+    user_role: str = Field(default="client")
+
+
+class AutoWalletRequest(BaseModel):
+    network: str = Field(default="testnet")
+    provider: str = Field(default="solclub-managed")
+    created_by: Optional[str] = None
+
+
+class FundWalletRequest(BaseModel):
+    wallet_address: str
+    amount_sol: float = Field(default=1.0, gt=0, le=5.0)
+
+
+class WalletAuthChallengeRequest(BaseModel):
+    wallet_address: str
+
+
+class WalletAuthVerifyRequest(BaseModel):
+    wallet_address: str
+    nonce: str
+    signature: str
+
+
+class RewardFeedbackRequest(BaseModel):
+    merchant_id: int = Field(default=1)
+    rating: int = Field(..., ge=1, le=5)
+    message: Optional[str] = Field(default=None, max_length=500)
+
+
+def _app_secret() -> str:
+    secret = os.getenv("APP_AUTH_SECRET")
+    if secret:
+        return secret
+    return "dev-insecure-secret-change-in-production"
+
+
+def _make_app_token(payload: Dict[str, Any]) -> str:
+    content = {
+        **payload,
+        "exp": int((datetime.now(tz=timezone.utc) + timedelta(hours=8)).timestamp()),
+        "iat": int(datetime.now(tz=timezone.utc).timestamp()),
+    }
+    raw = str(content).encode("utf-8") + _app_secret().encode("utf-8")
+    return base64.urlsafe_b64encode(raw).decode("utf-8")
+
+
+def _wallet_encryption_key() -> bytes:
+    key = os.getenv("WALLET_ENCRYPTION_KEY", "").strip()
+    if not key:
+        raise RuntimeError("Missing WALLET_ENCRYPTION_KEY in environment.")
+    return key.encode("utf-8")
+
+
+def _encrypt_secret(secret_bytes: bytes) -> str:
+    f = Fernet(_wallet_encryption_key())
+    return f.encrypt(secret_bytes).decode("utf-8")
+
+
+def _verify_wallet_signature(wallet_address: str, nonce: str, signature: str) -> bool:
+    message = f"SolClub wallet auth:{nonce}".encode("utf-8")
+    sig = Signature.from_string(signature)
+    pubkey = Pubkey.from_string(wallet_address)
+    return bool(sig.verify(pubkey, message))
+
+
+@router.get("/dashboard", response_class=HTMLResponse)
+async def platform_dashboard():
+    return """
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset='utf-8'/>
+  <meta name='viewport' content='width=device-width, initial-scale=1'/>
+  <title>SolClub Platform</title>
+  <style>
+    :root {
+      --bg: #f5f3ef;
+      --ink: #1f1e1b;
+      --muted: #66625a;
+      --accent: #0f766e;
+      --accent-2: #ea580c;
+      --panel: #fffdfa;
+      --line: #ded6ca;
+    }
+    body { margin: 0; font-family: 'Trebuchet MS', 'Segoe UI', sans-serif; background: radial-gradient(circle at 10% 10%, #fff7e8, var(--bg)); color: var(--ink); }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 28px; }
+    .hero { background: linear-gradient(120deg, #fff, #f3f6f4); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
+    .hero h1 { margin: 0 0 8px 0; letter-spacing: 0.6px; }
+    .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .chip { background: #f8efe3; border: 1px solid #eccfb0; color: #7a4615; border-radius: 999px; padding: 4px 10px; font-size: 12px; }
+    .grid { margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+    .card h3 { margin: 0 0 8px 0; font-size: 16px; }
+    .row { display: flex; gap: 8px; margin: 8px 0; }
+    input, button, select, textarea { border: 1px solid var(--line); border-radius: 10px; padding: 10px; width: 100%; font-size: 13px; }
+    button { background: var(--accent); color: #fff; border: none; cursor: pointer; font-weight: bold; }
+    button.secondary { background: var(--accent-2); }
+    pre { background: #121212; color: #f3f3f3; padding: 12px; border-radius: 10px; overflow-x: auto; min-height: 110px; }
+    .muted { color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class='wrap'>
+    <div class='hero'>
+      <h1>SolClub Client + Merchant Platform</h1>
+      <div class='muted'>Interactive dashboard for auth, wallet ops, cashback config, and loyalty visibility.</div>
+      <div class='chips'>
+        <span class='chip'>Google OAuth</span>
+        <span class='chip'>Wallet Authentication</span>
+        <span class='chip'>Managed Wallets</span>
+        <span class='chip'>Cashback Pools</span>
+      </div>
+    </div>
+
+    <div class='grid'>
+      <div class='card'>
+        <h3>Client Reward Preview</h3>
+        <input id='wallet' placeholder='Wallet address'/>
+        <div class='row'>
+          <input id='merchantId' placeholder='Merchant ID' value='1'/>
+          <input id='amount' placeholder='Amount' value='0.1'/>
+        </div>
+        <button onclick='preview()'>Preview Reward</button>
+      </div>
+
+      <div class='card'>
+        <h3>Managed Wallet</h3>
+        <button class='secondary' onclick='createWallet()'>Auto Create Wallet</button>
+        <div class='muted'>Requires WALLET_ENCRYPTION_KEY in environment.</div>
+      </div>
+
+      <div class='card'>
+        <h3>Merchant Analytics</h3>
+        <input id='merchantAnalyticsId' placeholder='Merchant ID' value='1'/>
+        <button onclick='analytics()'>Load Analytics</button>
+      </div>
+    </div>
+
+    <div class='card' style='margin-top:12px;'>
+      <h3>Output</h3>
+      <pre id='out'>{"status":"ready"}</pre>
+    </div>
+  </div>
+
+<script>
+async function show(res){
+  document.getElementById('out').textContent = JSON.stringify(res, null, 2)
+}
+async function preview(){
+  const w = document.getElementById('wallet').value
+  const m = document.getElementById('merchantId').value
+  const a = document.getElementById('amount').value
+  const r = await fetch(`/platform/client/${w}/reward-preview?merchant_id=${m}&amount=${a}`)
+  show(await r.json())
+}
+async function createWallet(){
+  const r = await fetch('/platform/wallet/auto-create', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({})})
+  show(await r.json())
+}
+async function analytics(){
+  const m = document.getElementById('merchantAnalyticsId').value
+  const r = await fetch(`/platform/merchant/${m}/analytics`)
+  show(await r.json())
+}
+</script>
+</body>
+</html>
+    """
+
+
+@router.get("/auth/google/start")
+async def google_oauth_start(role: str = Query(default="client")):
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/platform/auth/google/callback")
+    if not client_id:
+        raise HTTPException(status_code=500, detail="GOOGLE_CLIENT_ID not configured")
+
+    state = secrets.token_urlsafe(24)
+    _google_state_store[state] = time.time() + 600
+
+    params = {
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
+        "state": f"{state}:{role}",
+        "access_type": "online",
+        "prompt": "consent",
+    }
+    url = f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"
+    return {"auth_url": url, "state": state}
+
+
+@router.get("/auth/google/callback")
+async def google_oauth_callback(code: Optional[str] = None, state: Optional[str] = None):
+    if not code or not state:
+        raise HTTPException(status_code=400, detail="Missing code or state")
+
+    state_parts = state.split(":")
+    state_key = state_parts[0]
+    role = state_parts[1] if len(state_parts) > 1 else "client"
+    expires_at = _google_state_store.get(state_key)
+    if not expires_at or time.time() > expires_at:
+        raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
+
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/platform/auth/google/callback")
+
+    if not client_id or not client_secret:
+        raise HTTPException(status_code=500, detail="Google OAuth credentials not configured")
+
+    token_res = requests.post(
+        "https://oauth2.googleapis.com/token",
+        data={
+            "code": code,
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "redirect_uri": redirect_uri,
+            "grant_type": "authorization_code",
+        },
+        timeout=20,
+    )
+
+    if token_res.status_code >= 400:
+        raise HTTPException(status_code=400, detail=f"Token exchange failed: {token_res.text}")
+
+    token_data = token_res.json()
+    access_token = token_data.get("access_token")
+    user_res = requests.get(
+        "https://www.googleapis.com/oauth2/v3/userinfo",
+        headers={"Authorization": f"Bearer {access_token}"},
+        timeout=20,
+    )
+    profile = user_res.json()
+
+    account = upsert_user_account(
+        email=profile.get("email"),
+        display_name=profile.get("name"),
+        role=role,
+        google_sub=profile.get("sub"),
+    )
+
+    token = _make_app_token(
+        {
+            "provider": "google",
+            "email": profile.get("email"),
+            "role": role,
+            "user": account.get("id") or profile.get("sub"),
+        }
+    )
+
+    return {"success": True, "account": account, "token": token}
+
+
+@router.post("/auth/wallet/challenge")
+async def wallet_auth_challenge(payload: WalletAuthChallengeRequest):
+    wallet = payload.wallet_address.strip()
+    nonce = secrets.token_urlsafe(24)
+    expires = (datetime.now(tz=timezone.utc) + timedelta(minutes=10)).isoformat()
+    save_wallet_auth_challenge(wallet, nonce, expires)
+    message = f"SolClub wallet auth:{nonce}"
+    return {"wallet": wallet, "nonce": nonce, "message": message, "expires_at": expires}
+
+
+@router.post("/auth/wallet/verify")
+async def wallet_auth_verify(payload: WalletAuthVerifyRequest):
+    wallet = payload.wallet_address.strip()
+    challenge = get_wallet_auth_challenge(wallet, payload.nonce)
+    if not challenge:
+        raise HTTPException(status_code=400, detail="Challenge missing or already used")
+
+    expires_at = challenge.get("expires_at")
+    if expires_at and datetime.fromisoformat(expires_at.replace("Z", "+00:00")) < datetime.now(tz=timezone.utc):
+        raise HTTPException(status_code=400, detail="Challenge expired")
+
+    try:
+        verified = _verify_wallet_signature(wallet, payload.nonce, payload.signature)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Signature verification failed: {exc}")
+
+    if not verified:
+        raise HTTPException(status_code=401, detail="Invalid wallet signature")
+
+    mark_wallet_auth_challenge_used(wallet, payload.nonce)
+    upsert_client_profile(wallet)
+    token = _make_app_token({"provider": "wallet", "wallet": wallet, "role": "client"})
+    return {"success": True, "wallet": wallet, "token": token}
+
+
+@router.post("/wallet/connect")
+async def wallet_connect(payload: WalletConnectRequest):
+    wallet = payload.wallet_address.strip()
+    try:
+        Pubkey.from_string(wallet)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid Solana wallet address")
+
+    upsert_wallet_record(
+        wallet_address=wallet,
+        network=payload.network,
+        provider=payload.provider,
+        is_primary=True,
+        managed_wallet=False,
+    )
+    if payload.user_role == "client":
+        upsert_client_profile(wallet)
+
+    return {"success": True, "wallet": wallet, "network": payload.network, "managed_wallet": False}
+
+
+@router.post("/wallet/auto-create")
+async def wallet_auto_create(payload: AutoWalletRequest):
+    if payload.network.lower() != "testnet":
+        raise HTTPException(status_code=400, detail="Managed wallet creation is currently enabled for testnet only")
+
+    keypair = Keypair()
+    wallet_address = str(keypair.pubkey())
+    secret_bytes = bytes(keypair)
+
+    try:
+        encrypted_secret = _encrypt_secret(secret_bytes)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Secure key management setup missing: {exc}")
+
+    upsert_wallet_record(
+        wallet_address=wallet_address,
+        network=payload.network,
+        provider=payload.provider,
+        is_primary=True,
+        managed_wallet=True,
+        encrypted_secret=encrypted_secret,
+        created_by=payload.created_by,
+    )
+    upsert_client_profile(wallet_address)
+
+    return {
+        "success": True,
+        "wallet_address": wallet_address,
+        "network": payload.network,
+        "managed_wallet": True,
+        "warning": "Private key is encrypted in DB. Keep WALLET_ENCRYPTION_KEY secure.",
+    }
+
+
+@router.post("/wallet/fund-testnet")
+async def wallet_fund_testnet(payload: FundWalletRequest):
+    wallet = payload.wallet_address.strip()
+    try:
+        pubkey = Pubkey.from_string(wallet)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid wallet")
+
+    client = AsyncClient(os.getenv("SOLANA_RPC_URL", "https://api.testnet.solana.com"))
+    try:
+        sig = await client.request_airdrop(pubkey, int(payload.amount_sol * 1_000_000_000))
+        return {
+            "success": True,
+            "wallet": wallet,
+            "amount_sol": payload.amount_sol,
+            "airdrop_signature": str(sig.value) if sig and sig.value else None,
+        }
+    finally:
+        await client.close()
+
+
+@router.post("/merchant/account-creation")
+async def merchant_account_creation(payload: MerchantAccountRequest):
+    api_key = secrets.token_hex(16)
+    merchant = create_merchant(payload.name, payload.wallet_address, api_key)
+    merchant_id = int(merchant.get("id", 1))
+    upsert_merchant_profile(
+        merchant_id=merchant_id,
+        name=payload.name,
+        cashback_pool_percentage=2.0,
+        max_cashback_limit=0.05,
+        weekly_distribution_rules={
+            "base_rate": 0.01,
+            "tiers": [
+                {"min_transactions": 3, "rate": 0.02},
+                {"min_transactions": 5, "rate": 0.03},
+                {"min_transactions": 10, "rate": 0.05},
+            ],
+        },
+    )
+    upsert_user_account(email=payload.email, display_name=payload.name, role="merchant")
+    return {"success": True, "merchant": merchant, "api_key": api_key}
+
+
+@router.post("/merchant/{merchant_id}/franchise-registration")
+async def merchant_franchise_registration(merchant_id: int, payload: FranchiseRequest):
+    profile = get_merchant_profile(merchant_id)
+    if not profile:
+        raise HTTPException(status_code=404, detail="Merchant profile not found")
+    franchise = create_franchise(merchant_id, payload.franchise_name, payload.location)
+    return {"success": True, "franchise": franchise}
+
+
+@router.get("/merchant/{merchant_id}/franchises")
+async def merchant_franchises(merchant_id: int):
+    return {"merchant_id": merchant_id, "franchises": list_franchises(merchant_id)}
 
 
 @router.get("/merchant/{merchant_id}/cashback-pool")
@@ -46,6 +496,28 @@ async def configure_cashback_pool(merchant_id: int, payload: CashbackPoolRequest
     }
 
 
+@router.get("/merchant/{merchant_id}/analytics-dashboard")
+async def merchant_analytics_dashboard(merchant_id: int):
+    analytics = get_merchant_analytics(merchant_id)
+    feedback = list_reward_feedback(merchant_id, limit=20)
+    return {"analytics": analytics, "feedback": feedback}
+
+
+@router.get("/merchant/{merchant_id}/nft-distribution-tracking")
+async def merchant_nft_distribution_tracking(merchant_id: int, limit: int = 100):
+    return {
+        "merchant_id": merchant_id,
+        "nft_distribution": get_merchant_nft_tracking(merchant_id, limit=limit),
+    }
+
+
+@router.get("/client/{wallet}/nfts")
+async def client_nfts(wallet: str):
+    normalized_wallet = wallet.strip()
+    nfts = list_nft_records(normalized_wallet)
+    return {"wallet": normalized_wallet, "total": len(nfts), "items": nfts}
+
+
 @router.get("/client/{wallet}/rewards")
 async def get_client_rewards(wallet: str, merchant_id: Optional[int] = None):
     normalized_wallet = wallet.strip()
@@ -63,7 +535,7 @@ async def get_client_rewards(wallet: str, merchant_id: Optional[int] = None):
         for row in rows
     ]
 
-    total_cashback = round(sum(item["cashback_amount"] for item in cashback_history), 6)
+    total_cashback = round(sum(float(item["cashback_amount"] or 0) for item in cashback_history), 6)
 
     return {
         "wallet": normalized_wallet,
@@ -73,6 +545,42 @@ async def get_client_rewards(wallet: str, merchant_id: Optional[int] = None):
         "nft_count": nft_count,
         "cashback_history": cashback_history,
     }
+
+
+@router.get("/client/{wallet}/transactions")
+async def client_transactions(wallet: str, limit: int = 50):
+    normalized_wallet = wallet.strip()
+    txs = list_wallet_transactions(normalized_wallet, limit=limit)
+    return {"wallet": normalized_wallet, "count": len(txs), "transactions": txs}
+
+
+@router.get("/client/{wallet}/loyalty-progress")
+async def client_loyalty_progress(wallet: str, merchant_id: int = 1):
+    normalized_wallet = wallet.strip()
+    txs = list_wallet_transactions(normalized_wallet, limit=500)
+    total_transactions = len(txs)
+    total_spent = round(sum(float(t.get("amount", 0) or 0) for t in txs), 6)
+
+    engine = LoyaltyRulesEngine(use_sqlite=False)
+    tier = engine.calculate_tier(total_transactions)
+    milestone = engine.get_next_milestone(total_transactions)
+    preview = engine.evaluate_cashback_and_nft(normalized_wallet, merchant_id, transaction_amount=0.01)
+
+    return {
+        "wallet": normalized_wallet,
+        "tier": tier,
+        "total_transactions": total_transactions,
+        "total_spent": total_spent,
+        "next_milestone": milestone,
+        "next_cashback_rate": preview.cashback_rate,
+        "next_reward_tier": preview.reward_tier,
+    }
+
+
+@router.post("/client/{wallet}/reward-feedback")
+async def client_reward_feedback(wallet: str, payload: RewardFeedbackRequest):
+    save_reward_feedback(wallet, payload.merchant_id, payload.rating, payload.message)
+    return {"success": True, "wallet": wallet.strip(), "merchant_id": payload.merchant_id}
 
 
 @router.get("/client/{wallet}/reward-preview")

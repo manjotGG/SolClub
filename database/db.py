@@ -402,3 +402,215 @@ def get_recent_cashback_events(limit: int = 10) -> List[Dict[str, Any]]:
         }
         for r in rows
     ]
+
+
+def upsert_user_account(
+    email: Optional[str],
+    display_name: Optional[str],
+    role: str,
+    google_sub: Optional[str] = None,
+) -> Dict[str, Any]:
+    _require_client()
+    payload = {
+        "email": email,
+        "display_name": display_name,
+        "role": role,
+        "google_sub": google_sub,
+        "updated_at": _now_iso(),
+    }
+    result = _db.client.table("users").upsert(payload, on_conflict="email").execute()
+    rows = _require_data(result)
+    return rows[0] if rows else payload
+
+
+def upsert_wallet_record(
+    wallet_address: str,
+    network: str,
+    provider: Optional[str],
+    is_primary: bool = True,
+    managed_wallet: bool = False,
+    encrypted_secret: Optional[str] = None,
+    created_by: Optional[str] = None,
+):
+    _require_client()
+    payload = {
+        "wallet_address": wallet_address.strip(),
+        "network": network,
+        "provider": provider,
+        "is_primary": bool(is_primary),
+        "managed_wallet": bool(managed_wallet),
+        "encrypted_secret": encrypted_secret,
+        "created_by": created_by,
+    }
+    _db.client.table("wallets").upsert(payload, on_conflict="wallet_address").execute()
+
+
+def get_wallet_record(wallet_address: str) -> Optional[Dict[str, Any]]:
+    _require_client()
+    result = (
+        _db.client.table("wallets")
+        .select("*")
+        .eq("wallet_address", wallet_address.strip())
+        .limit(1)
+        .execute()
+    )
+    rows = _require_data(result)
+    return rows[0] if rows else None
+
+
+def save_wallet_auth_challenge(wallet_address: str, nonce: str, expires_at_iso: str):
+    _require_client()
+    payload = {
+        "wallet_address": wallet_address.strip(),
+        "nonce": nonce,
+        "expires_at": expires_at_iso,
+        "used": False,
+        "created_at": _now_iso(),
+    }
+    try:
+        _db.client.table("auth_challenges").upsert(payload, on_conflict="wallet_address,nonce").execute()
+    except Exception:
+        # Allow platform module to run even before schema migration is applied.
+        return
+
+
+def get_wallet_auth_challenge(wallet_address: str, nonce: str) -> Optional[Dict[str, Any]]:
+    _require_client()
+    try:
+        result = (
+            _db.client.table("auth_challenges")
+            .select("*")
+            .eq("wallet_address", wallet_address.strip())
+            .eq("nonce", nonce)
+            .eq("used", False)
+            .limit(1)
+            .execute()
+        )
+        rows = _require_data(result)
+        return rows[0] if rows else None
+    except Exception:
+        return None
+
+
+def mark_wallet_auth_challenge_used(wallet_address: str, nonce: str):
+    _require_client()
+    try:
+        _db.client.table("auth_challenges").update({"used": True, "used_at": _now_iso()}).eq(
+            "wallet_address", wallet_address.strip()
+        ).eq("nonce", nonce).execute()
+    except Exception:
+        return
+
+
+def create_franchise(merchant_id: int, franchise_name: str, location: Optional[str]) -> Dict[str, Any]:
+    _require_client()
+    payload = {
+        "merchant_id": int(merchant_id),
+        "franchise_name": franchise_name,
+        "location": location,
+        "created_at": _now_iso(),
+    }
+    result = _db.client.table("franchises").insert(payload).execute()
+    rows = _require_data(result)
+    return rows[0] if rows else payload
+
+
+def list_franchises(merchant_id: int) -> List[Dict[str, Any]]:
+    _require_client()
+    result = (
+        _db.client.table("franchises")
+        .select("*")
+        .eq("merchant_id", int(merchant_id))
+        .order("created_at", desc=True)
+        .execute()
+    )
+    return _require_data(result)
+
+
+def get_merchant_analytics(merchant_id: int) -> Dict[str, Any]:
+    _require_client()
+    tx_res = (
+        _db.client.table("transactions")
+        .select("wallet_address,amount,created_at")
+        .eq("merchant_id", int(merchant_id))
+        .execute()
+    )
+    tx_rows = _require_data(tx_res)
+
+    cb_res = (
+        _db.client.table("cashback_rewards")
+        .select("cashback_amount,reward_tier")
+        .eq("merchant_id", int(merchant_id))
+        .execute()
+    )
+    cb_rows = _require_data(cb_res)
+
+    unique_clients = len({r.get("wallet_address") for r in tx_rows if r.get("wallet_address")})
+    tx_volume = float(sum(float(r.get("amount", 0) or 0) for r in tx_rows))
+    cashback_volume = float(sum(float(r.get("cashback_amount", 0) or 0) for r in cb_rows))
+
+    tier_dist: Dict[str, int] = {}
+    for row in cb_rows:
+        tier = row.get("reward_tier") or "unknown"
+        tier_dist[tier] = tier_dist.get(tier, 0) + 1
+
+    return {
+        "merchant_id": int(merchant_id),
+        "unique_clients": unique_clients,
+        "transactions_count": len(tx_rows),
+        "transaction_volume": round(tx_volume, 6),
+        "cashback_volume": round(cashback_volume, 6),
+        "reward_tier_distribution": tier_dist,
+    }
+
+
+def get_merchant_nft_tracking(merchant_id: int, limit: int = 100) -> List[Dict[str, Any]]:
+    _require_client()
+    tx_res = (
+        _db.client.table("transactions")
+        .select("wallet_address,signature,created_at")
+        .eq("merchant_id", int(merchant_id))
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    tx_rows = _require_data(tx_res)
+    wallets = {r.get("wallet_address") for r in tx_rows if r.get("wallet_address")}
+
+    if not wallets:
+        return []
+
+    nft_res = _db.client.table("nfts").select("wallet_address,nft_type,mint_address,created_at").execute()
+    all_nfts = _require_data(nft_res)
+    return [n for n in all_nfts if n.get("wallet_address") in wallets][:limit]
+
+
+def save_reward_feedback(wallet: str, merchant_id: int, rating: int, message: Optional[str]):
+    _require_client()
+    payload = {
+        "wallet_address": wallet.strip(),
+        "merchant_id": int(merchant_id),
+        "rating": int(rating),
+        "message": message,
+        "created_at": _now_iso(),
+    }
+    try:
+        _db.client.table("reward_feedback").insert(payload).execute()
+    except Exception:
+        return
+
+
+def list_reward_feedback(merchant_id: int, limit: int = 50) -> List[Dict[str, Any]]:
+    _require_client()
+    try:
+        result = (
+            _db.client.table("reward_feedback")
+            .select("wallet_address,rating,message,created_at")
+            .eq("merchant_id", int(merchant_id))
+            .order("created_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return _require_data(result)
+    except Exception:
+        return []
