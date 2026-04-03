@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}SolClub UI{% endblock %}</title>
+  <link rel="stylesheet" href="/ui/static/css/app.css" />
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-inner">
+      <h1>SolClub Production Dashboard</h1>
+      <p>Unified FastAPI UI with live loyalty data and merchant intelligence.</p>
+      <nav class="badges">
+        <a href="/ui/client">Client</a>
+        <a href="/ui/merchant">Merchant</a>
+        <a href="/ui/auth">Auth</a>
+      </nav>
+    </div>
+  </header>
+  <main class="layout">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

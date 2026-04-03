@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}SolClub Auth{% endblock %}
+{% block content %}
+<section class="panel">
+  <h2>Auth and Wallet</h2>
+  <div class="grid-2">
+    <label>Wallet Address
+      <input id="wallet" type="text" placeholder="Wallet" />
+    </label>
+    <label>Role
+      <select id="role">
+        <option value="client">client</option>
+        <option value="merchant">merchant</option>
+      </select>
+    </label>
+  </div>
+  <div class="actions wrap-actions">
+    <button id="connectWallet">Connect Wallet</button>
+    <button id="autoCreateWallet" class="secondary">Auto Create Managed Wallet</button>
+    <button id="googleStart">Start Google OAuth</button>
+  </div>
+  <pre id="authOutput" class="output">{}</pre>
+</section>
+<script src="/ui/static/js/auth.js"></script>
+{% endblock %}

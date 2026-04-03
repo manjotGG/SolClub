@@ -136,8 +136,8 @@ def _verify_wallet_signature(wallet_address: str, nonce: str, signature: str) ->
 @router.get("/dashboard")
 async def platform_dashboard():
         return {
-                "message": "Frontend moved to Flask UI.",
-                "flask_ui_url": os.getenv("FLASK_UI_URL", "http://localhost:5050/"),
+        "message": "Frontend is served by FastAPI UI routes.",
+        "ui_url": os.getenv("UI_URL", "http://localhost:8000/ui/client"),
         }
 
 

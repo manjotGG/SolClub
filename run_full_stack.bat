@@ -10,14 +10,11 @@ if not exist "%PY%" (
   exit /b 1
 )
 
-echo [1/2] Starting FastAPI backend on port 8000...
-start "SolClub-Backend" cmd /k "cd /d %ROOT% && %PY% main.py server"
-
-echo [2/2] Starting Flask frontend on port 5050...
-start "SolClub-Frontend" cmd /k "cd /d %ROOT% && %PY% frontend\run_frontend.py"
+echo [1/1] Starting SolClub FastAPI server on port 8000...
+start "SolClub-Server" cmd /k "cd /d %ROOT% && %PY% main.py server"
 
 echo.
-echo Backend:  http://localhost:8000
-echo Frontend: http://localhost:5050
+echo API:      http://localhost:8000
+echo UI:       http://localhost:8000/ui/client
 echo.
 endlocal

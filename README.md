@@ -13,22 +13,22 @@
 ✅ **Mystery NFT System** - Time-based reveals with rarity mechanics  
 ✅ **Seasonal Collections** - Limited-time NFT drops with themes  
 
-## 🖥️ Flask Frontend (New)
+## 🖥️ FastAPI Frontend (Multi-Page)
 
-The interactive dashboard UI now lives as real HTML/CSS/JS files served by Flask.
+The interactive dashboard UI now lives as real HTML/CSS/JS files served directly by FastAPI.
 
 ```bash
 # 1) Install dependencies
 pip install -r requirements.txt
 
-# 2) Run the existing API/backend engine (FastAPI)
+# 2) Run backend + frontend on one server
 python main.py server
-
-# 3) In another terminal, run the frontend server (Flask)
-python frontend/run_frontend.py
 ```
 
-Open `http://localhost:5050` for the dashboard.
+Open these pages:
+- `http://localhost:8000/ui/client`
+- `http://localhost:8000/ui/merchant`
+- `http://localhost:8000/ui/auth`
 
 Windows one-command launcher:
 
@@ -37,10 +37,14 @@ run_full_stack.bat
 ```
 
 Frontend files:
-- `frontend/templates/index.html`
+- `frontend/templates/client.html`
+- `frontend/templates/merchant.html`
+- `frontend/templates/auth.html`
 - `frontend/static/css/app.css`
-- `frontend/static/js/app.js`
-- `frontend/flask_app.py`
+- `frontend/static/js/client.js`
+- `frontend/static/js/merchant.js`
+- `frontend/static/js/auth.js`
+- `backend/frontend_ui.py`
 
 ## 🏗️ Project Architecture
 

@@ -78,12 +78,10 @@ def start_server():
     try:
         import uvicorn
         
-        # Create FastAPI app directly in main.py
-        app = create_fastapi_app()
-        
         print("📱 Ready for mobile wallet connections!")
         print("🔗 API Documentation: http://localhost:8000/docs")
         print("✨ This backend handles Solana transactions!")
+        print("🖥️ UI Pages: http://localhost:8000/ui/client")
         
         uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
         
@@ -96,7 +94,11 @@ def start_server():
 def create_fastapi_app():
     """Create and configure the FastAPI application with full blockchain integration"""
     from fastapi import FastAPI, HTTPException, Query
+    from fastapi.staticfiles import StaticFiles
+    from fastapi.middleware.gzip import GZipMiddleware
     from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.middleware.trustedhost import TrustedHostMiddleware
+    from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
     from contextlib import asynccontextmanager
     from pydantic import BaseModel
     from typing import Optional, Dict, Any, List
@@ -322,11 +324,31 @@ def create_fastapi_app():
         allow_headers=["*"],
     )
 
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+    allowed_hosts = os.getenv("ALLOWED_HOSTS", "*").strip()
+    if allowed_hosts:
+        app.add_middleware(
+            TrustedHostMiddleware,
+            allowed_hosts=[h.strip() for h in allowed_hosts.split(",") if h.strip()],
+        )
+
+    if os.getenv("FORCE_HTTPS", "false").lower() in {"1", "true", "yes"}:
+        app.add_middleware(HTTPSRedirectMiddleware)
+
     try:
         from backend.client_merchant_platform import router as client_merchant_router
         app.include_router(client_merchant_router)
     except Exception as exc:
         print(f"⚠️ Platform router not loaded: {exc}")
+
+    try:
+        ui_static_dir = os.path.join(BASE_DIR, "frontend", "static")
+        app.mount("/ui/static", StaticFiles(directory=ui_static_dir), name="ui-static")
+        from backend.frontend_ui import router as frontend_ui_router
+        app.include_router(frontend_ui_router)
+    except Exception as exc:
+        print(f"⚠️ Frontend UI router not loaded: {exc}")
 
     async def transaction_watcher():
         """Background task to detect and process new merchant transactions."""
@@ -520,6 +542,9 @@ def create_fastapi_app():
             ],
             "endpoints": {
                 "GET /": "API information",
+                "GET /ui/client": "Client dashboard",
+                "GET /ui/merchant": "Merchant dashboard",
+                "GET /ui/auth": "Authentication dashboard",
                 "GET /solana-pay-request": "Handle QR code scans",
                 "POST /validate-transaction": "Blockchain validation",
                 "POST /wallet-connect": "Wallet registration",
@@ -990,6 +1015,9 @@ def create_fastapi_app():
             }
     
     return app
+
+
+app = create_fastapi_app()
 
 async def generate_qr():
     """Generate Solana Pay QR codes"""
