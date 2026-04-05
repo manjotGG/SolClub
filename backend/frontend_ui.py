@@ -2,7 +2,9 @@ import asyncio
 import json
 import os
 import secrets
+import re
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib.parse import urlencode
 
@@ -35,6 +37,8 @@ from loyalty_engine.loyalty_engine import LoyaltyRulesEngine
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATES_DIR = os.path.join(BASE_DIR, "frontend", "templates")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
+PROPOSED_TEMPLATES_DIR = Path(TEMPLATES_DIR) / "proposed_templates"
+PROPOSED_UI_SCRIPT = '<script src="/ui/static/js/proposed-ui.js"></script>'
 
 router = APIRouter(prefix="/ui", tags=["frontend-ui"])
 
@@ -50,6 +54,27 @@ def _render(request: Request, template_name: str, page_id: str, role: str, title
             "page_title": title,
         },
     )
+
+
+def _render_proposed(template_name: str, page_id: str, role: str, title: str) -> HTMLResponse:
+    template_path = PROPOSED_TEMPLATES_DIR / template_name
+    if not template_path.exists():
+        raise HTTPException(status_code=404, detail=f"Proposed template not found: {template_name}")
+
+    html = template_path.read_text(encoding="utf-8")
+    html = re.sub(
+        r"<body([^>]*)>",
+        lambda match: f'<body{match.group(1)} data-page="{page_id}" data-role="{role}">',
+        html,
+        count=1,
+        flags=re.IGNORECASE,
+    )
+    if PROPOSED_UI_SCRIPT not in html:
+        html = re.sub(r"</body>", f"    {PROPOSED_UI_SCRIPT}\n</body>", html, count=1, flags=re.IGNORECASE)
+
+    response = HTMLResponse(content=html)
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 def _json_sse(data: Dict[str, Any]) -> str:
@@ -86,72 +111,72 @@ def _client_snapshot(wallet: str, merchant_id: int) -> Dict[str, Any]:
 
 @router.get("", response_class=HTMLResponse)
 async def ui_index(request: Request):
-    return _render(request, "client.html", "client-dashboard", "client", "Client Dashboard")
+    return _render_proposed("auth_onboarding.html", "auth-onboarding", "auth", "SolClub | Enter the Arena")
 
 
 @router.get("/client", response_class=HTMLResponse)
 async def ui_client_page(request: Request):
-    return _render(request, "client.html", "client-dashboard", "client", "Client Dashboard")
+    return _render_proposed("client_dashboard.html", "client-dashboard", "client", "SolClub | Client Dashboard")
 
 
 @router.get("/client/rewards", response_class=HTMLResponse)
 async def ui_client_rewards_page(request: Request):
-    return _render(request, "client_rewards.html", "client-rewards", "client", "Rewards")
+    return _render_proposed("rewards.html", "client-rewards", "client", "SolClub | Rewards & Loot")
 
 
 @router.get("/client/nfts", response_class=HTMLResponse)
 async def ui_client_nfts_page(request: Request):
-    return _render(request, "client_nfts.html", "client-nfts", "client", "NFT Collection")
+    return _render_proposed("nft_collection.html", "client-nfts", "client", "SolClub | NFT Collection")
 
 
 @router.get("/client/transactions", response_class=HTMLResponse)
 async def ui_client_transactions_page(request: Request):
-    return _render(request, "client_transactions.html", "client-transactions", "client", "Transactions")
+    return _render_proposed("transaction_history.html", "client-transactions", "client", "SolClub | Transactions")
 
 
 @router.get("/client/progress", response_class=HTMLResponse)
 async def ui_client_progress_page(request: Request):
-    return _render(request, "client_progress.html", "client-progress", "client", "Loyalty Progress")
+    return _render_proposed("loyalty_tiers.html", "client-progress", "client", "SolClub | Loyalty Progress")
 
 
 @router.get("/client/feedback", response_class=HTMLResponse)
 async def ui_client_feedback_page(request: Request):
-    return _render(request, "client_feedback.html", "client-feedback", "client", "Feedback")
+    return _render_proposed("rewards.html", "client-feedback", "client", "SolClub | Feedback")
 
 
 @router.get("/merchant", response_class=HTMLResponse)
 async def ui_merchant_page(request: Request):
-    return _render(request, "merchant.html", "merchant-dashboard", "merchant", "Merchant Dashboard")
+    return _render_proposed("merchant_Dashboard.html", "merchant-dashboard", "merchant", "SolClub Merchant Dashboard")
 
 
 @router.get("/merchant/cashback", response_class=HTMLResponse)
 async def ui_merchant_cashback_page(request: Request):
-    return _render(request, "merchant_cashback.html", "merchant-cashback", "merchant", "Cashback Config")
+    return _render_proposed("cashback_config.html", "merchant-cashback", "merchant", "SolClub | Cashback Config")
 
 
 @router.get("/merchant/franchises", response_class=HTMLResponse)
 async def ui_merchant_franchises_page(request: Request):
-    return _render(request, "merchant_franchises.html", "merchant-franchises", "merchant", "Franchises")
+    return _render_proposed("merchant_analysis.html", "merchant-franchises", "merchant", "SolClub | Merchant Analysis")
 
 
 @router.get("/merchant/analytics", response_class=HTMLResponse)
 async def ui_merchant_analytics_page(request: Request):
-    return _render(request, "merchant_analytics.html", "merchant-analytics", "merchant", "Analytics")
+    return _render_proposed("merchant_analysis.html", "merchant-analytics", "merchant", "SolClub | Analytics Dashboard")
 
 
 @router.get("/merchant/nfts", response_class=HTMLResponse)
 async def ui_merchant_nft_page(request: Request):
-    return _render(request, "merchant_nfts.html", "merchant-nfts", "merchant", "NFT Distribution")
+    return _render_proposed("nft_distribution.html", "merchant-nfts", "merchant", "SolClub | NFT Distribution")
 
 
 @router.get("/merchant/feedback", response_class=HTMLResponse)
 async def ui_merchant_feedback_page(request: Request):
-    return _render(request, "merchant_feedback.html", "merchant-feedback", "merchant", "Feedback")
+    return _render_proposed("merchant_analysis.html", "merchant-feedback", "merchant", "SolClub | Merchant Feedback")
 
 
 @router.get("/auth", response_class=HTMLResponse)
 async def ui_auth_page(request: Request):
-    return _render(request, "auth.html", "auth", "auth", "Sign In and Wallet Setup")
+    return _render_proposed("auth_onboarding.html", "auth", "auth", "SolClub | Enter the Arena")
 
 
 @router.get("/api/client/{wallet}/snapshot")
