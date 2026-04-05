@@ -134,6 +134,13 @@ def _verify_wallet_signature(wallet_address: str, nonce: str, signature: str) ->
     return bool(sig.verify(pubkey, message))
 
 
+def _google_redirect_uri() -> str:
+    configured = os.getenv("GOOGLE_REDIRECT_URI", "").strip()
+    if configured and configured != "http://localhost:8000/platform/auth/google/callback":
+        return configured
+    return "http://localhost:8000/ui/api/auth/google/callback"
+
+
 @router.get("/dashboard")
 async def platform_dashboard():
         return {
@@ -145,7 +152,7 @@ async def platform_dashboard():
 @router.get("/auth/google/start")
 async def google_oauth_start(role: str = Query(default="client")):
     client_id = os.getenv("GOOGLE_CLIENT_ID")
-    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/platform/auth/google/callback")
+    redirect_uri = _google_redirect_uri()
     if not client_id:
         raise HTTPException(status_code=500, detail="GOOGLE_CLIENT_ID not configured")
 
@@ -179,7 +186,7 @@ async def google_oauth_callback(code: Optional[str] = None, state: Optional[str]
 
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
-    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/platform/auth/google/callback")
+    redirect_uri = _google_redirect_uri()
 
     if not client_id or not client_secret:
         raise HTTPException(status_code=500, detail="Google OAuth credentials not configured")

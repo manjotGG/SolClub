@@ -1,16 +1,21 @@
 import asyncio
+import base64
+import hashlib
+import hmac
 import json
 import os
 import secrets
 import re
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib.parse import urlencode
 
+import requests
 from cryptography.fernet import Fernet
 from fastapi import APIRouter, HTTPException, Query, Request, Response
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 
@@ -18,26 +23,128 @@ from database.db import (
     count_nft_records,
     count_wallet_transactions,
     create_franchise,
+    get_client_profile,
+    get_wallet_record,
     get_merchant_analytics,
     get_merchant_nft_tracking,
     get_merchant_profile,
+    get_user_account_by_identifier,
+    get_user_account_by_wallet,
+    get_primary_wallet_for_user,
     list_franchises,
     list_cashback_rewards,
     list_nft_records,
     list_reward_feedback,
     list_wallet_transactions,
     save_reward_feedback,
+    assign_wallet_to_user,
     upsert_client_profile,
     upsert_merchant_profile,
+    upsert_user_account,
     upsert_wallet_record,
+    verify_user_password,
 )
 from loyalty_engine.loyalty_engine import LoyaltyRulesEngine
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATES_DIR = os.path.join(BASE_DIR, "frontend", "templates")
 FINAL_UI_SCRIPT = '<script src="/ui/static/js/ui-pages.js"></script>'
+UI_SESSION_COOKIE = "solclub_session"
+UI_ROLE_COOKIE = "solclub_role"
+UI_SESSION_TTL_SECONDS = 60 * 60 * 12
 
 router = APIRouter(prefix="/ui", tags=["frontend-ui"])
+_google_state_store: Dict[str, float] = {}
+
+
+def _app_secret() -> str:
+    return os.getenv("APP_AUTH_SECRET", "dev-insecure-secret-change-in-production")
+
+
+def _b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("utf-8").rstrip("=")
+
+
+def _b64url_decode(data: str) -> bytes:
+    padded = data + "=" * (-len(data) % 4)
+    return base64.urlsafe_b64decode(padded.encode("utf-8"))
+
+
+def _sign_payload(payload_bytes: bytes) -> str:
+    digest = hmac.new(_app_secret().encode("utf-8"), payload_bytes, hashlib.sha256).hexdigest()
+    return digest
+
+
+def _create_ui_session(role: str, wallet: Optional[str] = None, ttl_seconds: int = UI_SESSION_TTL_SECONDS) -> str:
+    now = int(time.time())
+    payload = {
+        "role": role,
+        "wallet": wallet or "",
+        "iat": now,
+        "exp": now + ttl_seconds,
+    }
+    payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    token = f"{_b64url(payload_bytes)}.{_sign_payload(payload_bytes)}"
+    return token
+
+
+def parse_ui_session_token(token: Optional[str]) -> Optional[Dict[str, Any]]:
+    if not token or "." not in token:
+        return None
+    try:
+        encoded_payload, signature = token.split(".", 1)
+        payload_bytes = _b64url_decode(encoded_payload)
+        expected_signature = _sign_payload(payload_bytes)
+        if not hmac.compare_digest(signature, expected_signature):
+            return None
+        payload = json.loads(payload_bytes.decode("utf-8"))
+        exp = int(payload.get("exp", 0) or 0)
+        if exp <= int(time.time()):
+            return None
+        role = str(payload.get("role", "")).strip().lower()
+        if role not in {"client", "merchant"}:
+            return None
+        payload["role"] = role
+        payload["wallet"] = str(payload.get("wallet", "")).strip()
+        return payload
+    except Exception:
+        return None
+
+
+def get_ui_session_from_request(request: Request) -> Optional[Dict[str, Any]]:
+    token = request.cookies.get(UI_SESSION_COOKIE)
+    return parse_ui_session_token(token)
+
+
+def _set_ui_session_cookies(response: Response, role: str, wallet: Optional[str] = None):
+    token = _create_ui_session(role=role, wallet=wallet)
+    response.set_cookie(
+        UI_SESSION_COOKIE,
+        token,
+        max_age=UI_SESSION_TTL_SECONDS,
+        httponly=True,
+        samesite="lax",
+        secure=False,
+        path="/",
+    )
+    response.set_cookie(
+        UI_ROLE_COOKIE,
+        role,
+        max_age=UI_SESSION_TTL_SECONDS,
+        httponly=False,
+        samesite="lax",
+        secure=False,
+        path="/",
+    )
+
+
+def _wallet_fernet_key() -> bytes:
+    key = os.getenv("WALLET_ENCRYPTION_KEY", "").strip()
+    if key:
+        return key.encode("utf-8")
+    # Deterministic fallback for local/dev environments.
+    derived = hashlib.sha256(_app_secret().encode("utf-8")).digest()
+    return base64.urlsafe_b64encode(derived)
 
 
 def _render_static_template(template_name: str, page_id: str, role: str, title: str) -> HTMLResponse:
@@ -63,6 +170,10 @@ def _render_static_template(template_name: str, page_id: str, role: str, title: 
 
 def _json_sse(data: Dict[str, Any]) -> str:
     return f"data: {json.dumps(data, default=str)}\\n\\n"
+
+
+def _role_dashboard_path(role: str) -> str:
+    return "/ui/merchant" if role == "merchant" else "/ui/client"
 
 
 def _client_snapshot(wallet: str, merchant_id: int) -> Dict[str, Any]:
@@ -161,6 +272,16 @@ async def ui_merchant_feedback_page(request: Request):
 @router.get("/auth", response_class=HTMLResponse)
 async def ui_auth_page(request: Request):
     return _render_static_template("auth.html", "auth", "auth", "SolClub | Enter the Arena")
+
+
+@router.get("/login", response_class=HTMLResponse)
+async def ui_login_page(request: Request):
+    return _render_static_template("auth.html", "auth-login", "auth", "SolClub | Login")
+
+
+@router.get("/portal", response_class=HTMLResponse)
+async def ui_portal_page(request: Request):
+    return _render_static_template("role_gateway.html", "role-gateway", "auth", "SolClub | Access Portal")
 
 
 @router.get("/api/client/{wallet}/snapshot")
@@ -277,7 +398,7 @@ async def ui_merchant_franchises_post(merchant_id: int, payload: Dict[str, Any])
 
 
 @router.post("/api/wallet/connect")
-async def ui_wallet_connect(payload: Dict[str, Any]):
+async def ui_wallet_connect(payload: Dict[str, Any], response: Response):
     wallet = str(payload.get("wallet_address", "")).strip()
     if not wallet:
         raise HTTPException(status_code=400, detail="wallet_address is required")
@@ -293,14 +414,25 @@ async def ui_wallet_connect(payload: Dict[str, Any]):
         is_primary=True,
         managed_wallet=False,
     )
-    if str(payload.get("user_role", "client")) == "client":
+    user_role = str(payload.get("user_role", "client")).strip().lower()
+    if user_role not in {"client", "merchant"}:
+        raise HTTPException(status_code=400, detail="user_role must be either 'client' or 'merchant'")
+
+    if user_role == "client":
         upsert_client_profile(wallet)
 
-    return {"success": True, "wallet": wallet}
+    _set_ui_session_cookies(response, role=user_role, wallet=wallet)
+
+    return {
+        "success": True,
+        "wallet": wallet,
+        "role": user_role,
+        "next": "/ui/auth?stage=details",
+    }
 
 
 @router.post("/api/wallet/auto-create")
-async def ui_wallet_auto_create(payload: Dict[str, Any]):
+async def ui_wallet_auto_create(payload: Dict[str, Any], response: Response):
     network = str(payload.get("network", "testnet")).lower()
     if network != "testnet":
         raise HTTPException(status_code=400, detail="Managed wallet creation is enabled for testnet only")
@@ -309,11 +441,10 @@ async def ui_wallet_auto_create(payload: Dict[str, Any]):
     wallet_address = str(keypair.pubkey())
     secret_bytes = bytes(keypair)
 
-    key = os.getenv("WALLET_ENCRYPTION_KEY", "").strip()
-    if not key:
-        raise HTTPException(status_code=500, detail="Missing WALLET_ENCRYPTION_KEY in environment")
-
-    encrypted_secret = Fernet(key.encode("utf-8")).encrypt(secret_bytes).decode("utf-8")
+    encrypted_secret = Fernet(_wallet_fernet_key()).encrypt(secret_bytes).decode("utf-8")
+    user_role = str(payload.get("user_role", "client")).strip().lower()
+    if user_role not in {"client", "merchant"}:
+        raise HTTPException(status_code=400, detail="user_role must be either 'client' or 'merchant'")
     upsert_wallet_record(
         wallet_address=wallet_address,
         network=network,
@@ -323,24 +454,36 @@ async def ui_wallet_auto_create(payload: Dict[str, Any]):
         encrypted_secret=encrypted_secret,
         created_by=payload.get("created_by"),
     )
-    upsert_client_profile(wallet_address)
+    if user_role == "client":
+        upsert_client_profile(wallet_address)
+    _set_ui_session_cookies(response, role=user_role, wallet=wallet_address)
 
     return {
         "success": True,
         "wallet_address": wallet_address,
         "network": network,
         "managed_wallet": True,
+        "role": user_role,
+        "next": "/ui/auth?stage=details",
     }
 
 
 @router.get("/api/auth/google/start")
 async def ui_google_start(role: str = Query(default="client")):
     client_id = os.getenv("GOOGLE_CLIENT_ID")
-    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/platform/auth/google/callback")
-    if not client_id:
-        raise HTTPException(status_code=500, detail="GOOGLE_CLIENT_ID not configured")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/ui/api/auth/google/callback")
+    if redirect_uri == "http://localhost:8000/platform/auth/google/callback":
+        redirect_uri = "http://localhost:8000/ui/api/auth/google/callback"
+    if not client_id or not client_secret:
+        raise HTTPException(status_code=503, detail="Google OAuth is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.")
+
+    role = role.strip().lower()
+    if role not in {"client", "merchant"}:
+        raise HTTPException(status_code=400, detail="role must be either 'client' or 'merchant'")
 
     state = secrets.token_urlsafe(24)
+    _google_state_store[state] = time.time() + 600
     params = {
         "client_id": client_id,
         "redirect_uri": redirect_uri,
@@ -353,19 +496,279 @@ async def ui_google_start(role: str = Query(default="client")):
     return {"state": state, "auth_url": f"https://accounts.google.com/o/oauth2/v2/auth?{urlencode(params)}"}
 
 
+@router.get("/api/auth/google/callback")
+async def ui_google_callback(code: Optional[str] = None, state: Optional[str] = None):
+    if not code or not state:
+        raise HTTPException(status_code=400, detail="Missing code or state")
+
+    state_parts = state.split(":")
+    state_key = state_parts[0]
+    role = state_parts[1] if len(state_parts) > 1 else "client"
+    role = str(role).strip().lower()
+    if role not in {"client", "merchant"}:
+        role = "client"
+
+    expires_at = _google_state_store.pop(state_key, None)
+    if not expires_at or time.time() > expires_at:
+        raise HTTPException(status_code=400, detail="Invalid or expired OAuth state")
+
+    client_id = os.getenv("GOOGLE_CLIENT_ID")
+    client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+    redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/ui/api/auth/google/callback")
+    if redirect_uri == "http://localhost:8000/platform/auth/google/callback":
+        redirect_uri = "http://localhost:8000/ui/api/auth/google/callback"
+    if not client_id or not client_secret:
+        raise HTTPException(status_code=503, detail="Google OAuth credentials not configured")
+
+    token_res = requests.post(
+        "https://oauth2.googleapis.com/token",
+        data={
+            "code": code,
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "redirect_uri": redirect_uri,
+            "grant_type": "authorization_code",
+        },
+        timeout=20,
+    )
+    if token_res.status_code >= 400:
+        raise HTTPException(status_code=400, detail=f"Token exchange failed: {token_res.text}")
+
+    token_data = token_res.json()
+    access_token = token_data.get("access_token")
+    if not access_token:
+        raise HTTPException(status_code=400, detail="Google token response missing access_token")
+
+    user_res = requests.get(
+        "https://www.googleapis.com/oauth2/v3/userinfo",
+        headers={"Authorization": f"Bearer {access_token}"},
+        timeout=20,
+    )
+    if user_res.status_code >= 400:
+        raise HTTPException(status_code=400, detail=f"Google profile fetch failed: {user_res.text}")
+
+    profile = user_res.json()
+    account = upsert_user_account(
+        email=profile.get("email"),
+        display_name=profile.get("name"),
+        role=role,
+        google_sub=profile.get("sub"),
+    )
+
+    wallet_record = get_primary_wallet_for_user(str(account.get("id", ""))) if account.get("id") else None
+    wallet = (wallet_record or {}).get("wallet_address") or ""
+    user_ready = bool(account.get("email") and account.get("display_name"))
+    client_ready = True if role == "merchant" else bool(wallet and get_client_profile(wallet))
+    redirect = "/ui/auth?stage=details" if not (user_ready and client_ready) else _role_dashboard_path(role)
+    response = RedirectResponse(url=redirect, status_code=303)
+    _set_ui_session_cookies(response, role=role, wallet=wallet)
+    return response
+
+
+@router.get("/api/auth/onboarding-status")
+async def ui_onboarding_status(request: Request):
+    session = get_ui_session_from_request(request)
+    if not session:
+        return {
+            "authenticated": False,
+            "requires_details": False,
+            "role": None,
+            "wallet": None,
+            "redirect": "/ui/auth",
+        }
+
+    role = str(session.get("role") or "client").strip().lower()
+    wallet = str(session.get("wallet") or "").strip()
+
+    user = get_user_account_by_wallet(wallet) if wallet else None
+    has_user_profile = bool(user and user.get("email") and user.get("display_name"))
+    has_client_profile = bool(wallet and get_client_profile(wallet)) if role == "client" else True
+    requires_details = not has_user_profile or not has_client_profile
+
+    return {
+        "authenticated": True,
+        "role": role,
+        "wallet": wallet,
+        "has_user_profile": has_user_profile,
+        "has_client_profile": has_client_profile,
+        "requires_details": requires_details,
+        "redirect": "/ui/auth?stage=details" if requires_details else _role_dashboard_path(role),
+    }
+
+
+@router.post("/api/auth/register")
+async def ui_register(payload: Dict[str, Any], request: Request, response: Response):
+    session = get_ui_session_from_request(request)
+    if not session:
+        raise HTTPException(status_code=401, detail="Authenticate first using wallet or Google sign-in")
+
+    email = str(payload.get("email", "")).strip().lower()
+    display_name = str(payload.get("display_name", "")).strip()
+    role = str(payload.get("role") or session.get("role") or "client").strip().lower()
+    wallet = str(payload.get("wallet_address") or session.get("wallet") or "").strip()
+
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="A valid email is required")
+    if not display_name:
+        raise HTTPException(status_code=400, detail="display_name is required")
+    if role not in {"client", "merchant"}:
+        raise HTTPException(status_code=400, detail="role must be either 'client' or 'merchant'")
+
+    account = upsert_user_account(
+        email=email,
+        display_name=display_name,
+        role=role,
+        google_sub=str(payload.get("google_sub", "")).strip() or None,
+        password=str(payload.get("password", "")).strip() or None,
+    )
+
+    if wallet:
+        try:
+            Pubkey.from_string(wallet)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Invalid wallet address")
+
+        existing_wallet = get_wallet_record(wallet)
+        if not existing_wallet:
+            upsert_wallet_record(
+                wallet_address=wallet,
+                network=str(payload.get("network", "testnet")),
+                provider=str(payload.get("provider", "manual")),
+                user_id=account.get("id"),
+                is_primary=True,
+                managed_wallet=False,
+            )
+        if account.get("id"):
+            assign_wallet_to_user(wallet, str(account.get("id")))
+        if role == "client":
+            upsert_client_profile(wallet)
+
+    _set_ui_session_cookies(response, role=role, wallet=wallet or "")
+    return {
+        "success": True,
+        "account": account,
+        "wallet": wallet or None,
+        "redirect": _role_dashboard_path(role),
+    }
+
+
 @router.post("/api/auth/session-role")
-async def ui_set_session_role(payload: Dict[str, Any], response: Response):
+async def ui_set_session_role(payload: Dict[str, Any], request: Request, response: Response):
+    session = get_ui_session_from_request(request)
+    if not session:
+        raise HTTPException(status_code=401, detail="Authentication required")
+
     role = str(payload.get("role", "client")).strip().lower()
     if role not in {"client", "merchant"}:
         raise HTTPException(status_code=400, detail="role must be either 'client' or 'merchant'")
-    response.set_cookie("solclub_role", role, max_age=60 * 60 * 12, samesite="lax", secure=False)
+    wallet = session.get("wallet")
+    _set_ui_session_cookies(response, role=role, wallet=wallet)
     return {"success": True, "role": role}
+
+
+@router.post("/api/auth/session/start")
+async def ui_start_session(payload: Dict[str, Any], response: Response):
+    role = str(payload.get("role", "client")).strip().lower()
+    wallet = str(payload.get("wallet_address", "")).strip()
+    if role not in {"client", "merchant"}:
+        raise HTTPException(status_code=400, detail="role must be either 'client' or 'merchant'")
+    if not wallet:
+        raise HTTPException(status_code=400, detail="wallet_address is required")
+    try:
+        Pubkey.from_string(wallet)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid wallet address")
+    if not get_wallet_record(wallet):
+        raise HTTPException(status_code=403, detail="Wallet not registered. Connect or create wallet first.")
+    _set_ui_session_cookies(response, role=role, wallet=wallet)
+    onboarding = {
+        "has_user_profile": False,
+        "has_client_profile": False,
+        "requires_details": True,
+    }
+    user = get_user_account_by_wallet(wallet)
+    if user:
+        onboarding["has_user_profile"] = bool(user.get("email") and user.get("display_name"))
+    if role == "merchant":
+        onboarding["has_client_profile"] = True
+    else:
+        onboarding["has_client_profile"] = bool(get_client_profile(wallet))
+    onboarding["requires_details"] = not (onboarding["has_user_profile"] and onboarding["has_client_profile"])
+    redirect = "/ui/auth?stage=details" if onboarding["requires_details"] else _role_dashboard_path(role)
+    return {
+        "success": True,
+        "role": role,
+        "wallet": wallet,
+        "redirect": redirect,
+        **onboarding,
+    }
+
+
+@router.post("/api/auth/logout")
+async def ui_logout(response: Response):
+    response.delete_cookie(UI_SESSION_COOKIE, path="/")
+    response.delete_cookie(UI_ROLE_COOKIE, path="/")
+    return {"success": True}
 
 
 @router.get("/api/auth/session")
 async def ui_get_session_role(request: Request):
-    role = (request.headers.get("x-solclub-role") or request.cookies.get("solclub_role") or "client").strip().lower()
-    return {"role": role}
+    session = get_ui_session_from_request(request)
+    if not session:
+        return {"authenticated": False, "role": None, "wallet": None}
+    return {
+        "authenticated": True,
+        "role": session.get("role"),
+        "wallet": session.get("wallet"),
+        "expires_at": session.get("exp"),
+    }
+
+
+@router.post("/api/auth/login")
+async def ui_login(payload: Dict[str, Any], response: Response):
+    identifier = str(payload.get("identifier", "")).strip()
+    password = str(payload.get("password", "")).strip()
+    role = str(payload.get("role", "client")).strip().lower()
+
+    if role not in {"client", "merchant"}:
+        raise HTTPException(status_code=400, detail="role must be either 'client' or 'merchant'")
+    if not identifier:
+        raise HTTPException(status_code=400, detail="identifier is required")
+    if not password:
+        raise HTTPException(status_code=400, detail="password is required")
+
+    wallet = ""
+    user = None
+    wallet_like = re.match(r"^[1-9A-HJ-NP-Za-km-z]{32,44}$", identifier)
+    if wallet_like:
+        wallet = identifier
+        user = get_user_account_by_wallet(wallet)
+        if not user:
+            raise HTTPException(status_code=404, detail="Wallet not registered")
+    else:
+        user = get_user_account_by_identifier(identifier)
+        if user:
+            wallet_record = get_primary_wallet_for_user(str(user.get("id", ""))) if user.get("id") else None
+            wallet = (wallet_record or {}).get("wallet_address") or ""
+
+    if not user:
+        raise HTTPException(status_code=404, detail="Account not found")
+    stored_hash = user.get("password_hash")
+    stored_salt = user.get("password_salt")
+    if stored_hash and stored_salt and not verify_user_password(user, password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    resolved_role = str(user.get("role") or role).strip().lower()
+    if resolved_role not in {"client", "merchant"}:
+        resolved_role = role if role in {"client", "merchant"} else "client"
+
+    _set_ui_session_cookies(response, role=resolved_role, wallet=wallet)
+    return {
+        "success": True,
+        "role": resolved_role,
+        "wallet": wallet,
+        "redirect": _role_dashboard_path(resolved_role),
+    }
 
 
 @router.get("/events")

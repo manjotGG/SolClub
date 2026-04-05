@@ -8,6 +8,8 @@ create table if not exists public.users (
   email text unique,
   display_name text,
   google_sub text unique,
+  password_hash text,
+  password_salt text,
   role text not null default 'client' check (role in ('client', 'merchant', 'admin')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

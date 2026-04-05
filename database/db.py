@@ -1,5 +1,9 @@
 import os
 import json
+import base64
+import hashlib
+import hmac
+import secrets
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -10,6 +14,27 @@ _db = DBManager()
 
 def _now_iso() -> str:
     return datetime.utcnow().isoformat()
+
+
+def _hash_password(password: str, salt: Optional[str] = None) -> Dict[str, str]:
+    password_salt = salt or secrets.token_hex(16)
+    derived = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        password_salt.encode("utf-8"),
+        390000,
+    )
+    return {
+        "password_hash": base64.urlsafe_b64encode(derived).decode("utf-8"),
+        "password_salt": password_salt,
+    }
+
+
+def _verify_password(password: str, password_hash: Optional[str], password_salt: Optional[str]) -> bool:
+    if not password_hash or not password_salt:
+        return False
+    candidate = _hash_password(password, password_salt)["password_hash"]
+    return hmac.compare_digest(candidate, password_hash)
 
 
 def init_db() -> bool:
@@ -409,24 +434,99 @@ def upsert_user_account(
     display_name: Optional[str],
     role: str,
     google_sub: Optional[str] = None,
+    password: Optional[str] = None,
 ) -> Dict[str, Any]:
     _require_client()
-    payload = {
-        "email": email,
-        "display_name": display_name,
-        "role": role,
-        "google_sub": google_sub,
-        "updated_at": _now_iso(),
-    }
-    result = _db.client.table("users").upsert(payload, on_conflict="email").execute()
+    password_payload: Dict[str, Optional[str]] = {}
+    if password:
+        password_payload = _hash_password(password)
+    payload_candidates = [
+        {
+            "email": email,
+            "display_name": display_name,
+            "role": role,
+            "google_sub": google_sub,
+            **password_payload,
+            "updated_at": _now_iso(),
+        },
+        {
+            "email": email,
+            "display_name": display_name,
+            "role": role,
+            **password_payload,
+            "updated_at": _now_iso(),
+        },
+        {
+            "email": email,
+            "display_name": display_name,
+            "role": role,
+        },
+        {
+            "email": email,
+            "role": role,
+        },
+    ]
+
+    last_exc: Optional[Exception] = None
+    for payload in payload_candidates:
+        try:
+            result = _db.client.table("users").upsert(payload, on_conflict="email").execute()
+            rows = _require_data(result)
+            return rows[0] if rows else payload
+        except Exception as exc:
+            last_exc = exc
+            continue
+
+    raise last_exc or RuntimeError("Failed to upsert user account")
+
+
+def get_user_account_by_id(user_id: str) -> Optional[Dict[str, Any]]:
+    _require_client()
+    result = (
+        _db.client.table("users")
+        .select("*")
+        .eq("id", user_id)
+        .limit(1)
+        .execute()
+    )
     rows = _require_data(result)
-    return rows[0] if rows else payload
+    return rows[0] if rows else None
+
+
+def get_user_account_by_wallet(wallet_address: str) -> Optional[Dict[str, Any]]:
+    _require_client()
+    wallet = get_wallet_record(wallet_address)
+    user_id = (wallet or {}).get("user_id")
+    if not user_id:
+        return None
+    return get_user_account_by_id(str(user_id))
+
+
+def get_user_account_by_identifier(identifier: str) -> Optional[Dict[str, Any]]:
+    _require_client()
+    value = identifier.strip()
+    if not value:
+        return None
+
+    if "@" in value:
+        result = _db.client.table("users").select("*").eq("email", value).limit(1).execute()
+        rows = _require_data(result)
+        return rows[0] if rows else None
+
+    result = _db.client.table("users").select("*").eq("display_name", value).limit(1).execute()
+    rows = _require_data(result)
+    return rows[0] if rows else None
+
+
+def verify_user_password(user: Dict[str, Any], password: str) -> bool:
+    return _verify_password(password, user.get("password_hash"), user.get("password_salt"))
 
 
 def upsert_wallet_record(
     wallet_address: str,
     network: str,
     provider: Optional[str],
+    user_id: Optional[str] = None,
     is_primary: bool = True,
     managed_wallet: bool = False,
     encrypted_secret: Optional[str] = None,
@@ -437,6 +537,7 @@ def upsert_wallet_record(
         "wallet_address": wallet_address.strip(),
         "network": network,
         "provider": provider,
+        "user_id": user_id,
         "is_primary": bool(is_primary),
         "managed_wallet": bool(managed_wallet),
         "encrypted_secret": encrypted_secret,
@@ -454,6 +555,35 @@ def upsert_wallet_record(
             "is_primary": bool(is_primary),
         }
         _db.client.table("wallets").upsert(fallback_payload, on_conflict="wallet_address").execute()
+
+
+def assign_wallet_to_user(wallet_address: str, user_id: str):
+    _require_client()
+    try:
+        _db.client.table("wallets").update({"user_id": user_id}).eq(
+            "wallet_address", wallet_address.strip()
+        ).execute()
+    except Exception:
+        # Allow compatibility with environments where wallets.user_id has not been migrated yet.
+        return
+
+
+def get_primary_wallet_for_user(user_id: str) -> Optional[Dict[str, Any]]:
+    _require_client()
+    try:
+        result = (
+            _db.client.table("wallets")
+            .select("*")
+            .eq("user_id", user_id)
+            .order("is_primary", desc=True)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        rows = _require_data(result)
+        return rows[0] if rows else None
+    except Exception:
+        return None
 
 
 def get_wallet_record(wallet_address: str) -> Optional[Dict[str, Any]]:

@@ -346,31 +346,66 @@ def create_fastapi_app():
     try:
         ui_static_dir = os.path.join(BASE_DIR, "frontend", "static")
         app.mount("/ui/static", StaticFiles(directory=ui_static_dir), name="ui-static")
-        from backend.frontend_ui import router as frontend_ui_router
+        from backend.frontend_ui import get_ui_session_from_request, router as frontend_ui_router
         app.include_router(frontend_ui_router)
     except Exception as exc:
         print(f"⚠️ Frontend UI router not loaded: {exc}")
 
     @app.middleware("http")
-    async def merchant_route_guard(request: Request, call_next):
+    async def ui_route_guard(request: Request, call_next):
         path = request.url.path or ""
+        if not path.startswith("/ui"):
+            return await call_next(request)
+
+        if path.startswith("/ui/static"):
+            return await call_next(request)
+
+        public_ui_paths = {
+            "/ui",
+            "/ui/auth",
+            "/ui/login",
+            "/ui/api/auth/session",
+            "/ui/api/auth/onboarding-status",
+            "/ui/api/auth/login",
+            "/ui/api/auth/session/start",
+            "/ui/api/auth/google/start",
+            "/ui/api/auth/google/callback",
+            "/ui/api/auth/logout",
+            "/ui/api/wallet/connect",
+            "/ui/api/wallet/auto-create",
+        }
+        if path in public_ui_paths:
+            return await call_next(request)
+
+        session = None
+        try:
+            session = get_ui_session_from_request(request)
+        except Exception:
+            session = None
+
+        is_ui_api = path.startswith("/ui/api")
+        if not session:
+            if is_ui_api:
+                return JSONResponse(status_code=401, content={"detail": "Authentication required."})
+            return RedirectResponse(url="/ui/auth?required=login", status_code=307)
+
+        role = str(session.get("role", "")).strip().lower()
         is_merchant_page = path.startswith("/ui/merchant")
         is_merchant_api = path.startswith("/ui/api/merchant")
+        is_client_page = path.startswith("/ui/client")
+        is_client_api = path.startswith("/ui/api/client")
 
         if is_merchant_page or is_merchant_api:
-            role = (
-                request.headers.get("x-solclub-role")
-                or request.cookies.get("solclub_role")
-                or "client"
-            ).strip().lower()
-
             if role != "merchant":
                 if is_merchant_api:
-                    return JSONResponse(
-                        status_code=403,
-                        content={"detail": "Merchant authentication required for this route."},
-                    )
-                return RedirectResponse(url="/ui/auth?required=merchant", status_code=307)
+                    return JSONResponse(status_code=403, content={"detail": "Merchant authentication required."})
+                return RedirectResponse(url="/ui/client", status_code=307)
+
+        if is_client_page or is_client_api:
+            if role != "client":
+                if is_client_api:
+                    return JSONResponse(status_code=403, content={"detail": "Client authentication required."})
+                return RedirectResponse(url="/ui/merchant", status_code=307)
 
         return await call_next(request)
 
