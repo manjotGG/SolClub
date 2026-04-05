@@ -11,7 +11,6 @@ from urllib.parse import urlencode
 from cryptography.fernet import Fernet
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import HTMLResponse, StreamingResponse
-from fastapi.templating import Jinja2Templates
 from solders.keypair import Keypair
 from solders.pubkey import Pubkey
 
@@ -36,30 +35,15 @@ from loyalty_engine.loyalty_engine import LoyaltyRulesEngine
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATES_DIR = os.path.join(BASE_DIR, "frontend", "templates")
-templates = Jinja2Templates(directory=TEMPLATES_DIR)
-PROPOSED_TEMPLATES_DIR = Path(TEMPLATES_DIR) / "proposed_templates"
-PROPOSED_UI_SCRIPT = '<script src="/ui/static/js/proposed-ui.js"></script>'
+FINAL_UI_SCRIPT = '<script src="/ui/static/js/ui-pages.js"></script>'
 
 router = APIRouter(prefix="/ui", tags=["frontend-ui"])
 
 
-def _render(request: Request, template_name: str, page_id: str, role: str, title: str):
-    return templates.TemplateResponse(
-        request,
-        template_name,
-        {
-            "request": request,
-            "page_id": page_id,
-            "role": role,
-            "page_title": title,
-        },
-    )
-
-
-def _render_proposed(template_name: str, page_id: str, role: str, title: str) -> HTMLResponse:
-    template_path = PROPOSED_TEMPLATES_DIR / template_name
+def _render_static_template(template_name: str, page_id: str, role: str, title: str) -> HTMLResponse:
+    template_path = Path(TEMPLATES_DIR) / template_name
     if not template_path.exists():
-        raise HTTPException(status_code=404, detail=f"Proposed template not found: {template_name}")
+        raise HTTPException(status_code=404, detail=f"Template not found: {template_name}")
 
     html = template_path.read_text(encoding="utf-8")
     html = re.sub(
@@ -69,8 +53,8 @@ def _render_proposed(template_name: str, page_id: str, role: str, title: str) ->
         count=1,
         flags=re.IGNORECASE,
     )
-    if PROPOSED_UI_SCRIPT not in html:
-        html = re.sub(r"</body>", f"    {PROPOSED_UI_SCRIPT}\n</body>", html, count=1, flags=re.IGNORECASE)
+    if FINAL_UI_SCRIPT not in html:
+        html = re.sub(r"</body>", f"    {FINAL_UI_SCRIPT}\n</body>", html, count=1, flags=re.IGNORECASE)
 
     response = HTMLResponse(content=html)
     response.headers["Cache-Control"] = "no-store"
@@ -111,72 +95,72 @@ def _client_snapshot(wallet: str, merchant_id: int) -> Dict[str, Any]:
 
 @router.get("", response_class=HTMLResponse)
 async def ui_index(request: Request):
-    return _render_proposed("auth_onboarding.html", "auth-onboarding", "auth", "SolClub | Enter the Arena")
+    return _render_static_template("auth.html", "auth-onboarding", "auth", "SolClub | Enter the Arena")
 
 
 @router.get("/client", response_class=HTMLResponse)
 async def ui_client_page(request: Request):
-    return _render_proposed("client_dashboard.html", "client-dashboard", "client", "SolClub | Client Dashboard")
+    return _render_static_template("client.html", "client-dashboard", "client", "SolClub | Client Dashboard")
 
 
 @router.get("/client/rewards", response_class=HTMLResponse)
 async def ui_client_rewards_page(request: Request):
-    return _render_proposed("rewards.html", "client-rewards", "client", "SolClub | Rewards & Loot")
+    return _render_static_template("client_rewards.html", "client-rewards", "client", "SolClub | Rewards & Loot")
 
 
 @router.get("/client/nfts", response_class=HTMLResponse)
 async def ui_client_nfts_page(request: Request):
-    return _render_proposed("nft_collection.html", "client-nfts", "client", "SolClub | NFT Collection")
+    return _render_static_template("client_nfts.html", "client-nfts", "client", "SolClub | NFT Collection")
 
 
 @router.get("/client/transactions", response_class=HTMLResponse)
 async def ui_client_transactions_page(request: Request):
-    return _render_proposed("transaction_history.html", "client-transactions", "client", "SolClub | Transactions")
+    return _render_static_template("client_transactions.html", "client-transactions", "client", "SolClub | Transactions")
 
 
 @router.get("/client/progress", response_class=HTMLResponse)
 async def ui_client_progress_page(request: Request):
-    return _render_proposed("loyalty_tiers.html", "client-progress", "client", "SolClub | Loyalty Progress")
+    return _render_static_template("client_progress.html", "client-progress", "client", "SolClub | Loyalty Progress")
 
 
 @router.get("/client/feedback", response_class=HTMLResponse)
 async def ui_client_feedback_page(request: Request):
-    return _render_proposed("rewards.html", "client-feedback", "client", "SolClub | Feedback")
+    return _render_static_template("client_feedback.html", "client-feedback", "client", "SolClub | Feedback")
 
 
 @router.get("/merchant", response_class=HTMLResponse)
 async def ui_merchant_page(request: Request):
-    return _render_proposed("merchant_Dashboard.html", "merchant-dashboard", "merchant", "SolClub Merchant Dashboard")
+    return _render_static_template("merchant.html", "merchant-dashboard", "merchant", "SolClub Merchant Dashboard")
 
 
 @router.get("/merchant/cashback", response_class=HTMLResponse)
 async def ui_merchant_cashback_page(request: Request):
-    return _render_proposed("cashback_config.html", "merchant-cashback", "merchant", "SolClub | Cashback Config")
+    return _render_static_template("merchant_cashback.html", "merchant-cashback", "merchant", "SolClub | Cashback Config")
 
 
 @router.get("/merchant/franchises", response_class=HTMLResponse)
 async def ui_merchant_franchises_page(request: Request):
-    return _render_proposed("merchant_analysis.html", "merchant-franchises", "merchant", "SolClub | Merchant Analysis")
+    return _render_static_template("merchant_franchises.html", "merchant-franchises", "merchant", "SolClub | Merchant Analysis")
 
 
 @router.get("/merchant/analytics", response_class=HTMLResponse)
 async def ui_merchant_analytics_page(request: Request):
-    return _render_proposed("merchant_analysis.html", "merchant-analytics", "merchant", "SolClub | Analytics Dashboard")
+    return _render_static_template("merchant_analytics.html", "merchant-analytics", "merchant", "SolClub | Analytics Dashboard")
 
 
 @router.get("/merchant/nfts", response_class=HTMLResponse)
 async def ui_merchant_nft_page(request: Request):
-    return _render_proposed("nft_distribution.html", "merchant-nfts", "merchant", "SolClub | NFT Distribution")
+    return _render_static_template("merchant_nfts.html", "merchant-nfts", "merchant", "SolClub | NFT Distribution")
 
 
 @router.get("/merchant/feedback", response_class=HTMLResponse)
 async def ui_merchant_feedback_page(request: Request):
-    return _render_proposed("merchant_analysis.html", "merchant-feedback", "merchant", "SolClub | Merchant Feedback")
+    return _render_static_template("merchant_feedback.html", "merchant-feedback", "merchant", "SolClub | Merchant Feedback")
 
 
 @router.get("/auth", response_class=HTMLResponse)
 async def ui_auth_page(request: Request):
-    return _render_proposed("auth_onboarding.html", "auth", "auth", "SolClub | Enter the Arena")
+    return _render_static_template("auth.html", "auth", "auth", "SolClub | Enter the Arena")
 
 
 @router.get("/api/client/{wallet}/snapshot")

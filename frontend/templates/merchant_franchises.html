@@ -1,24 +1,405 @@
-{% extends "base.html" %}
-{% block title %}Merchant Franchises{% endblock %}
-{% block content %}
-<section class="panel glass">
-  <h2>Franchise Manager</h2>
-  <label>Merchant ID
-    <input id="merchantId" type="number" min="1" value="1" />
-  </label>
-  <label>Franchise Name
-    <input id="franchiseName" type="text" placeholder="Downtown Branch" />
-  </label>
-  <label>Location
-    <input id="franchiseLocation" type="text" placeholder="City / Area" />
-  </label>
-  <div class="actions wrap-actions">
-    <button id="addFranchise">Add Franchise</button>
-    <button id="loadFranchises" class="secondary">Refresh List</button>
-  </div>
-</section>
-<section class="panel glass span-2">
-  <h2>Registered Franchises</h2>
-  <div id="franchiseList" class="stack"></div>
-</section>
-{% endblock %}
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SolClub | Analytics Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                "on-primary-fixed-variant": "#6900b3",
+                "background": "#0f131e",
+                "surface-container-high": "#262a36",
+                "surface-container-low": "#171b27",
+                "on-secondary-container": "#00424e",
+                "secondary-fixed": "#acedff",
+                "primary-fixed": "#f0dbff",
+                "on-error-container": "#ffdad6",
+                "on-primary-fixed": "#2c0051",
+                "secondary": "#4cd7f6",
+                "surface-variant": "#313441",
+                "on-surface-variant": "#cfc2d6",
+                "secondary-container": "#03b5d3",
+                "inverse-on-surface": "#2c303c",
+                "tertiary-container": "#00a74b",
+                "on-tertiary-fixed": "#002109",
+                "primary-fixed-dim": "#ddb7ff",
+                "on-tertiary-fixed-variant": "#005321",
+                "outline": "#988d9f",
+                "surface-bright": "#353945",
+                "surface-container-highest": "#313441",
+                "surface": "#0f131e",
+                "on-background": "#dfe2f2",
+                "tertiary-fixed": "#6bff8f",
+                "on-tertiary": "#003915",
+                "on-secondary": "#003640",
+                "inverse-primary": "#842bd2",
+                "surface-container": "#1b1f2b",
+                "on-primary-container": "#400071",
+                "on-tertiary-container": "#003111",
+                "on-secondary-fixed": "#001f26",
+                "outline-variant": "#4d4354",
+                "primary-container": "#b76dff",
+                "surface-tint": "#ddb7ff",
+                "surface-container-lowest": "#0a0e19",
+                "tertiary-fixed-dim": "#4ae176",
+                "primary": "#ddb7ff",
+                "inverse-surface": "#dfe2f2",
+                "secondary-fixed-dim": "#4cd7f6",
+                "on-secondary-fixed-variant": "#004e5c",
+                "error-container": "#93000a",
+                "tertiary": "#4ae176",
+                "surface-dim": "#0f131e",
+                "on-primary": "#490080",
+                "on-error": "#690005",
+                "on-surface": "#dfe2f2",
+                "error": "#ffb4ab"
+            },
+            "borderRadius": {
+                "DEFAULT": "0.25rem",
+                "lg": "0.5rem",
+                "xl": "0.75rem",
+                "full": "9999px"
+            },
+            "fontFamily": {
+                "headline": ["Space Grotesk"],
+                "body": ["Inter"],
+                "label": ["Inter"]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(27, 31, 43, 0.6);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .neon-glow-primary {
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.15);
+        }
+        .neon-glow-secondary {
+            box-shadow: 0 0 20px rgba(76, 215, 246, 0.15);
+        }
+        .pixel-bar-segment {
+            height: 8px;
+            width: 100%;
+            border-radius: 2px;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f131e; }
+        ::-webkit-scrollbar-thumb { background: #313441; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body selection:bg-primary selection:text-on-primary">
+<!-- SideNavBar (Authority: JSON & Design System) -->
+<aside class="fixed left-0 top-0 h-full w-64 z-[60] bg-slate-950/90 backdrop-blur-2xl flex flex-col p-6 border-r border-white/5 font-['Space_Grotesk'] font-medium uppercase text-xs">
+<div class="flex flex-col gap-2 mb-10">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center shadow-[0_0_15px_rgba(183,109,255,0.4)]">
+<span class="material-symbols-outlined text-on-primary-container">rocket_launch</span>
+</div>
+<div>
+<h1 class="text-xl font-bold text-white tracking-tighter">SOLCLUB</h1>
+<p class="text-[10px] text-slate-500 tracking-widest">V1.0.4 - Alpha</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 flex flex-col gap-1">
+<!-- Dashboard -->
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-200 hover:translate-x-1 transition-all duration-200 active:scale-98" href="#">
+<span class="material-symbols-outlined">grid_view</span>
+<span>Dashboard</span>
+</a>
+<!-- Inventory -->
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-200 hover:translate-x-1 transition-all duration-200 active:scale-98" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span>Inventory</span>
+</a>
+<!-- Analytics (ACTIVE) -->
+<a class="flex items-center gap-3 px-4 py-3 text-cyan-400 bg-cyan-500/10 rounded-lg shadow-[inset_0_0_10px_rgba(76,215,246,0.2)] hover:translate-x-1 transition-all duration-200 active:scale-98" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">monitoring</span>
+<span>Analytics</span>
+</a>
+<!-- Partners -->
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-200 hover:translate-x-1 transition-all duration-200 active:scale-98" href="#">
+<span class="material-symbols-outlined">handshake</span>
+<span>Partners</span>
+</a>
+<!-- Support -->
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-200 hover:translate-x-1 transition-all duration-200 active:scale-98" href="#">
+<span class="material-symbols-outlined">contact_support</span>
+<span>Support</span>
+</a>
+</nav>
+<div class="mt-auto pt-6 border-t border-white/5 flex flex-col gap-4">
+<div class="bg-gradient-to-br from-primary-container/20 to-transparent p-4 rounded-xl border border-primary/20">
+<p class="text-[10px] text-primary mb-2">Exclusive Access</p>
+<p class="text-white normal-case mb-3 leading-tight">Upgrade to Pro for advanced heatmaps</p>
+<button class="w-full bg-primary text-on-primary py-2 rounded-lg font-bold text-[10px] tracking-wider active:scale-95 transition-transform">Upgrade to Pro</button>
+</div>
+<div class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-slate-200 transition-colors" href="#">
+<span class="material-symbols-outlined">description</span>
+<span>Docs</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-slate-500 hover:text-error transition-colors" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span>Logout</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- TopNavBar (Authority: JSON & Design System) -->
+<header class="fixed top-0 right-0 left-64 z-50 bg-slate-950/80 backdrop-blur-xl flex justify-between items-center px-8 py-4 font-['Space_Grotesk'] tracking-wider shadow-[0_0_20px_rgba(168,85,247,0.15)]">
+<div class="flex items-center gap-8">
+<div class="relative flex items-center group">
+<span class="material-symbols-outlined absolute left-3 text-slate-400 group-focus-within:text-purple-400 transition-colors">search</span>
+<input class="bg-surface-container-lowest border-none rounded-full pl-10 pr-4 py-2 text-sm w-64 focus:ring-1 focus:ring-purple-400 transition-all outline-none" placeholder="Search Merchant Data..." type="text"/>
+</div>
+<nav class="hidden lg:flex items-center gap-6">
+<a class="text-slate-400 hover:text-purple-300 transition-colors" href="#">Quests</a>
+<a class="text-slate-400 hover:text-purple-300 transition-colors" href="#">Leaderboard</a>
+<a class="text-slate-400 hover:text-purple-300 transition-colors" href="#">Marketplace</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex gap-2">
+<button class="w-10 h-10 flex items-center justify-center rounded-full text-slate-400 hover:bg-purple-500/10 hover:text-purple-400 transition-all active:scale-95">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-full text-slate-400 hover:bg-purple-500/10 hover:text-purple-400 transition-all active:scale-95">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+<button class="bg-primary text-on-primary px-6 py-2 rounded-full font-bold text-sm tracking-tight hover:shadow-[0_0_15px_rgba(183,109,255,0.4)] active:scale-95 transition-all">Connect Wallet</button>
+<div class="w-10 h-10 rounded-full bg-surface-container-high border border-white/10 overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="vibrant abstract digital avatar with glowing neon edges and geometric patterns" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDBoEFXu6MmPfg_8C2I7tlVUYQSg7dzQnAQuHIV-X45Jr6Vy-ghVX5xZQn5mOKFO8OzorG9gipzLKK5GcVxEKPxMt6YdJ9tmsZUk1lrZovydAClLnDlgh2_nLW2hGAh3EbLksi5tehq3O7-KoVEGmWDruCPMXgPhZLJuTi-OFomIl6C2qx1orDNLKkq9VSuReNsYmMFRWYTxQiMBvifDWu4tw-kNcnZUZosqdQt1kovezNUcnP1-Ak-0PlcrB1HcaiX5C8sg0HB0dkJ"/>
+</div>
+</div>
+<div class="absolute bottom-0 left-0 w-full bg-gradient-to-b from-purple-500/10 to-transparent h-[1px]"></div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-64 pt-24 p-8 min-h-screen">
+<!-- Dashboard Header: Editorial Hierarchy -->
+<div class="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div>
+<span class="text-secondary font-headline tracking-[0.2em] text-xs font-bold uppercase mb-2 block">Merchant Analytics Terminal</span>
+<h2 class="text-5xl font-headline font-bold text-white tracking-tighter">Deep Dive: <span class="text-primary">Neon Haven</span></h2>
+</div>
+<div class="flex gap-3">
+<div class="glass-panel px-4 py-2 rounded-xl flex items-center gap-3">
+<div class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></div>
+<span class="text-xs font-bold tracking-widest text-slate-400">LIVE FEED ACTIVE</span>
+</div>
+<div class="glass-panel px-4 py-2 rounded-xl flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary text-sm">calendar_today</span>
+<span class="text-xs font-bold tracking-widest text-slate-200">LAST 30 DAYS</span>
+</div>
+</div>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-12 gap-6">
+<!-- High-Level Stats Cards -->
+<div class="col-span-12 lg:col-span-4 flex flex-col gap-6">
+<!-- Transaction Volume Card -->
+<div class="bg-surface-container-low p-6 rounded-3xl relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-8xl">payments</span>
+</div>
+<div class="relative z-10">
+<p class="text-slate-500 font-headline font-bold text-sm tracking-widest uppercase mb-4">Total Transactions</p>
+<h3 class="text-4xl font-headline font-bold text-white mb-2">42,891 <span class="text-sm font-body font-normal text-tertiary">+12.4%</span></h3>
+<div class="h-1 bg-surface-container-highest rounded-full overflow-hidden mt-6">
+<div class="h-full bg-gradient-to-r from-primary to-secondary w-3/4"></div>
+</div>
+</div>
+</div>
+<!-- Rewards Distributed Card -->
+<div class="bg-surface-container-low p-6 rounded-3xl relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-8xl">redeem</span>
+</div>
+<div class="relative z-10">
+<p class="text-slate-500 font-headline font-bold text-sm tracking-widest uppercase mb-4">Rewards Issued</p>
+<h3 class="text-4xl font-headline font-bold text-white mb-2">1.2M <span class="text-xs text-slate-400 uppercase tracking-tighter">SOLC</span></h3>
+<div class="flex gap-1 mt-6">
+<div class="pixel-bar-segment bg-tertiary"></div>
+<div class="pixel-bar-segment bg-tertiary"></div>
+<div class="pixel-bar-segment bg-tertiary"></div>
+<div class="pixel-bar-segment bg-tertiary"></div>
+<div class="pixel-bar-segment bg-surface-container-highest"></div>
+<div class="pixel-bar-segment bg-surface-container-highest"></div>
+</div>
+</div>
+</div>
+<!-- User Retention -->
+<div class="bg-surface-container-low p-6 rounded-3xl">
+<p class="text-slate-500 font-headline font-bold text-sm tracking-widest uppercase mb-6">User Retention Rate</p>
+<div class="flex items-center justify-center relative py-8">
+<svg class="w-32 h-32 transform -rotate-90">
+<circle class="text-surface-container-highest" cx="64" cy="64" fill="transparent" r="58" stroke="currentColor" stroke-width="8"></circle>
+<circle class="text-secondary shadow-[0_0_15px_rgba(76,215,246,0.5)]" cx="64" cy="64" fill="transparent" r="58" stroke="currentColor" stroke-dasharray="364.4" stroke-dashoffset="100" stroke-width="8"></circle>
+</svg>
+<span class="absolute text-2xl font-headline font-bold text-white">72%</span>
+</div>
+<p class="text-center text-xs text-slate-500 mt-4 leading-relaxed">Engagement up <span class="text-tertiary">8%</span> from previous quarter</p>
+</div>
+</div>
+<!-- Transaction Graph Section -->
+<div class="col-span-12 lg:col-span-8 bg-surface-container p-8 rounded-3xl glass-panel">
+<div class="flex justify-between items-start mb-10">
+<div>
+<h3 class="text-2xl font-headline font-bold text-white mb-1">Transaction Activity</h3>
+<p class="text-sm text-slate-400">Peak performance observed during weekend hours</p>
+</div>
+<div class="flex bg-surface-container-lowest p-1 rounded-lg">
+<button class="px-4 py-1 text-xs font-bold bg-surface-container-high text-white rounded shadow-sm">Day</button>
+<button class="px-4 py-1 text-xs font-bold text-slate-500 hover:text-slate-300">Week</button>
+<button class="px-4 py-1 text-xs font-bold text-slate-500 hover:text-slate-300">Month</button>
+</div>
+</div>
+<!-- Stylized Graph Simulation -->
+<div class="h-64 flex items-end justify-between gap-2">
+<div class="w-full bg-surface-container-low rounded-t-lg h-[40%] hover:bg-primary-container/40 transition-all cursor-pointer relative group">
+<div class="absolute -top-10 left-1/2 -translate-x-1/2 bg-surface-bright px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">12.4k</div>
+</div>
+<div class="w-full bg-surface-container-low rounded-t-lg h-[60%] hover:bg-primary-container/40 transition-all cursor-pointer relative group"></div>
+<div class="w-full bg-surface-container-low rounded-t-lg h-[35%] hover:bg-primary-container/40 transition-all cursor-pointer relative group"></div>
+<div class="w-full bg-surface-container-low rounded-t-lg h-[85%] hover:bg-primary-container/40 transition-all cursor-pointer relative group"></div>
+<div class="w-full bg-primary-container rounded-t-lg h-[100%] shadow-[0_0_20px_rgba(183,109,255,0.3)] relative group">
+<div class="absolute -top-10 left-1/2 -translate-x-1/2 bg-primary text-on-primary px-2 py-1 rounded text-[10px]">Peak 42k</div>
+</div>
+<div class="w-full bg-surface-container-low rounded-t-lg h-[70%] hover:bg-primary-container/40 transition-all cursor-pointer relative group"></div>
+<div class="w-full bg-surface-container-low rounded-t-lg h-[55%] hover:bg-primary-container/40 transition-all cursor-pointer relative group"></div>
+<div class="w-full bg-surface-container-low rounded-t-lg h-[45%] hover:bg-primary-container/40 transition-all cursor-pointer relative group"></div>
+<div class="w-full bg-surface-container-low rounded-t-lg h-[65%] hover:bg-primary-container/40 transition-all cursor-pointer relative group"></div>
+<div class="w-full bg-surface-container-low rounded-t-lg h-[80%] hover:bg-primary-container/40 transition-all cursor-pointer relative group"></div>
+</div>
+<div class="flex justify-between mt-4 text-[10px] font-bold text-slate-500 tracking-widest uppercase">
+<span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+</div>
+</div>
+<!-- Heatmap / Geographical Distribution -->
+<div class="col-span-12 lg:col-span-7 bg-surface-container-low rounded-3xl overflow-hidden relative min-h-[400px]">
+<div class="absolute inset-0 z-0 opacity-40">
+<img class="w-full h-full object-cover grayscale contrast-125" data-alt="stylized dark world map with glowing cyan connections and neon orange hotspots representing data flow" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBP40EoYz6Ip9xPYa_7CbqXGtOtdhb0j8UCjtiEzZN3vJKwL-jGxZGFwQkZ1wFHnSQRf1DMg2e5UgpghCnkppHSZq8bxVujVvDD2kNW2QFQL1IvcHrQJD6Sjj9E9WcTqB4xH20u3yp_Bdg6wmsTd5WBBgYmDtGrmLGxgTFJeAxhMlPi-3H7HeiRUa43w954PpAfy9JaL6fvwOAKD19Bro-M_njeArqIdt2392TBdUggQwMGLjyVxFv7V-anQpZI0FnYkxz6RiF_6r_r"/>
+<!-- Fake Heatmap Orbs -->
+<div class="absolute top-1/4 left-1/3 w-24 h-24 bg-primary rounded-full blur-[60px] opacity-60"></div>
+<div class="absolute bottom-1/3 right-1/4 w-32 h-32 bg-secondary rounded-full blur-[80px] opacity-40"></div>
+<div class="absolute top-1/2 right-1/2 w-16 h-16 bg-tertiary rounded-full blur-[40px] opacity-50"></div>
+</div>
+<div class="relative z-10 p-8 h-full flex flex-col">
+<h3 class="text-2xl font-headline font-bold text-white mb-2">User Distribution</h3>
+<p class="text-sm text-slate-400 mb-8 max-w-xs">Global hotspots indicate high engagement in metropolitan digital zones.</p>
+<div class="mt-auto space-y-4">
+<div class="glass-panel p-3 rounded-2xl flex items-center justify-between border-l-4 border-primary">
+<div class="flex items-center gap-3">
+<span class="w-8 h-8 flex items-center justify-center bg-surface-container-highest rounded-lg text-xs font-bold">01</span>
+<span class="text-sm font-bold">Neo-Tokyo District</span>
+</div>
+<span class="text-primary font-bold">34%</span>
+</div>
+<div class="glass-panel p-3 rounded-2xl flex items-center justify-between border-l-4 border-secondary">
+<div class="flex items-center gap-3">
+<span class="w-8 h-8 flex items-center justify-center bg-surface-container-highest rounded-lg text-xs font-bold">02</span>
+<span class="text-sm font-bold">New Berlin Hub</span>
+</div>
+<span class="text-secondary font-bold">21%</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Recent Transactions Table -->
+<div class="col-span-12 lg:col-span-5 flex flex-col gap-6">
+<div class="bg-surface-container p-6 rounded-3xl border border-white/5">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-xl font-headline font-bold text-white">Live Transactions</h3>
+<span class="text-[10px] font-headline font-bold text-secondary uppercase tracking-[0.2em]">View All</span>
+</div>
+<div class="space-y-4">
+<!-- Transaction Row -->
+<div class="flex items-center justify-between group cursor-pointer">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary text-sm">arrow_downward</span>
+</div>
+<div>
+<p class="text-sm font-bold text-white">User #8821</p>
+<p class="text-[10px] text-slate-500 uppercase">2 mins ago</p>
+</div>
+</div>
+<div class="text-right">
+<p class="text-sm font-headline font-bold text-tertiary">+0.42 SOL</p>
+<p class="text-[10px] text-slate-500 uppercase">Confirmed</p>
+</div>
+</div>
+<!-- Transaction Row -->
+<div class="flex items-center justify-between group cursor-pointer">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-sm">redeem</span>
+</div>
+<div>
+<p class="text-sm font-bold text-white">Reward Claim</p>
+<p class="text-[10px] text-slate-500 uppercase">14 mins ago</p>
+</div>
+</div>
+<div class="text-right">
+<p class="text-sm font-headline font-bold text-primary">250 SOLC</p>
+<p class="text-[10px] text-slate-500 uppercase">Pending</p>
+</div>
+</div>
+<!-- Transaction Row -->
+<div class="flex items-center justify-between group cursor-pointer">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary text-sm">swap_horiz</span>
+</div>
+<div>
+<p class="text-sm font-bold text-white">User #4410</p>
+<p class="text-[10px] text-slate-500 uppercase">1 hr ago</p>
+</div>
+</div>
+<div class="text-right">
+<p class="text-sm font-headline font-bold text-secondary">0.05 SOL</p>
+<p class="text-[10px] text-slate-500 uppercase">Confirmed</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Action Card -->
+<div class="bg-gradient-to-br from-secondary/20 to-primary/20 p-8 rounded-3xl relative overflow-hidden">
+<div class="absolute -bottom-4 -right-4 w-32 h-32 bg-secondary/10 rounded-full blur-3xl"></div>
+<h4 class="text-xl font-headline font-bold text-white mb-4">Export Merchant Report</h4>
+<p class="text-xs text-slate-300 mb-6 leading-relaxed">Download a comprehensive PDF or CSV of all transactional data for the current period.</p>
+<button class="w-full bg-white text-slate-950 font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-secondary hover:text-white transition-all active:scale-95">
+<span class="material-symbols-outlined text-sm">download</span>
+                        GENERATE REPORT
+                    </button>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Component: Status Toast (Not in JSON but fits system) -->
+<div class="fixed bottom-8 right-8 z-[70] glass-panel p-4 rounded-2xl flex items-center gap-4 border border-tertiary/30 animate-pulse">
+<div class="w-10 h-10 bg-tertiary/10 rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary">check_circle</span>
+</div>
+<div>
+<p class="text-sm font-bold text-white">Real-time Sync Active</p>
+<p class="text-[10px] text-slate-400">Node: Solana Mainnet-Beta</p>
+</div>
+</div>
+</body></html>
