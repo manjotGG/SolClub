@@ -1,5 +1,6 @@
 const SOLCLUB_ROLE_KEY = "solclub_role";
 const SOLCLUB_WALLET_KEY = "solclub_wallet";
+const AUTH_BASE = "/api/auth";
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -61,7 +62,7 @@ function closeModal(node) {
 }
 
 function roleDashboardPath(role) {
-  return role === "merchant" ? "/ui/merchant" : "/ui/client";
+  return "/dashboard";
 }
 
 function preferredRole() {
@@ -80,20 +81,20 @@ function setWalletInput(wallet) {
 }
 
 function loginPagePath() {
-  return "/ui/login";
+  return "/login";
 }
 
 async function getSession() {
-  return await apiJson("/ui/api/auth/session", { method: "GET" });
+  return await apiJson(`${AUTH_BASE}/session`, { method: "GET" });
 }
 
 async function getOnboardingStatus() {
-  return await apiJson("/ui/api/auth/onboarding-status", { method: "GET" });
+  return await apiJson(`${AUTH_BASE}/onboarding-status`, { method: "GET" });
 }
 
 async function startSession(role, walletAddress) {
   const payload = { role, wallet_address: walletAddress || "" };
-  const session = await apiJson("/ui/api/auth/session/start", {
+  const session = await apiJson(`${AUTH_BASE}/session/start`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -107,14 +108,14 @@ async function connectWallet(role) {
   const wallet = String(modalWallet?.value || readWalletInput() || "").trim();
   if (!wallet) {
     if (!modalWallet && !$("#registerWallet")) {
-      go("/ui/auth");
+      go("/auth");
       return;
     }
     throw new Error("wallet_address is required");
   }
   const resolvedRole = normalizeLabel(modalRole?.value || role || "client") === "merchant" ? "merchant" : "client";
 
-  const data = await apiJson("/ui/api/wallet/connect", {
+  const data = await apiJson(`${AUTH_BASE}/wallet/connect`, {
     method: "POST",
     body: JSON.stringify({
       wallet_address: wallet,
@@ -127,14 +128,14 @@ async function connectWallet(role) {
   setLocalSession(data.role || resolvedRole, wallet);
   const status = await getOnboardingStatus();
   closeModal($("#walletConnectModal"));
-  go(status.redirect || "/ui/auth?stage=details");
+  go(status.redirect || "/onboarding");
 }
 
 async function loginWithCredentials() {
   const identifier = String($("#returningIdentifier")?.value || "").trim();
   const password = String($("#returningPassword")?.value || "").trim();
   const role = normalizeLabel($("#returningRole")?.value || "client") === "merchant" ? "merchant" : "client";
-  const session = await apiJson("/ui/api/auth/login", {
+  const session = await apiJson(`${AUTH_BASE}/login`, {
     method: "POST",
     body: JSON.stringify({ identifier, password, role }),
   });
@@ -144,18 +145,18 @@ async function loginWithCredentials() {
 }
 
 async function createManagedWallet(role = "client") {
-  const data = await apiJson("/ui/api/wallet/auto-create", {
+  const data = await apiJson(`${AUTH_BASE}/wallet/create`, {
     method: "POST",
     body: JSON.stringify({ network: "testnet", provider: "solclub-managed", created_by: "ui-auth", user_role: role }),
   });
   setWalletInput(data.wallet_address);
   setLocalSession(data.role || role, data.wallet_address);
   const status = await getOnboardingStatus();
-  go(status.redirect || "/ui/auth?stage=details");
+  go(status.redirect || "/onboarding");
 }
 
 async function registerAccount(payload) {
-  return await apiJson("/ui/api/auth/register", {
+  return await apiJson(`${AUTH_BASE}/onboarding/complete`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -239,7 +240,7 @@ function wireAuthButtons() {
   googleBtn?.addEventListener("click", async (event) => {
     event.preventDefault();
     try {
-      const data = await apiJson(`/ui/api/auth/google/start?role=${preferredRole()}`);
+      const data = await apiJson(`${AUTH_BASE}/google/start?role=${preferredRole()}`);
       if (data.auth_url) window.location.assign(data.auth_url);
     } catch (error) {
       alert(error.message);
@@ -267,10 +268,10 @@ function wireAuthButtons() {
 
 async function logout() {
   try {
-    await apiJson("/ui/api/auth/logout", { method: "POST" });
+    await apiJson(`${AUTH_BASE}/logout`, { method: "POST" });
   } finally {
     clearLocalSession();
-    go("/ui/auth");
+    go("/auth");
   }
 }
 
@@ -339,6 +340,37 @@ function getOrCreateLivePanel() {
     document.body.prepend(panel);
   }
   return panel;
+}
+
+function showSoftWalletPrompt() {
+  let modal = $("#softWalletPrompt");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "softWalletPrompt";
+    modal.className = "fixed inset-0 z-40 flex items-center justify-center bg-black/60 px-4";
+    modal.innerHTML = `
+      <div class="w-full max-w-md rounded-2xl border border-white/10 bg-[#1b1f2b] p-6">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-xl font-bold">Connect your wallet</h3>
+          <button id="softWalletCloseX" class="text-slate-300" type="button">X</button>
+        </div>
+        <p class="text-sm text-slate-300 mb-4">Unlock full features by connecting your wallet.</p>
+        <div class="flex gap-3">
+          <button id="softWalletConnect" class="flex-1 rounded-lg bg-cyan-400 text-cyan-950 font-bold py-2" type="button">Connect Wallet</button>
+          <button id="softWalletLater" class="rounded-lg border border-slate-500 px-4" type="button">Maybe later</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    $("#softWalletCloseX", modal)?.addEventListener("click", () => closeModal(modal));
+    $("#softWalletLater", modal)?.addEventListener("click", () => closeModal(modal));
+    $("#softWalletConnect", modal)?.addEventListener("click", () => {
+      closeModal(modal);
+      go("/auth");
+    });
+  }
+  openModal(modal);
 }
 
 function updateClientLivePanel(snapshot, preview) {
@@ -554,7 +586,7 @@ function wireCommonButtons(session) {
       button.addEventListener("click", async (event) => {
         event.preventDefault();
         try {
-          const data = await apiJson(`/ui/api/auth/google/start?role=${preferredRole()}`);
+          const data = await apiJson(`${AUTH_BASE}/google/start?role=${preferredRole()}`);
           if (data.auth_url) window.location.assign(data.auth_url);
         } catch (error) {
           alert(error.message);
@@ -646,43 +678,52 @@ function wirePortal(session) {
 async function bootstrap() {
   const page = pageId();
 
-  if (page === "auth" || page === "auth-onboarding" || page === "auth-login") {
+  if (page === "auth") {
+    wireAuthButtons();
+    const session = await getSession();
+    if (session.authenticated) {
+      const status = await getOnboardingStatus();
+      go(status.redirect || "/dashboard");
+    }
+    return;
+  }
+
+  if (page === "auth-login") {
     wireAuthButtons();
     wireReturningLogin();
-    wireRegisterForm();
+    const session = await getSession();
+    if (!session.authenticated) return;
+    const status = await getOnboardingStatus();
+    go(status.redirect || "/dashboard");
+    return;
+  }
 
+  if (page === "onboarding") {
+    wireRegisterForm();
     const session = await getSession();
     if (!session.authenticated) {
-      setDetailsMode(false);
-      if (page === "auth-login") {
-        const details = $("#detailsPanel");
-        const returning = $("#returningLoginForm")?.closest("div");
-        if (details) details.classList.add("hidden");
-        if (returning) returning.classList.remove("hidden");
-      }
+      go("/auth");
       return;
     }
 
-    setLocalSession(session.role, session.wallet);
     const status = await getOnboardingStatus();
-    if (status.requires_details) {
-      setDetailsMode(true);
-      const walletInput = $("#registerWallet");
-      if (walletInput && status.wallet) walletInput.value = status.wallet;
-      const roleInput = $("#registerRole");
-      if (roleInput && status.role) roleInput.value = status.role;
-      const passwordInput = $("#registerPassword");
-      if (passwordInput) passwordInput.value = "";
+    if (!status.requires_details) {
+      go(status.redirect || "/dashboard");
       return;
     }
 
-    go(status.redirect || roleDashboardPath(status.role || session.role));
+    const walletInput = $("#registerWallet");
+    if (walletInput && status.wallet) walletInput.value = status.wallet;
+    const roleInput = $("#registerRole");
+    if (roleInput && status.role) roleInput.value = status.role;
+    const emailInput = $("#registerEmail");
+    if (emailInput && status.user_ref) emailInput.value = status.user_ref;
     return;
   }
 
   const session = await getSession();
   if (!session.authenticated) {
-    go("/ui/auth?required=login");
+    go("/auth?required=login");
     return;
   }
   setLocalSession(session.role, session.wallet);
@@ -697,13 +738,12 @@ async function bootstrap() {
   wirePortal(session);
 
   if (page.startsWith("client")) {
-    if (!session.wallet) {
-      alert("Client session is missing wallet. Please reconnect wallet from auth page.");
-      go("/ui/auth");
-      return;
+    if (session.wallet) {
+      await hydrateClientPages(session.wallet);
+      attachSSE("client", session.wallet);
+    } else if (page === "client-dashboard") {
+      showSoftWalletPrompt();
     }
-    await hydrateClientPages(session.wallet);
-    attachSSE("client", session.wallet);
   } else if (page.startsWith("merchant")) {
     await hydrateMerchantPages();
     attachSSE("merchant", session.wallet || "");
@@ -714,8 +754,8 @@ document.addEventListener("DOMContentLoaded", () => {
   bootstrap().catch((error) => {
     console.error(error);
     alert(error.message || "UI bootstrap failed.");
-    if (pageId() !== "auth" && pageId() !== "auth-onboarding") {
-      go("/ui/auth");
+    if (!["auth", "auth-login", "onboarding"].includes(pageId())) {
+      go("/auth");
     }
   });
 });

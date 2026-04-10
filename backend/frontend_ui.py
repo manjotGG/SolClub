@@ -54,6 +54,8 @@ UI_ROLE_COOKIE = "solclub_role"
 UI_SESSION_TTL_SECONDS = 60 * 60 * 12
 
 router = APIRouter(prefix="/ui", tags=["frontend-ui"])
+auth_router = APIRouter(prefix="/api/auth", tags=["auth"])
+page_router = APIRouter(tags=["pages"])
 _google_state_store: Dict[str, float] = {}
 
 
@@ -75,11 +77,19 @@ def _sign_payload(payload_bytes: bytes) -> str:
     return digest
 
 
-def _create_ui_session(role: str, wallet: Optional[str] = None, ttl_seconds: int = UI_SESSION_TTL_SECONDS) -> str:
+def _create_ui_session(
+    role: str,
+    wallet: Optional[str] = None,
+    user_ref: Optional[str] = None,
+    onboarding_required: bool = False,
+    ttl_seconds: int = UI_SESSION_TTL_SECONDS,
+) -> str:
     now = int(time.time())
     payload = {
         "role": role,
         "wallet": wallet or "",
+        "user_ref": user_ref or "",
+        "onboarding_required": bool(onboarding_required),
         "iat": now,
         "exp": now + ttl_seconds,
     }
@@ -106,6 +116,8 @@ def parse_ui_session_token(token: Optional[str]) -> Optional[Dict[str, Any]]:
             return None
         payload["role"] = role
         payload["wallet"] = str(payload.get("wallet", "")).strip()
+        payload["user_ref"] = str(payload.get("user_ref", "")).strip().lower()
+        payload["onboarding_required"] = bool(payload.get("onboarding_required", False))
         return payload
     except Exception:
         return None
@@ -116,8 +128,19 @@ def get_ui_session_from_request(request: Request) -> Optional[Dict[str, Any]]:
     return parse_ui_session_token(token)
 
 
-def _set_ui_session_cookies(response: Response, role: str, wallet: Optional[str] = None):
-    token = _create_ui_session(role=role, wallet=wallet)
+def _set_ui_session_cookies(
+    response: Response,
+    role: str,
+    wallet: Optional[str] = None,
+    user_ref: Optional[str] = None,
+    onboarding_required: bool = False,
+):
+    token = _create_ui_session(
+        role=role,
+        wallet=wallet,
+        user_ref=user_ref,
+        onboarding_required=onboarding_required,
+    )
     response.set_cookie(
         UI_SESSION_COOKIE,
         token,
@@ -173,6 +196,10 @@ def _json_sse(data: Dict[str, Any]) -> str:
 
 
 def _role_dashboard_path(role: str) -> str:
+    return "/dashboard"
+
+
+def _role_ui_page(role: str) -> str:
     return "/ui/merchant" if role == "merchant" else "/ui/client"
 
 
@@ -274,9 +301,45 @@ async def ui_auth_page(request: Request):
     return _render_static_template("auth.html", "auth", "auth", "SolClub | Enter the Arena")
 
 
+@page_router.get("/auth", response_class=HTMLResponse)
+async def auth_page(request: Request):
+    return _render_static_template("auth.html", "auth", "auth", "SolClub | Enter the Arena")
+
+
 @router.get("/login", response_class=HTMLResponse)
 async def ui_login_page(request: Request):
-    return _render_static_template("auth.html", "auth-login", "auth", "SolClub | Login")
+    return _render_static_template("login.html", "auth-login", "auth", "SolClub | Login")
+
+
+@page_router.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    return _render_static_template("login.html", "auth-login", "auth", "SolClub | Login")
+
+
+@router.get("/onboarding", response_class=HTMLResponse)
+async def ui_onboarding_page(request: Request):
+    return _render_static_template("onboarding.html", "onboarding", "auth", "SolClub | Onboarding")
+
+
+@page_router.get("/onboarding", response_class=HTMLResponse)
+async def onboarding_page(request: Request):
+    return _render_static_template("onboarding.html", "onboarding", "auth", "SolClub | Onboarding")
+
+
+@router.get("/dashboard")
+async def ui_dashboard(request: Request):
+    session = get_ui_session_from_request(request)
+    if not session:
+        return RedirectResponse(url="/auth", status_code=303)
+    return RedirectResponse(url=_role_ui_page(str(session.get("role") or "client")), status_code=303)
+
+
+@page_router.get("/dashboard")
+async def dashboard(request: Request):
+    session = get_ui_session_from_request(request)
+    if not session:
+        return RedirectResponse(url="/auth", status_code=303)
+    return RedirectResponse(url=_role_ui_page(str(session.get("role") or "client")), status_code=303)
 
 
 @router.get("/portal", response_class=HTMLResponse)
@@ -398,6 +461,7 @@ async def ui_merchant_franchises_post(merchant_id: int, payload: Dict[str, Any])
 
 
 @router.post("/api/wallet/connect")
+@auth_router.post("/wallet/connect")
 async def ui_wallet_connect(payload: Dict[str, Any], response: Response):
     wallet = str(payload.get("wallet_address", "")).strip()
     if not wallet:
@@ -418,20 +482,29 @@ async def ui_wallet_connect(payload: Dict[str, Any], response: Response):
     if user_role not in {"client", "merchant"}:
         raise HTTPException(status_code=400, detail="user_role must be either 'client' or 'merchant'")
 
-    if user_role == "client":
+    user = get_user_account_by_wallet(wallet)
+    onboarding_required = not bool(user)
+    if user_role == "client" and user:
         upsert_client_profile(wallet)
 
-    _set_ui_session_cookies(response, role=user_role, wallet=wallet)
+    _set_ui_session_cookies(
+        response,
+        role=user_role,
+        wallet=wallet,
+        user_ref=(str(user.get("email")).strip().lower() if user and user.get("email") else None),
+        onboarding_required=onboarding_required,
+    )
 
     return {
         "success": True,
         "wallet": wallet,
         "role": user_role,
-        "next": "/ui/auth?stage=details",
+        "next": "/onboarding" if onboarding_required else "/dashboard",
     }
 
 
 @router.post("/api/wallet/auto-create")
+@auth_router.post("/wallet/create")
 async def ui_wallet_auto_create(payload: Dict[str, Any], response: Response):
     network = str(payload.get("network", "testnet")).lower()
     if network != "testnet":
@@ -454,9 +527,13 @@ async def ui_wallet_auto_create(payload: Dict[str, Any], response: Response):
         encrypted_secret=encrypted_secret,
         created_by=payload.get("created_by"),
     )
-    if user_role == "client":
-        upsert_client_profile(wallet_address)
-    _set_ui_session_cookies(response, role=user_role, wallet=wallet_address)
+    # Newly created wallets always require onboarding.
+    _set_ui_session_cookies(
+        response,
+        role=user_role,
+        wallet=wallet_address,
+        onboarding_required=True,
+    )
 
     return {
         "success": True,
@@ -464,11 +541,12 @@ async def ui_wallet_auto_create(payload: Dict[str, Any], response: Response):
         "network": network,
         "managed_wallet": True,
         "role": user_role,
-        "next": "/ui/auth?stage=details",
+        "next": "/onboarding",
     }
 
 
 @router.get("/api/auth/google/start")
+@auth_router.get("/google/start")
 async def ui_google_start(role: str = Query(default="client")):
     client_id = os.getenv("GOOGLE_CLIENT_ID")
     client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
@@ -497,6 +575,7 @@ async def ui_google_start(role: str = Query(default="client")):
 
 
 @router.get("/api/auth/google/callback")
+@auth_router.get("/google/callback")
 async def ui_google_callback(code: Optional[str] = None, state: Optional[str] = None):
     if not code or not state:
         raise HTTPException(status_code=400, detail="Missing code or state")
@@ -548,8 +627,10 @@ async def ui_google_callback(code: Optional[str] = None, state: Optional[str] = 
         raise HTTPException(status_code=400, detail=f"Google profile fetch failed: {user_res.text}")
 
     profile = user_res.json()
+    google_email = str(profile.get("email") or "").strip().lower()
+    existing_user = bool(google_email and get_user_account_by_identifier(google_email))
     account = upsert_user_account(
-        email=profile.get("email"),
+        email=google_email,
         display_name=profile.get("name"),
         role=role,
         google_sub=profile.get("sub"),
@@ -557,15 +638,21 @@ async def ui_google_callback(code: Optional[str] = None, state: Optional[str] = 
 
     wallet_record = get_primary_wallet_for_user(str(account.get("id", ""))) if account.get("id") else None
     wallet = (wallet_record or {}).get("wallet_address") or ""
-    user_ready = bool(account.get("email") and account.get("display_name"))
-    client_ready = True if role == "merchant" else bool(wallet and get_client_profile(wallet))
-    redirect = "/ui/auth?stage=details" if not (user_ready and client_ready) else _role_dashboard_path(role)
+    onboarding_required = not existing_user
+    redirect = "/onboarding" if onboarding_required else _role_dashboard_path(role)
     response = RedirectResponse(url=redirect, status_code=303)
-    _set_ui_session_cookies(response, role=role, wallet=wallet)
+    _set_ui_session_cookies(
+        response,
+        role=role,
+        wallet=wallet,
+        user_ref=google_email,
+        onboarding_required=onboarding_required,
+    )
     return response
 
 
 @router.get("/api/auth/onboarding-status")
+@auth_router.get("/onboarding-status")
 async def ui_onboarding_status(request: Request):
     session = get_ui_session_from_request(request)
     if not session:
@@ -574,29 +661,36 @@ async def ui_onboarding_status(request: Request):
             "requires_details": False,
             "role": None,
             "wallet": None,
-            "redirect": "/ui/auth",
+            "redirect": "/auth",
         }
 
     role = str(session.get("role") or "client").strip().lower()
     wallet = str(session.get("wallet") or "").strip()
+    user_ref = str(session.get("user_ref") or "").strip().lower()
+    onboarding_required_flag = bool(session.get("onboarding_required", False))
 
     user = get_user_account_by_wallet(wallet) if wallet else None
+    if not user and user_ref:
+        user = get_user_account_by_identifier(user_ref)
+
     has_user_profile = bool(user and user.get("email") and user.get("display_name"))
-    has_client_profile = bool(wallet and get_client_profile(wallet)) if role == "client" else True
-    requires_details = not has_user_profile or not has_client_profile
+    has_client_profile = bool(wallet and get_client_profile(wallet)) if (role == "client" and wallet) else True
+    requires_details = bool(onboarding_required_flag or (not has_user_profile) or (not has_client_profile and role == "client" and wallet))
 
     return {
         "authenticated": True,
         "role": role,
         "wallet": wallet,
+        "user_ref": user_ref or (str(user.get("email")) if user and user.get("email") else None),
         "has_user_profile": has_user_profile,
         "has_client_profile": has_client_profile,
         "requires_details": requires_details,
-        "redirect": "/ui/auth?stage=details" if requires_details else _role_dashboard_path(role),
+        "redirect": "/onboarding" if requires_details else _role_dashboard_path(role),
     }
 
 
 @router.post("/api/auth/register")
+@auth_router.post("/onboarding/complete")
 async def ui_register(payload: Dict[str, Any], request: Request, response: Response):
     session = get_ui_session_from_request(request)
     if not session:
@@ -643,7 +737,13 @@ async def ui_register(payload: Dict[str, Any], request: Request, response: Respo
         if role == "client":
             upsert_client_profile(wallet)
 
-    _set_ui_session_cookies(response, role=role, wallet=wallet or "")
+    _set_ui_session_cookies(
+        response,
+        role=role,
+        wallet=wallet or "",
+        user_ref=email,
+        onboarding_required=False,
+    )
     return {
         "success": True,
         "account": account,
@@ -653,6 +753,7 @@ async def ui_register(payload: Dict[str, Any], request: Request, response: Respo
 
 
 @router.post("/api/auth/session-role")
+@auth_router.post("/session-role")
 async def ui_set_session_role(payload: Dict[str, Any], request: Request, response: Response):
     session = get_ui_session_from_request(request)
     if not session:
@@ -662,11 +763,20 @@ async def ui_set_session_role(payload: Dict[str, Any], request: Request, respons
     if role not in {"client", "merchant"}:
         raise HTTPException(status_code=400, detail="role must be either 'client' or 'merchant'")
     wallet = session.get("wallet")
-    _set_ui_session_cookies(response, role=role, wallet=wallet)
+    user_ref = str(session.get("user_ref") or "").strip().lower() or None
+    onboarding_required = bool(session.get("onboarding_required", False))
+    _set_ui_session_cookies(
+        response,
+        role=role,
+        wallet=wallet,
+        user_ref=user_ref,
+        onboarding_required=onboarding_required,
+    )
     return {"success": True, "role": role}
 
 
 @router.post("/api/auth/session/start")
+@auth_router.post("/session/start")
 async def ui_start_session(payload: Dict[str, Any], response: Response):
     role = str(payload.get("role", "client")).strip().lower()
     wallet = str(payload.get("wallet_address", "")).strip()
@@ -678,23 +788,28 @@ async def ui_start_session(payload: Dict[str, Any], response: Response):
         Pubkey.from_string(wallet)
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid wallet address")
-    if not get_wallet_record(wallet):
+    wallet_record = get_wallet_record(wallet)
+    if not wallet_record:
         raise HTTPException(status_code=403, detail="Wallet not registered. Connect or create wallet first.")
-    _set_ui_session_cookies(response, role=role, wallet=wallet)
     onboarding = {
         "has_user_profile": False,
-        "has_client_profile": False,
+        "has_client_profile": True,
         "requires_details": True,
     }
     user = get_user_account_by_wallet(wallet)
     if user:
         onboarding["has_user_profile"] = bool(user.get("email") and user.get("display_name"))
-    if role == "merchant":
-        onboarding["has_client_profile"] = True
-    else:
-        onboarding["has_client_profile"] = bool(get_client_profile(wallet))
-    onboarding["requires_details"] = not (onboarding["has_user_profile"] and onboarding["has_client_profile"])
-    redirect = "/ui/auth?stage=details" if onboarding["requires_details"] else _role_dashboard_path(role)
+    onboarding["requires_details"] = not onboarding["has_user_profile"]
+
+    _set_ui_session_cookies(
+        response,
+        role=role,
+        wallet=wallet,
+        user_ref=(str(user.get("email")).strip().lower() if user and user.get("email") else None),
+        onboarding_required=onboarding["requires_details"],
+    )
+
+    redirect = "/onboarding" if onboarding["requires_details"] else _role_dashboard_path(role)
     return {
         "success": True,
         "role": role,
@@ -705,6 +820,7 @@ async def ui_start_session(payload: Dict[str, Any], response: Response):
 
 
 @router.post("/api/auth/logout")
+@auth_router.post("/logout")
 async def ui_logout(response: Response):
     response.delete_cookie(UI_SESSION_COOKIE, path="/")
     response.delete_cookie(UI_ROLE_COOKIE, path="/")
@@ -712,6 +828,7 @@ async def ui_logout(response: Response):
 
 
 @router.get("/api/auth/session")
+@auth_router.get("/session")
 async def ui_get_session_role(request: Request):
     session = get_ui_session_from_request(request)
     if not session:
@@ -725,6 +842,7 @@ async def ui_get_session_role(request: Request):
 
 
 @router.post("/api/auth/login")
+@auth_router.post("/login")
 async def ui_login(payload: Dict[str, Any], response: Response):
     identifier = str(payload.get("identifier", "")).strip()
     password = str(payload.get("password", "")).strip()
@@ -762,7 +880,13 @@ async def ui_login(payload: Dict[str, Any], response: Response):
     if resolved_role not in {"client", "merchant"}:
         resolved_role = role if role in {"client", "merchant"} else "client"
 
-    _set_ui_session_cookies(response, role=resolved_role, wallet=wallet)
+    _set_ui_session_cookies(
+        response,
+        role=resolved_role,
+        wallet=wallet,
+        user_ref=(str(user.get("email")).strip().lower() if user and user.get("email") else None),
+        onboarding_required=False,
+    )
     return {
         "success": True,
         "role": resolved_role,

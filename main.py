@@ -346,15 +346,23 @@ def create_fastapi_app():
     try:
         ui_static_dir = os.path.join(BASE_DIR, "frontend", "static")
         app.mount("/ui/static", StaticFiles(directory=ui_static_dir), name="ui-static")
-        from backend.frontend_ui import get_ui_session_from_request, router as frontend_ui_router
+        from backend.frontend_ui import (
+            auth_router,
+            get_ui_session_from_request,
+            page_router,
+            router as frontend_ui_router,
+        )
         app.include_router(frontend_ui_router)
+        app.include_router(auth_router)
+        app.include_router(page_router)
     except Exception as exc:
         print(f"⚠️ Frontend UI router not loaded: {exc}")
 
     @app.middleware("http")
     async def ui_route_guard(request: Request, call_next):
         path = request.url.path or ""
-        if not path.startswith("/ui"):
+        guarded_prefixes = ("/ui", "/api/auth", "/auth", "/login", "/onboarding", "/dashboard")
+        if not path.startswith(guarded_prefixes):
             return await call_next(request)
 
         if path.startswith("/ui/static"):
@@ -364,6 +372,10 @@ def create_fastapi_app():
             "/ui",
             "/ui/auth",
             "/ui/login",
+            "/ui/dashboard",
+            "/auth",
+            "/login",
+            "/dashboard",
             "/ui/api/auth/session",
             "/ui/api/auth/onboarding-status",
             "/ui/api/auth/login",
@@ -373,6 +385,16 @@ def create_fastapi_app():
             "/ui/api/auth/logout",
             "/ui/api/wallet/connect",
             "/ui/api/wallet/auto-create",
+            "/api/auth/session",
+            "/api/auth/onboarding-status",
+            "/api/auth/login",
+            "/api/auth/session/start",
+            "/api/auth/google/start",
+            "/api/auth/google/callback",
+            "/api/auth/logout",
+            "/api/auth/wallet/connect",
+            "/api/auth/wallet/create",
+            "/api/auth/onboarding/complete",
         }
         if path in public_ui_paths:
             return await call_next(request)
@@ -383,11 +405,11 @@ def create_fastapi_app():
         except Exception:
             session = None
 
-        is_ui_api = path.startswith("/ui/api")
+        is_ui_api = path.startswith("/ui/api") or path.startswith("/api/auth")
         if not session:
             if is_ui_api:
                 return JSONResponse(status_code=401, content={"detail": "Authentication required."})
-            return RedirectResponse(url="/ui/auth?required=login", status_code=307)
+            return RedirectResponse(url="/auth?required=login", status_code=307)
 
         role = str(session.get("role", "")).strip().lower()
         is_merchant_page = path.startswith("/ui/merchant")
