@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SolClub | Rewards &amp; Loot</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-fixed-variant": "#6900b3",
+                        "background": "#0f131e",
+                        "surface-container-high": "#262a36",
+                        "surface-container-low": "#171b27",
+                        "on-secondary-container": "#00424e",
+                        "secondary-fixed": "#acedff",
+                        "primary-fixed": "#f0dbff",
+                        "on-error-container": "#ffdad6",
+                        "on-primary-fixed": "#2c0051",
+                        "secondary": "#4cd7f6",
+                        "surface-variant": "#313441",
+                        "on-surface-variant": "#cfc2d6",
+                        "secondary-container": "#03b5d3",
+                        "inverse-on-surface": "#2c303c",
+                        "tertiary-container": "#00a74b",
+                        "on-tertiary-fixed": "#002109",
+                        "primary-fixed-dim": "#ddb7ff",
+                        "on-tertiary-fixed-variant": "#005321",
+                        "outline": "#988d9f",
+                        "surface-bright": "#353945",
+                        "surface-container-highest": "#313441",
+                        "surface": "#0f131e",
+                        "on-background": "#dfe2f2",
+                        "tertiary-fixed": "#6bff8f",
+                        "on-tertiary": "#003915",
+                        "on-secondary": "#003640",
+                        "inverse-primary": "#842bd2",
+                        "surface-container": "#1b1f2b",
+                        "on-primary-container": "#400071",
+                        "on-tertiary-container": "#003111",
+                        "on-secondary-fixed": "#001f26",
+                        "outline-variant": "#4d4354",
+                        "primary-container": "#b76dff",
+                        "surface-tint": "#ddb7ff",
+                        "surface-container-lowest": "#0a0e19",
+                        "tertiary-fixed-dim": "#4ae176",
+                        "primary": "#ddb7ff",
+                        "inverse-surface": "#dfe2f2",
+                        "secondary-fixed-dim": "#4cd7f6",
+                        "on-secondary-fixed-variant": "#004e5c",
+                        "error-container": "#93000a",
+                        "tertiary": "#4ae176",
+                        "surface-dim": "#0f131e",
+                        "on-primary": "#490080",
+                        "on-error": "#690005",
+                        "on-surface": "#dfe2f2",
+                        "error": "#ffb4ab"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(27, 31, 43, 0.6);
+            backdrop-filter: blur(12px);
+            position: relative;
+            overflow: hidden;
+        }
+        .glass-panel::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, rgba(221, 183, 255, 0.05), transparent);
+            pointer-events: none;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .rarity-glow-legendary {
+            box-shadow: 0 0 30px rgba(221, 183, 255, 0.15);
+        }
+        .rarity-glow-epic {
+            box-shadow: 0 0 25px rgba(76, 215, 246, 0.1);
+        }
+        .neon-text-glow {
+            text-shadow: 0 0 8px rgba(221, 183, 255, 0.6);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body min-h-screen">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-xl shadow-[0_0_20px_rgba(168,85,247,0.15)] flex justify-between items-center px-8 py-4 w-full">
+<div class="flex items-center gap-12">
+<div class="text-2xl font-black tracking-tighter text-purple-400 uppercase font-headline">SolClub</div>
+<nav class="hidden md:flex gap-8 font-['Space_Grotesk'] tracking-wider">
+<a class="text-slate-400 hover:text-purple-300 transition-colors" href="#">Quests</a>
+<a class="text-slate-400 hover:text-purple-300 transition-colors" href="#">Leaderboard</a>
+<a class="text-slate-400 hover:text-purple-300 transition-colors" href="#">Marketplace</a>
+</nav>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex gap-4">
+<button class="text-slate-400 hover:text-purple-300 transition-all duration-300 active:scale-95">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-slate-400 hover:text-purple-300 transition-all duration-300 active:scale-95">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+<button class="bg-primary-container text-on-primary-container px-6 py-2 rounded-lg font-headline font-bold uppercase tracking-tight hover:brightness-110 active:scale-95 transition-all shadow-[0_0_15px_rgba(183,109,255,0.4)]">Connect Wallet</button>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-64 z-[60] bg-slate-950/90 backdrop-blur-2xl border-r border-white/5 flex flex-col h-full p-6 shadow-[4px_0_24px_rgba(0,0,0,0.5)]">
+<div class="mb-10 flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary to-secondary flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary text-xl" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<div>
+<div class="text-xl font-bold text-white font-headline">SOLCLUB</div>
+<div class="text-[10px] text-slate-500 tracking-widest font-headline">V1.0.4 - ALPHA</div>
+</div>
+</div>
+<nav class="flex-1 space-y-2">
+<a class="flex items-center gap-3 p-3 text-slate-500 hover:text-slate-200 hover:translate-x-1 transition-transform duration-200 font-['Space_Grotesk'] font-medium uppercase text-xs" href="#">
+<span class="material-symbols-outlined" data-icon="grid_view">grid_view</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 p-3 text-slate-500 hover:text-slate-200 hover:translate-x-1 transition-transform duration-200 font-['Space_Grotesk'] font-medium uppercase text-xs" href="#">
+<span class="material-symbols-outlined" data-icon="inventory_2">inventory_2</span>
+<span>Inventory</span>
+</a>
+<a class="flex items-center gap-3 p-3 text-cyan-400 bg-cyan-500/10 rounded-lg shadow-[inset_0_0_10px_rgba(76,215,246,0.2)] hover:translate-x-1 transition-transform duration-200 font-['Space_Grotesk'] font-medium uppercase text-xs" href="#">
+<span class="material-symbols-outlined" data-icon="redeem">redeem</span>
+<span>Rewards</span>
+</a>
+<a class="flex items-center gap-3 p-3 text-slate-500 hover:text-slate-200 hover:translate-x-1 transition-transform duration-200 font-['Space_Grotesk'] font-medium uppercase text-xs" href="#">
+<span class="material-symbols-outlined" data-icon="monitoring">monitoring</span>
+<span>Analytics</span>
+</a>
+<a class="flex items-center gap-3 p-3 text-slate-500 hover:text-slate-200 hover:translate-x-1 transition-transform duration-200 font-['Space_Grotesk'] font-medium uppercase text-xs" href="#">
+<span class="material-symbols-outlined" data-icon="handshake">handshake</span>
+<span>Partners</span>
+</a>
+</nav>
+<div class="mt-auto space-y-4">
+<button class="w-full bg-slate-900 text-white font-headline text-[10px] p-3 rounded-lg border border-white/5 hover:bg-slate-800 transition-colors uppercase tracking-widest">Upgrade to Pro</button>
+<div class="pt-4 border-t border-white/5 flex flex-col gap-2">
+<a class="flex items-center gap-3 p-2 text-slate-500 hover:text-slate-200 font-headline text-[10px] uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined text-sm">description</span> Docs
+                </a>
+<a class="flex items-center gap-3 p-2 text-slate-500 hover:text-slate-200 font-headline text-[10px] uppercase tracking-wider" href="#">
+<span class="material-symbols-outlined text-sm">logout</span> Logout
+                </a>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="pl-64 pt-20 min-h-screen">
+<div class="max-w-7xl mx-auto px-12 py-12">
+<!-- Header Section -->
+<section class="mb-16 flex justify-between items-end">
+<div class="max-w-2xl">
+<span class="label-md text-secondary font-bold tracking-[0.2em] uppercase mb-4 block">Vault Rewards</span>
+<h1 class="display-lg text-6xl font-black font-headline text-on-background tracking-tighter neon-text-glow leading-none">THE ARCHIVE OF <br/> TRIUMPHS</h1>
+<p class="mt-6 text-on-surface-variant font-body leading-relaxed max-w-lg">Your chronological journey through the SolClub ecosystem. Claim your algorithmic earnings and rare digital artifacts earned through protocol participation.</p>
+</div>
+<div class="flex gap-4">
+<div class="glass-panel p-6 rounded-xl border border-white/5">
+<span class="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1 block">Total Earned</span>
+<div class="text-3xl font-headline font-black text-tertiary">42.85 SOL</div>
+</div>
+<div class="glass-panel p-6 rounded-xl border border-white/5">
+<span class="text-slate-500 text-[10px] uppercase font-bold tracking-widest mb-1 block">NFT Drops</span>
+<div class="text-3xl font-headline font-black text-secondary">12 items</div>
+</div>
+</div>
+</section>
+<!-- Rewards Timeline & Bento Grid -->
+<div class="grid grid-cols-12 gap-8">
+<!-- Timeline Navigation Left -->
+<div class="col-span-3 space-y-4">
+<div class="sticky top-28">
+<h3 class="font-headline font-bold text-xs text-slate-500 tracking-widest uppercase mb-6">Era Navigation</h3>
+<div class="space-y-4 relative">
+<!-- Vertical line -->
+<div class="absolute left-2.5 top-0 bottom-0 w-[1px] bg-slate-800"></div>
+<div class="relative pl-8 group cursor-pointer">
+<div class="absolute left-0 top-1 w-5 h-5 rounded-full border-2 border-primary bg-background z-10"></div>
+<div class="text-primary font-headline font-bold text-sm">The Nebula Era</div>
+<div class="text-[10px] text-slate-500 uppercase tracking-tighter">Current Period</div>
+</div>
+<div class="relative pl-8 group cursor-pointer">
+<div class="absolute left-0 top-1 w-5 h-5 rounded-full border-2 border-slate-700 bg-background z-10 group-hover:border-secondary transition-colors"></div>
+<div class="text-slate-400 group-hover:text-secondary font-headline font-bold text-sm transition-colors">Genesis Protocol</div>
+<div class="text-[10px] text-slate-500 uppercase tracking-tighter">Completed Phase</div>
+</div>
+<div class="relative pl-8 opacity-40">
+<div class="absolute left-0 top-1 w-5 h-5 rounded-full border-2 border-slate-700 bg-background z-10"></div>
+<div class="text-slate-400 font-headline font-bold text-sm">Synthetic Horizon</div>
+<div class="text-[10px] text-slate-500 uppercase tracking-tighter">Locked Era</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Main Cards Grid -->
+<div class="col-span-9 grid grid-cols-2 gap-8">
+<!-- Reward Card: High Tier NFT -->
+<div class="glass-panel p-1 rounded-2xl rarity-glow-legendary group cursor-pointer">
+<div class="bg-surface-container rounded-2xl p-6 h-full border border-primary/20 relative">
+<div class="absolute top-4 right-4 bg-primary/20 text-primary font-headline font-black text-[10px] px-3 py-1 rounded-full uppercase tracking-tighter">Legendary Drop</div>
+<div class="mb-6 overflow-hidden rounded-xl h-64 bg-slate-900">
+<img class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" data-alt="Cyberpunk style digital mask with neon purple glowing circuitry and holographic details, floating in dark void with soft ambient particles" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBHsl5Ih9y-VjESMHcyg07rkGpmcqeBgSdj48Q_G6E6Kd64pndzcqWadK8lnLxzsDJgaeHHrYSreTZrsVuP3LhLA1n-Rg3KbSB5Ek0tl6mBs5zp9Z09u6_5iWVAjK38jo3O62P8Iip8hXpSOFXJFLKvSoWqG0uKfCLRNeyCWEKY3NSwHf_E-KABHoTL-B20oS1aXIFj2Zr93WngEAXpZkG8YyF_UN8hS8q0UNcU5ApY8biyL6U4STIJ6HC1TGEgrCYnfPyDZpnsdOg-"/>
+</div>
+<div class="space-y-2">
+<span class="text-primary font-bold text-[10px] uppercase tracking-widest">Protocol Bounty #402</span>
+<h3 class="text-2xl font-headline font-black text-on-background">ONYX REAVER MASK</h3>
+<div class="pt-4 flex justify-between items-center border-t border-white/5">
+<div class="flex gap-4">
+<div>
+<div class="text-[10px] text-slate-500 uppercase font-bold">Rarity</div>
+<div class="text-xs text-on-surface">99.2% Rank</div>
+</div>
+<div>
+<div class="text-[10px] text-slate-500 uppercase font-bold">Yield</div>
+<div class="text-xs text-tertiary">+2.5% SOL</div>
+</div>
+</div>
+<button class="bg-primary/10 text-primary px-4 py-2 rounded-lg text-xs font-headline font-bold hover:bg-primary hover:text-on-primary transition-all uppercase">Vault Action</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Reward Card: Cashback Yield -->
+<div class="glass-panel p-1 rounded-2xl rarity-glow-epic group cursor-pointer">
+<div class="bg-surface-container rounded-2xl p-6 h-full border border-secondary/20 relative flex flex-col">
+<div class="absolute top-4 right-4 bg-secondary/20 text-secondary font-headline font-black text-[10px] px-3 py-1 rounded-full uppercase tracking-tighter">Epic Reward</div>
+<div class="flex-1 flex flex-col justify-center items-center py-12">
+<div class="w-32 h-32 rounded-full border-4 border-dashed border-secondary/30 flex items-center justify-center mb-6 group-hover:rotate-45 transition-transform duration-1000">
+<span class="material-symbols-outlined text-6xl text-secondary" style="font-variation-settings: 'FILL' 1;">account_balance_wallet</span>
+</div>
+<div class="text-center">
+<h3 class="text-4xl font-headline font-black text-on-background">12.40 SOL</h3>
+<p class="text-secondary font-headline text-xs uppercase tracking-[0.2em] mt-2">Protocol Cashback Claim</p>
+</div>
+</div>
+<div class="pt-4 border-t border-white/5 space-y-4">
+<div class="flex justify-between items-center text-xs">
+<span class="text-slate-500 uppercase font-bold">Source</span>
+<span class="text-on-surface">Liquid Staking Pool</span>
+</div>
+<div class="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
+<div class="bg-secondary h-full w-[85%] rounded-full shadow-[0_0_8px_rgba(76,215,246,0.6)]"></div>
+</div>
+<button class="w-full bg-secondary text-on-secondary px-4 py-3 rounded-lg font-headline font-black hover:brightness-110 active:scale-95 transition-all uppercase tracking-tight">Claim Reward</button>
+</div>
+</div>
+</div>
+<!-- Row 2: Smaller Cards -->
+<div class="col-span-2 grid grid-cols-3 gap-8">
+<!-- Archive Item 1 -->
+<div class="glass-panel rounded-2xl bg-surface-container-low border border-white/5 p-6 hover:translate-y-[-4px] transition-transform">
+<div class="flex justify-between items-start mb-6">
+<div class="w-12 h-12 rounded-lg bg-tertiary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary" data-icon="database">database</span>
+</div>
+<span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">ID: 0092</span>
+</div>
+<h4 class="font-headline font-bold text-on-background text-lg leading-tight mb-1">Data Shard Alpha</h4>
+<p class="text-[10px] text-slate-500 uppercase tracking-tighter mb-4">Common Asset</p>
+<div class="text-tertiary font-headline font-bold text-sm">+0.15 SOL Earned</div>
+</div>
+<!-- Archive Item 2 -->
+<div class="glass-panel rounded-2xl bg-surface-container-low border border-white/5 p-6 hover:translate-y-[-4px] transition-transform">
+<div class="flex justify-between items-start mb-6">
+<div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" data-icon="token">token</span>
+</div>
+<span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">ID: 0148</span>
+</div>
+<h4 class="font-headline font-bold text-on-background text-lg leading-tight mb-1">Club Badge v2</h4>
+<p class="text-[10px] text-slate-500 uppercase tracking-tighter mb-4">Rare Collectible</p>
+<div class="text-primary font-headline font-bold text-sm">Exclusive Access</div>
+</div>
+<!-- Archive Item 3 -->
+<div class="glass-panel rounded-2xl bg-surface-container-low border border-white/5 p-6 hover:translate-y-[-4px] transition-transform">
+<div class="flex justify-between items-start mb-6">
+<div class="w-12 h-12 rounded-lg bg-secondary/10 flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary" data-icon="rocket_launch">rocket_launch</span>
+</div>
+<span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">ID: 1102</span>
+</div>
+<h4 class="font-headline font-bold text-on-background text-lg leading-tight mb-1">Speed Booster</h4>
+<p class="text-[10px] text-slate-500 uppercase tracking-tighter mb-4">Epic Consumable</p>
+<div class="text-secondary font-headline font-bold text-sm">2x Yield Multiplier</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Tiers Section -->
+<section class="mt-24">
+<div class="flex items-center gap-8 mb-12">
+<h2 class="display-lg text-4xl font-headline font-black tracking-tighter uppercase">Club Status Tiers</h2>
+<div class="flex-1 h-[1px] bg-gradient-to-r from-slate-800 to-transparent"></div>
+</div>
+<div class="grid grid-cols-4 gap-8">
+<!-- Tier 1 -->
+<div class="relative group">
+<div class="absolute -inset-[1px] bg-slate-800 rounded-2xl group-hover:bg-gradient-to-b from-slate-600 to-transparent transition-all"></div>
+<div class="relative bg-surface-container-lowest rounded-2xl p-8 text-center">
+<span class="text-slate-500 font-headline font-bold text-[10px] uppercase tracking-widest block mb-4">Tier 01</span>
+<div class="text-2xl font-headline font-black text-on-background mb-2">NEONITE</div>
+<div class="text-xs text-slate-400 mb-8">Basic Protocol Benefits</div>
+<div class="text-tertiary font-headline font-black text-sm">ACTIVE</div>
+</div>
+</div>
+<!-- Tier 2 -->
+<div class="relative group">
+<div class="absolute -inset-[1px] bg-slate-800 rounded-2xl group-hover:bg-gradient-to-b from-secondary to-transparent transition-all"></div>
+<div class="relative bg-surface-container-lowest rounded-2xl p-8 text-center">
+<span class="text-secondary font-headline font-bold text-[10px] uppercase tracking-widest block mb-4">Tier 02</span>
+<div class="text-2xl font-headline font-black text-on-background mb-2">CYBER-JOCK</div>
+<div class="text-xs text-slate-400 mb-8">Enhanced Yield + 5%</div>
+<div class="w-full bg-slate-900 h-1.5 rounded-full mb-2 overflow-hidden">
+<div class="bg-secondary h-full w-[45%]"></div>
+</div>
+<div class="text-[10px] text-slate-500 font-bold">450 / 1000 PTS</div>
+</div>
+</div>
+<!-- Tier 3 -->
+<div class="relative group opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
+<div class="absolute -inset-[1px] bg-slate-800 rounded-2xl transition-all"></div>
+<div class="relative bg-surface-container-lowest rounded-2xl p-8 text-center">
+<span class="text-primary font-headline font-bold text-[10px] uppercase tracking-widest block mb-4">Tier 03</span>
+<div class="text-2xl font-headline font-black text-on-background mb-2">VOID WALKER</div>
+<div class="text-xs text-slate-400 mb-8">Locked: Requires Level 20</div>
+<span class="material-symbols-outlined text-slate-700 text-3xl">lock</span>
+</div>
+</div>
+<!-- Tier 4 -->
+<div class="relative group opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all">
+<div class="absolute -inset-[1px] bg-slate-800 rounded-2xl transition-all"></div>
+<div class="relative bg-surface-container-lowest rounded-2xl p-8 text-center">
+<span class="text-on-primary-fixed-variant font-headline font-bold text-[10px] uppercase tracking-widest block mb-4">Tier 04</span>
+<div class="text-2xl font-headline font-black text-on-background mb-2">ARCHON</div>
+<div class="text-xs text-slate-400 mb-8">Locked: DAO Access</div>
+<span class="material-symbols-outlined text-slate-700 text-3xl">lock</span>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Footer Decoration -->
+<div class="h-64 relative overflow-hidden pointer-events-none mt-20">
+<div class="absolute bottom-0 left-0 right-0 h-full bg-gradient-to-t from-primary/10 to-transparent"></div>
+<div class="absolute bottom-0 left-1/4 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] -mb-64"></div>
+<div class="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-secondary/5 rounded-full blur-[100px] -mb-64"></div>
+</div>
+</main>
+<!-- Background Decoration Orbs -->
+<div class="fixed top-[-20%] left-[-10%] w-[60%] h-[60%] bg-primary/5 rounded-full blur-[120px] z-[-1]"></div>
+<div class="fixed bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-secondary/5 rounded-full blur-[120px] z-[-1]"></div>
+</body></html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SolClub | Authentication</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+body{font-family:'Inter',sans-serif;background:#0f131e;color:#dfe2f2}
+.font-headline{font-family:'Space Grotesk',sans-serif}
+.glass{background:rgba(27,31,43,.78);backdrop-filter:blur(16px)}
+</style>
+</head>
+<body class="min-h-screen px-6 py-12">
+<main class="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+<section class="glass rounded-2xl border border-white/10 p-8">
+<h1 class="font-headline text-5xl font-black tracking-tight text-cyan-300">SOLCLUB</h1>
+<p class="mt-3 text-slate-300">Choose how you want to continue.</p>
+<div class="mt-8 space-y-3">
+<button id="btnOpenLoginPage" type="button" class="w-full rounded-xl bg-slate-700/60 hover:bg-slate-700 text-white py-3 font-bold uppercase tracking-wider">Login</button>
+<button id="btnConnectWallet" type="button" class="w-full rounded-xl bg-purple-300 text-purple-900 py-3 font-bold uppercase tracking-wider">Connect Wallet</button>
+<button id="btnGoogleSignin" type="button" class="w-full rounded-xl bg-slate-700/60 hover:bg-slate-700 text-white py-3 font-bold">Sign in with Google</button>
+<button id="btnCreateWallet" type="button" class="w-full rounded-xl bg-cyan-400 text-cyan-950 py-3 font-bold uppercase tracking-wider">Create New Wallet</button>
+</div>
+</section>
+<section class="glass rounded-2xl border border-white/10 p-8">
+<h2 class="font-headline text-3xl font-bold">Access Rules</h2>
+<p class="mt-3 text-slate-300">Existing users go to dashboard. New users complete onboarding once, then continue to dashboard.</p>
+<p class="mt-2 text-slate-400 text-sm">Wallet setup is optional and can be completed later from dashboard.</p>
+</section>
+</main>
+<div id="walletConnectModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 px-4">
+  <div class="w-full max-w-md rounded-2xl border border-white/10 bg-[#1b1f2b] p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-headline text-2xl font-bold">Connect your wallet</h3>
+      <button id="closeWalletModal" type="button" class="text-slate-300">X</button>
+    </div>
+    <p class="text-sm text-slate-300 mb-4">Unlock full features by connecting your wallet.</p>
+    <form id="walletConnectForm" class="space-y-3">
+      <input id="walletConnectAddress" type="text" placeholder="Wallet address" class="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2" required/>
+      <select id="walletConnectRole" class="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2">
+        <option value="client">Client</option>
+        <option value="merchant">Merchant</option>
+      </select>
+      <div class="flex gap-3">
+        <button type="submit" class="flex-1 rounded-lg bg-cyan-400 text-cyan-950 font-bold py-2">Connect Wallet</button>
+        <button id="cancelWalletModal" type="button" class="rounded-lg border border-slate-500 px-4">Maybe later</button>
+      </div>
+    </form>
+  </div>
+</div>
+</body>
+</html>

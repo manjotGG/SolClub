@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-fixed-variant": "#6900b3",
+                        "background": "#0f131e",
+                        "surface-container-high": "#262a36",
+                        "surface-container-low": "#171b27",
+                        "on-secondary-container": "#00424e",
+                        "secondary-fixed": "#acedff",
+                        "primary-fixed": "#f0dbff",
+                        "on-error-container": "#ffdad6",
+                        "on-primary-fixed": "#2c0051",
+                        "secondary": "#4cd7f6",
+                        "surface-variant": "#313441",
+                        "on-surface-variant": "#cfc2d6",
+                        "secondary-container": "#03b5d3",
+                        "inverse-on-surface": "#2c303c",
+                        "tertiary-container": "#00a74b",
+                        "on-tertiary-fixed": "#002109",
+                        "primary-fixed-dim": "#ddb7ff",
+                        "on-tertiary-fixed-variant": "#005321",
+                        "outline": "#988d9f",
+                        "surface-bright": "#353945",
+                        "surface-container-highest": "#313441",
+                        "surface": "#0f131e",
+                        "on-background": "#dfe2f2",
+                        "tertiary-fixed": "#6bff8f",
+                        "on-tertiary": "#003915",
+                        "on-secondary": "#003640",
+                        "inverse-primary": "#842bd2",
+                        "surface-container": "#1b1f2b",
+                        "on-primary-container": "#400071",
+                        "on-tertiary-container": "#003111",
+                        "on-secondary-fixed": "#001f26",
+                        "outline-variant": "#4d4354",
+                        "primary-container": "#b76dff",
+                        "surface-tint": "#ddb7ff",
+                        "surface-container-lowest": "#0a0e19",
+                        "tertiary-fixed-dim": "#4ae176",
+                        "primary": "#ddb7ff",
+                        "inverse-surface": "#dfe2f2",
+                        "secondary-fixed-dim": "#4cd7f6",
+                        "on-secondary-fixed-variant": "#004e5c",
+                        "error-container": "#93000a",
+                        "tertiary": "#4ae176",
+                        "surface-dim": "#0f131e",
+                        "on-primary": "#490080",
+                        "on-error": "#690005",
+                        "on-surface": "#dfe2f2",
+                        "error": "#ffb4ab"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(27, 31, 43, 0.6);
+            backdrop-filter: blur(16px);
+            position: relative;
+        }
+        .glass-panel::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(221, 183, 255, 0.1), transparent, rgba(76, 215, 246, 0.1));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            background: #171b27;
+            border-radius: 3px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #ddb7ff;
+            cursor: pointer;
+            margin-top: -7px;
+            box-shadow: 0 0 10px rgba(221, 183, 255, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary/30 min-h-screen overflow-x-hidden">
+<!-- Background Orbs -->
+<div class="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full z-0 pointer-events-none"></div>
+<div class="fixed bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-secondary/10 blur-[120px] rounded-full z-0 pointer-events-none"></div>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-64 z-[60] bg-slate-950/90 backdrop-blur-2xl flex flex-col p-6 border-r border-white/5 font-['Space_Grotesk'] font-medium uppercase text-xs">
+<div class="flex items-center gap-3 mb-12">
+<div class="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">bolt</span>
+</div>
+<div>
+<h1 class="text-xl font-bold text-white tracking-tighter">SOLCLUB</h1>
+<p class="text-[10px] text-slate-500 tracking-widest">V1.0.4 - Alpha</p>
+</div>
+</div>
+<nav class="flex-1 flex flex-col gap-2">
+<a class="flex items-center gap-4 px-4 py-3 text-slate-500 hover:text-slate-200 hover:translate-x-1 transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined text-lg">grid_view</span>
+<span>Dashboard</span>
+</a>
+<!-- Active State -->
+<a class="flex items-center gap-4 px-4 py-3 text-cyan-400 bg-cyan-500/10 rounded-lg shadow-[inset_0_0_10px_rgba(76,215,246,0.2)] transition-all active:scale-98" href="#">
+<span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">payments</span>
+<span>Merchant tools</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-slate-500 hover:text-slate-200 hover:translate-x-1 transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined text-lg">inventory_2</span>
+<span>Inventory</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-slate-500 hover:text-slate-200 hover:translate-x-1 transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined text-lg">monitoring</span>
+<span>Analytics</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-slate-500 hover:text-slate-200 hover:translate-x-1 transition-all duration-200 group" href="#">
+<span class="material-symbols-outlined text-lg">handshake</span>
+<span>Partners</span>
+</a>
+</nav>
+<div class="mt-auto pt-6 border-t border-slate-900 space-y-2">
+<div class="p-4 rounded-xl bg-gradient-to-br from-primary-container/20 to-secondary-container/10 mb-4">
+<p class="text-[10px] text-primary mb-2">PRO PLAN ACTIVE</p>
+<div class="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
+<div class="h-full bg-primary w-[75%]"></div>
+</div>
+</div>
+<a class="flex items-center gap-4 px-4 py-2 text-slate-500 hover:text-slate-200 transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">description</span>
+<span>Docs</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-2 text-error transition-colors" href="#">
+<span class="material-symbols-outlined text-lg">logout</span>
+<span>Logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="ml-64 relative z-10">
+<!-- TopNavBar -->
+<header class="fixed top-0 right-0 left-64 z-50 bg-slate-950/80 backdrop-blur-xl flex justify-between items-center px-8 py-4 font-['Space_Grotesk'] tracking-wider border-b border-white/5">
+<div class="flex items-center gap-8">
+<h2 class="text-2xl font-black tracking-tighter text-purple-400 uppercase">Config</h2>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-purple-400 border-b-2 border-purple-400 pb-1" href="#">Quests</a>
+<a class="text-slate-400 hover:text-purple-300 transition-colors" href="#">Leaderboard</a>
+<a class="text-slate-400 hover:text-purple-300 transition-colors" href="#">Marketplace</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<button class="p-2 text-slate-400 hover:bg-purple-500/10 rounded-full transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-slate-400 hover:bg-purple-500/10 rounded-full transition-all">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+<button class="px-6 py-2 bg-primary text-on-primary font-bold rounded-lg active:scale-95 transition-transform shadow-[0_0_20px_rgba(168,85,247,0.3)]">
+                    Connect Wallet
+                </button>
+<div class="w-10 h-10 rounded-full overflow-hidden border-2 border-primary/20">
+<img alt="User Avatar" class="w-full h-full object-cover" data-alt="professional portrait of a creative entrepreneur in a high-tech studio environment with soft purple neon backlight" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDfl2NIjvKzBpfr6ATI0qJhTGNlmVKEf-dE1wBit0yNfZdhjmTdjCYecOBIxcMaNUEVMmv6M3Xn9pXytJgCJi37PPhBpaLmLBHZHGkYgonqalYG8vWyU4FUD0q0amhvo5YcfqTAaKFjGHyMdAmyBkoCF_b-WYuC8WGuJHRP0VRSP8_l4LXdKTZhlNgA43fMVIuSBj357_LyOewiphYj9jciHOuf7n1ZNkG0ue6velheiIn4D30Htr2NuZ91f_XygQef8ZktWJV73z_i"/>
+</div>
+</div>
+</header>
+<!-- Canvas Body -->
+<div class="pt-24 px-12 pb-12">
+<!-- Header Section -->
+<div class="mb-12 flex justify-between items-end">
+<div class="max-w-2xl">
+<span class="text-primary font-headline text-sm tracking-[0.2em] uppercase mb-4 block">Merchant Portal // Rewards</span>
+<h3 class="text-5xl font-black font-headline tracking-tighter text-on-surface leading-tight">CASHBACK CONFIGURATION</h3>
+<p class="text-on-surface-variant text-lg mt-4 max-w-lg leading-relaxed">
+                        Fine-tune your reward ecosystem. Adjust percentages and pool limits to maximize user retention and protocol engagement.
+                    </p>
+</div>
+<div class="glass-panel p-6 rounded-2xl flex items-center gap-6">
+<div class="text-right">
+<p class="text-label-md text-slate-500 uppercase tracking-widest text-[10px]">Merchant Tier</p>
+<p class="text-2xl font-black font-headline text-secondary">DIAMOND CLUB</p>
+</div>
+<div class="w-12 h-12 bg-secondary/10 flex items-center justify-center rounded-xl border border-secondary/20">
+<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">diamond</span>
+</div>
+</div>
+</div>
+<!-- Configuration Grid (Asymmetric Bento) -->
+<div class="grid grid-cols-12 gap-6">
+<!-- Main Slider Control -->
+<div class="col-span-12 lg:col-span-8 glass-panel p-10 rounded-3xl overflow-hidden group">
+<div class="flex justify-between items-start mb-12">
+<div>
+<h4 class="text-2xl font-bold font-headline mb-2">Reward Multipliers</h4>
+<p class="text-on-surface-variant">Set the global cashback percentage for your store.</p>
+</div>
+<span class="px-4 py-1 rounded-full bg-primary/10 border border-primary/30 text-primary text-xs font-bold tracking-widest">ACTIVE LIVE</span>
+</div>
+<div class="space-y-12">
+<div class="space-y-6">
+<div class="flex justify-between items-end">
+<label class="font-headline font-bold uppercase tracking-widest text-sm text-slate-400">Cashback Percentage</label>
+<span class="text-5xl font-black font-headline text-primary">5.5%</span>
+</div>
+<input class="cursor-pointer" max="15" min="1" step="0.1" type="range" value="5.5"/>
+<div class="flex justify-between text-[10px] text-slate-600 font-bold uppercase">
+<span>1% Min</span>
+<span>15% Max</span>
+</div>
+</div>
+<div class="space-y-6">
+<div class="flex justify-between items-end">
+<label class="font-headline font-bold uppercase tracking-widest text-sm text-slate-400">Weekly Pool Cap</label>
+<span class="text-3xl font-black font-headline text-secondary">2,500 SOL</span>
+</div>
+<input class="cursor-pointer" max="10000" min="500" step="100" type="range" value="2500"/>
+<div class="flex justify-between text-[10px] text-slate-600 font-bold uppercase">
+<span>500 SOL</span>
+<span>10,000 SOL</span>
+</div>
+</div>
+</div>
+<!-- Visual Preview "If X -> Y" -->
+<div class="mt-16 pt-10 border-t border-white/5 flex flex-col md:flex-row gap-8 items-center">
+<div class="flex-1 w-full p-6 bg-surface-container-low rounded-2xl border-l-4 border-primary">
+<p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-2">User Spend</p>
+<div class="flex items-center gap-3">
+<span class="text-3xl font-black font-headline">100.00</span>
+<span class="text-slate-400 text-sm font-bold">SOL</span>
+</div>
+</div>
+<div class="shrink-0 flex items-center justify-center w-12 h-12 bg-surface-container-high rounded-full">
+<span class="material-symbols-outlined text-primary">arrow_forward</span>
+</div>
+<div class="flex-1 w-full p-6 bg-surface-container-low rounded-2xl border-l-4 border-tertiary">
+<p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-2">Instant Reward</p>
+<div class="flex items-center gap-3">
+<span class="text-3xl font-black font-headline text-tertiary">+5.50</span>
+<span class="text-slate-400 text-sm font-bold">SOL</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Side Stats & Action -->
+<div class="col-span-12 lg:col-span-4 flex flex-col gap-6">
+<div class="glass-panel p-8 rounded-3xl flex-1 flex flex-col justify-between">
+<div>
+<h4 class="text-xl font-bold font-headline mb-6 uppercase tracking-tight">Pool Health</h4>
+<div class="relative w-48 h-48 mx-auto mb-8">
+<svg class="w-full h-full" viewbox="0 0 100 100">
+<circle class="text-slate-800 stroke-current" cx="50" cy="50" fill="transparent" r="40" stroke-width="10"></circle>
+<circle class="text-tertiary stroke-current" cx="50" cy="50" fill="transparent" r="40" stroke-dasharray="160 251.2" stroke-linecap="round" stroke-width="10"></circle>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="text-3xl font-black font-headline">64%</span>
+<span class="text-[10px] text-slate-500 font-bold uppercase">Utilized</span>
+</div>
+</div>
+</div>
+<div class="space-y-4">
+<div class="flex justify-between text-sm">
+<span class="text-slate-400">Remaining</span>
+<span class="font-bold">892 SOL</span>
+</div>
+<div class="flex justify-between text-sm">
+<span class="text-slate-400">Cycle Ends</span>
+<span class="font-bold">2d 04h 12m</span>
+</div>
+</div>
+</div>
+<div class="bg-primary p-8 rounded-3xl flex flex-col gap-4 text-on-primary">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-4xl" style="font-variation-settings: 'FILL' 1;">security</span>
+<span class="material-symbols-outlined">info</span>
+</div>
+<h4 class="text-xl font-bold font-headline uppercase leading-tight">Update Protocol Settings</h4>
+<p class="text-sm opacity-80 mb-4">Changes will take effect at the start of the next epoch (approx. 4 hours).</p>
+<button class="w-full py-4 bg-on-primary text-primary font-black font-headline uppercase tracking-widest rounded-xl hover:bg-white transition-colors active:scale-95">
+                            SIGN &amp; COMMIT
+                        </button>
+</div>
+</div>
+<!-- Secondary Config Section -->
+<div class="col-span-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="glass-panel p-6 rounded-2xl">
+<div class="flex items-center gap-3 mb-4">
+<div class="w-8 h-8 rounded-lg bg-surface-container-highest flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary text-sm">auto_graph</span>
+</div>
+<h5 class="font-headline font-bold uppercase tracking-wider text-xs">Dynamic Scaling</h5>
+</div>
+<p class="text-sm text-slate-400 mb-6">Automatically adjust % based on pool volume.</p>
+<div class="flex items-center justify-between p-3 bg-surface-container-low rounded-xl">
+<span class="text-xs font-bold">STATUS</span>
+<div class="w-10 h-5 bg-tertiary/20 border border-tertiary/30 rounded-full relative">
+<div class="absolute right-1 top-1 w-3 h-3 bg-tertiary rounded-full shadow-[0_0_8px_#4ae176]"></div>
+</div>
+</div>
+</div>
+<div class="glass-panel p-6 rounded-2xl">
+<div class="flex items-center gap-3 mb-4">
+<div class="w-8 h-8 rounded-lg bg-surface-container-highest flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-sm">loyalty</span>
+</div>
+<h5 class="font-headline font-bold uppercase tracking-wider text-xs">NFT Holder Bonus</h5>
+</div>
+<p class="text-sm text-slate-400 mb-6">+1.5% for SolClub Genesis holders.</p>
+<div class="flex items-center justify-between p-3 bg-surface-container-low rounded-xl">
+<span class="text-xs font-bold">STATUS</span>
+<div class="w-10 h-5 bg-tertiary/20 border border-tertiary/30 rounded-full relative">
+<div class="absolute right-1 top-1 w-3 h-3 bg-tertiary rounded-full shadow-[0_0_8px_#4ae176]"></div>
+</div>
+</div>
+</div>
+<div class="glass-panel p-6 rounded-2xl">
+<div class="flex items-center gap-3 mb-4">
+<div class="w-8 h-8 rounded-lg bg-surface-container-highest flex items-center justify-center">
+<span class="material-symbols-outlined text-slate-400 text-sm">schedule</span>
+</div>
+<h5 class="font-headline font-bold uppercase tracking-wider text-xs">Flash Rewards</h5>
+</div>
+<p class="text-sm text-slate-400 mb-6">Temporary boost during peak arcade hours.</p>
+<div class="flex items-center justify-between p-3 bg-surface-container-low rounded-xl">
+<span class="text-xs font-bold text-slate-500">DISABLED</span>
+<div class="w-10 h-5 bg-slate-800 rounded-full relative">
+<div class="absolute left-1 top-1 w-3 h-3 bg-slate-600 rounded-full"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Image Banner -->
+<div class="col-span-12 h-64 rounded-3xl overflow-hidden relative group">
+<img alt="Arcade Grid" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="high-end editorial visualization of a 3D digital grid with glowing purple neon lines and floating transparent data cubes in a dark void" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDp31bn9WCDHaElJcR_8GtIgikT7hbmiWL-ADRnfSBWJ3ErVCPjWHYprZOUqifm8DO6dvLoBaSpONivQyAoFLp7oKOnUYIV1lI-KSZbJXm7VnQDwfunkr76zVlmiLXfcnRz6VB962ASKmIr9siXSOkhTZPK9jrzNJUuY5DSUcMIQxpMZPhzfh-8gOLMqut9OI3x9UdpMzJa76SQorDyy6ltmJdQLC7FD87w25dM7Q92iL5YRyQRc7yPcnsVTAFsUDhdWTJGglCj8a3-"/>
+<div class="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/40 to-transparent flex flex-col justify-center px-12">
+<h4 class="text-3xl font-black font-headline tracking-tighter mb-2">BOOST RETENTION</h4>
+<p class="max-w-md text-slate-300">Merchants using dynamic cashback pools see a <span class="text-tertiary font-bold">24% increase</span> in weekly active spenders.</p>
+<div class="mt-6">
+<button class="px-8 py-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-xs font-bold uppercase tracking-[0.2em] hover:bg-white/20 transition-all">
+                                Read Strategy Guide
+                            </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- FAB Action (Suppressed according to rule, but keeping space for UI balance if needed) -->
+</body></html>

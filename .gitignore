@@ -18,3 +18,5 @@ __pycache__/
 *.pyc
 logs/
 data/*.json
+.env
+

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SolClub | Onboarding</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>body{font-family:'Inter',sans-serif;background:#0f131e;color:#dfe2f2}.font-headline{font-family:'Space Grotesk',sans-serif}.glass{background:rgba(27,31,43,.78);backdrop-filter:blur(16px)}</style>
+</head>
+<body class="min-h-screen px-6 py-12">
+<main class="max-w-xl mx-auto">
+<section class="glass rounded-2xl border border-white/10 p-8" id="detailsPanel">
+<h1 class="font-headline text-4xl font-black text-cyan-300">Onboarding</h1>
+<p class="mt-2 text-slate-300">Complete profile once to continue to dashboard.</p>
+<form id="authRegisterForm" class="mt-6 space-y-3">
+<input id="registerDisplayName" type="text" placeholder="Username" class="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2" required/>
+<input id="registerEmail" type="email" placeholder="Email" class="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2" required/>
+<input id="registerPassword" type="password" placeholder="Password (wallet users)" class="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2"/>
+<select id="registerRole" class="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2">
+<option value="client">Client</option>
+<option value="merchant">Merchant</option>
+</select>
+<input id="registerWallet" type="text" placeholder="Wallet (optional)" class="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2"/>
+<button type="submit" class="w-full rounded-lg bg-cyan-400 text-cyan-950 py-3 font-bold uppercase tracking-wider">Complete Onboarding</button>
+</form>
+<p id="authRegisterStatus" class="mt-3 text-sm text-slate-300"></p>
+</section>
+</main>
+</body>
+</html>

@@ -18,7 +18,6 @@ Usage:
     python main.py [command]
 
 Commands:
-    demo     - Run comprehensive demonstration
     server   - Start production API server
     qr       - Generate Solana Pay QR codes
     mint     - Mint mystery NFTs
@@ -59,31 +58,16 @@ def show_help():
     """Show help information"""
     print(__doc__)
 
-async def run_demo():
-    """Run the comprehensive demo"""
-    print("🚀 Starting comprehensive demo...")
-    try:
-        # Import and run the real demo
-        from demo import demo_solana_loyalty
-        await demo_solana_loyalty()
-    except ImportError as e:
-        print(f"❌ Demo not available: {e}")
-        print("Make sure real_demo.py is in the current directory")
-    except Exception as e:
-        print(f"❌ Demo failed: {e}")
-
 def start_server():
     """Start the production API server"""
     print("🌐 Starting production API server...")
     try:
         import uvicorn
         
-        # Create FastAPI app directly in main.py
-        app = create_fastapi_app()
-        
         print("📱 Ready for mobile wallet connections!")
         print("🔗 API Documentation: http://localhost:8000/docs")
         print("✨ This backend handles Solana transactions!")
+        print("🖥️ UI Pages: http://localhost:8000/ui/client")
         
         uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")
         
@@ -95,14 +79,34 @@ def start_server():
 
 def create_fastapi_app():
     """Create and configure the FastAPI application with full blockchain integration"""
-    from fastapi import FastAPI, HTTPException, Query
+    from fastapi import FastAPI, HTTPException, Query, Request
+    from fastapi.responses import JSONResponse, RedirectResponse
+    from fastapi.staticfiles import StaticFiles
+    from fastapi.middleware.gzip import GZipMiddleware
     from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.middleware.trustedhost import TrustedHostMiddleware
+    from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+    from contextlib import asynccontextmanager
     from pydantic import BaseModel
     from typing import Optional, Dict, Any, List
     import json
     import os
     import uuid
-    from database.db import get_connection
+    from database.db import (
+        count_wallet_transactions,
+        create_merchant,
+        get_client_profile,
+        get_platform_stats,
+        get_merchant_by_id as db_get_merchant_by_id,
+        get_merchant_by_name as db_get_merchant_by_name,
+        insert_transaction,
+        list_nft_records,
+        list_wallet_transactions,
+        save_cashback_reward,
+        save_payment_request,
+        transaction_exists,
+        upsert_client_profile,
+    )
     import asyncio
     from datetime import datetime, timedelta
     from solana.rpc.async_api import AsyncClient
@@ -111,6 +115,7 @@ def create_fastapi_app():
     from solders.signature import Signature
     from solders.keypair import Keypair
     from nft_minting.nft_minter import mint_nft
+    from loyalty_engine.loyalty_engine import LoyaltyRulesEngine
     
     # Pydantic models
     class ValidationRequest(BaseModel):
@@ -167,33 +172,24 @@ def create_fastapi_app():
     
     # Utility functions
     def save_transaction_data(transactions: List[Dict]):
-        """Save transaction data to JSON file"""
+        """Persist transaction request metadata to Supabase."""
         try:
-            transactions_file = os.path.join(DATA_DIR, "transactions.json")
-            os.makedirs(os.path.dirname(transactions_file), exist_ok=True)
-            
-            # Load existing transactions
-            existing_transactions = []
-            if os.path.exists(transactions_file):
-                with open(transactions_file, 'r') as f:
-                    existing_transactions = json.load(f)
-            
-            # Add new transactions
-            existing_transactions.extend(transactions)
-            
-            # Save back to file
-            with open(transactions_file, 'w') as f:
-                json.dump(existing_transactions, f, indent=2)
-                
+            for tx in transactions:
+                if not tx.get("reference"):
+                    continue
+                save_payment_request(
+                    reference=tx.get("reference"),
+                    user_wallet=tx.get("user_wallet") or "unknown",
+                    store_id=tx.get("store_id") or "unknown",
+                    status=tx.get("status") or "pending",
+                    qr_type=tx.get("qr_type") or "backend",
+                    amount=tx.get("amount_sol"),
+                )
         except Exception as e:
             print(f"Error saving transaction data: {e}")
     
     def load_transaction_data():
-        """Load transaction metadata from JSON file"""
-        data_file = os.path.join(DATA_DIR, "transactions.json")
-        if os.path.exists(data_file):
-            with open(data_file, 'r') as f:
-                return json.load(f)
+        """Legacy loader kept for compatibility; data now comes from Supabase."""
         return []
     
     async def trigger_real_nft_mint(wallet: str, rarity: str, signature: str):
@@ -229,8 +225,12 @@ def create_fastapi_app():
                 print(f"   Output: {result.stdout.strip()}")
                 return True
             else:
-                print("❌ Real NFT minting failed!")
-                print(f"   Error: {result.stderr.strip()}")
+                stderr = (result.stderr or "").strip()
+                short_error = "\n".join(stderr.splitlines()[:4])
+                print(f"❌ Real NFT minting failed (exit_code={result.returncode})")
+                print(f"   Error: {short_error}")
+                if "ERR_MODULE_NOT_FOUND" in stderr or "@solana/web3.js" in stderr:
+                    print("💡 Node dependencies missing. Run: cd nft_engine && npm install")
                 return False
                 
         except subprocess.TimeoutExpired:
@@ -279,11 +279,28 @@ def create_fastapi_app():
             return {"success": False, "error": str(e)}
     
     # Initialize FastAPI app
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        app.state.transaction_watcher = asyncio.create_task(transaction_watcher())
+        try:
+            yield
+        finally:
+            task = getattr(app.state, "transaction_watcher", None)
+            if task:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
     app = FastAPI(
         title="SolClub Loyalty Backend",
         description="Production Solana loyalty program with blockchain transactions",
-        version="2.0.0"
+        version="2.0.0",
+        lifespan=lifespan,
     )
+
+    loyalty_core = LoyaltyRulesEngine(use_sqlite=False)
     
     # Add CORS middleware
     app.add_middleware(
@@ -294,14 +311,118 @@ def create_fastapi_app():
         allow_headers=["*"],
     )
 
+    app.add_middleware(GZipMiddleware, minimum_size=1024)
+
+    allowed_hosts = os.getenv("ALLOWED_HOSTS", "*").strip()
+    if allowed_hosts:
+        app.add_middleware(
+            TrustedHostMiddleware,
+            allowed_hosts=[h.strip() for h in allowed_hosts.split(",") if h.strip()],
+        )
+
+    if os.getenv("FORCE_HTTPS", "false").lower() in {"1", "true", "yes"}:
+        app.add_middleware(HTTPSRedirectMiddleware)
+
+    try:
+        from backend.client_merchant_platform import router as client_merchant_router
+        app.include_router(client_merchant_router)
+    except Exception as exc:
+        print(f"⚠️ Platform router not loaded: {exc}")
+
+    try:
+        ui_static_dir = os.path.join(BASE_DIR, "frontend", "static")
+        app.mount("/ui/static", StaticFiles(directory=ui_static_dir), name="ui-static")
+        from backend.frontend_ui import (
+            auth_router,
+            get_ui_session_from_request,
+            page_router,
+            router as frontend_ui_router,
+        )
+        app.include_router(frontend_ui_router)
+        app.include_router(auth_router)
+        app.include_router(page_router)
+    except Exception as exc:
+        print(f"⚠️ Frontend UI router not loaded: {exc}")
+
+    @app.middleware("http")
+    async def ui_route_guard(request: Request, call_next):
+        path = request.url.path or ""
+        guarded_prefixes = ("/ui", "/api/auth", "/auth", "/login", "/onboarding", "/dashboard")
+        if not path.startswith(guarded_prefixes):
+            return await call_next(request)
+
+        if path.startswith("/ui/static"):
+            return await call_next(request)
+
+        public_ui_paths = {
+            "/ui",
+            "/ui/auth",
+            "/ui/login",
+            "/ui/dashboard",
+            "/auth",
+            "/login",
+            "/dashboard",
+            "/ui/api/auth/session",
+            "/ui/api/auth/onboarding-status",
+            "/ui/api/auth/login",
+            "/ui/api/auth/session/start",
+            "/ui/api/auth/google/start",
+            "/ui/api/auth/google/callback",
+            "/ui/api/auth/logout",
+            "/ui/api/wallet/connect",
+            "/ui/api/wallet/auto-create",
+            "/api/auth/session",
+            "/api/auth/onboarding-status",
+            "/api/auth/login",
+            "/api/auth/session/start",
+            "/api/auth/google/start",
+            "/api/auth/google/callback",
+            "/api/auth/logout",
+            "/api/auth/wallet/connect",
+            "/api/auth/wallet/create",
+            "/api/auth/onboarding/complete",
+        }
+        if path in public_ui_paths:
+            return await call_next(request)
+
+        session = None
+        try:
+            session = get_ui_session_from_request(request)
+        except Exception:
+            session = None
+
+        is_ui_api = path.startswith("/ui/api") or path.startswith("/api/auth")
+        if not session:
+            if is_ui_api:
+                return JSONResponse(status_code=401, content={"detail": "Authentication required."})
+            return RedirectResponse(url="/auth?required=login", status_code=307)
+
+        role = str(session.get("role", "")).strip().lower()
+        is_merchant_page = path.startswith("/ui/merchant")
+        is_merchant_api = path.startswith("/ui/api/merchant")
+        is_client_page = path.startswith("/ui/client")
+        is_client_api = path.startswith("/ui/api/client")
+
+        if is_merchant_page or is_merchant_api:
+            if role != "merchant":
+                if is_merchant_api:
+                    return JSONResponse(status_code=403, content={"detail": "Merchant authentication required."})
+                return RedirectResponse(url="/ui/client", status_code=307)
+
+        if is_client_page or is_client_api:
+            if role != "client":
+                if is_client_api:
+                    return JSONResponse(status_code=403, content={"detail": "Client authentication required."})
+                return RedirectResponse(url="/ui/merchant", status_code=307)
+
+        return await call_next(request)
+
     async def transaction_watcher():
         """Background task to detect and process new merchant transactions."""
         # Track processed transactions for real NFT minting (duplicate prevention)
         minted_signatures = set()
         
         while True:
-            print("🔄 Checking for new transactions...")
-
             try:
                 if MERCHANT_WALLET is None:
                     print("⚠️ Merchant wallet not configured, skipping check")
@@ -314,23 +435,23 @@ def create_fastapi_app():
                 )
 
                 if not signatures_resp or not signatures_resp.value:
-                    print("ℹ️ No recent signatures found")
                     await asyncio.sleep(10)
                     continue
 
+                fetched_count = len(signatures_resp.value)
+                skipped_existing = 0
+                processed_new = 0
+
                 for signature_info in signatures_resp.value:
                     signature = str(signature_info.signature)
-                    print(f"➡️ Found signature: {signature}")
 
                     # Skip already processed transactions
-                    with get_connection() as conn:
-                        cur = conn.cursor()
-                        cur.execute("SELECT 1 FROM transactions WHERE signature = ?", (signature,))
-                        if cur.fetchone():
-                            print("⏭️ Already processed, skipping")
-                            continue
+                    if transaction_exists(signature):
+                        skipped_existing += 1
+                        continue
 
-                    print("🆕 New transaction detected")
+                    processed_new += 1
+                    print(f"🆕 Processing new transaction: {signature[:16]}...")
                     try:
                         sig_obj = Signature.from_string(signature)
                     except Exception as exc:
@@ -377,15 +498,35 @@ def create_fastapi_app():
 
                     print("👤 User wallet detected:", user_wallet)
 
-                    with get_connection() as conn:
-                        cur = conn.cursor()
-                        cur.execute(
-                            "INSERT INTO transactions (wallet, merchant_id, amount, signature) VALUES (?, ?, ?, ?)",
-                            (user_wallet, 0, tx_amount, signature),
-                        )
-                        conn.commit()
+                    insert_transaction(
+                        wallet=user_wallet,
+                        merchant_id=1,
+                        amount=tx_amount,
+                        signature=signature,
+                    )
 
                     print("💾 Transaction saved to DB")
+
+                    try:
+                        decision = loyalty_core.evaluate_cashback_and_nft(
+                            wallet=user_wallet,
+                            merchant_id=1,
+                            transaction_amount=tx_amount,
+                        )
+                        save_cashback_reward(
+                            wallet=user_wallet,
+                            merchant_id=1,
+                            transaction_signature=signature,
+                            transaction_amount=tx_amount,
+                            cashback_amount=decision.cashback_amount,
+                            reward_tier=decision.reward_tier,
+                        )
+                        print(
+                            f"💸 Cashback recorded: {decision.cashback_amount} SOL "
+                            f"({decision.reward_tier}, {decision.cashback_rate * 100:.2f}%)"
+                        )
+                    except Exception as cashback_exc:
+                        print(f"⚠️ Cashback evaluation skipped: {cashback_exc}")
 
                     # EXISTING: Python-based NFT minting (DB storage)
                     minted_nft = await mint_nft(
@@ -404,14 +545,7 @@ def create_fastapi_app():
                     if signature not in minted_signatures:
                         try:
                             # Get user's transaction count for rarity calculation
-                            with get_connection() as conn:
-                                cur = conn.cursor()
-                                cur.execute(
-                                    "SELECT COUNT(*) FROM transactions WHERE wallet = ?",
-                                    (user_wallet,)
-                                )
-                                result = cur.fetchone()
-                                user_tx_count = (result[0] if result else 1)
+                            user_tx_count = max(count_wallet_transactions(user_wallet), 1)
                             
                             # Calculate rarity using loyalty engine (same logic as mint_nft)
                             from loyalty_engine.loyalty_engine import get_nft_rarity
@@ -448,14 +582,16 @@ def create_fastapi_app():
                     else:
                         print("⏭️ Real NFT already minted for this transaction")
 
+                if processed_new > 0 or skipped_existing > 0:
+                    print(
+                        "🔎 Watcher summary: "
+                        f"fetched={fetched_count}, new={processed_new}, skipped={skipped_existing}"
+                    )
+
             except Exception as exc:
                 print(f"❌ Transaction watcher error: {exc}")
 
             await asyncio.sleep(10)
-
-    @app.on_event("startup")
-    async def start_transaction_watcher():
-        app.state.transaction_watcher = asyncio.create_task(transaction_watcher())
 
     @app.get("/")
     async def root():
@@ -473,6 +609,9 @@ def create_fastapi_app():
             ],
             "endpoints": {
                 "GET /": "API information",
+                "GET /ui/client": "Client dashboard",
+                "GET /ui/merchant": "Merchant dashboard",
+                "GET /ui/auth": "Authentication dashboard",
                 "GET /solana-pay-request": "Handle QR code scans",
                 "POST /validate-transaction": "Blockchain validation",
                 "POST /wallet-connect": "Wallet registration",
@@ -513,86 +652,86 @@ def create_fastapi_app():
         try:
             print(f"🔍 Validating transaction: {request.signature}")
 
-            # Demo flow bypass for local testing
-            if str(request.signature).startswith("demo_"):
-                valid = True
-                tx_amount = float(request.amount or 0.01)
-                transaction = type("DemoTx", (), {
-                    "meta": None,
-                    "block_time": None,
-                    "slot": None
-                })()
-            else:
-                valid = False
+            # Convert string signature to Signature object for RPC call
+            try:
+                sig = Signature.from_string(request.signature)
+            except Exception as exc:
+                return {
+                    "valid": False,
+                    "error": "Invalid signature format",
+                    "signature": request.signature,
+                    "details": str(exc)
+                }
 
-                # Convert string signature to Signature object for RPC call
-                try:
-                    sig = Signature.from_string(request.signature)
-                except Exception as exc:
-                    return {
-                        "valid": False,
-                        "error": "Invalid signature format",
-                        "signature": request.signature,
-                        "details": str(exc)
-                    }
+            # Get transaction from blockchain
+            tx_response = await SOLANA_CLIENT.get_transaction(
+                sig,
+                commitment=COMMITMENT,
+                max_supported_transaction_version=0
+            )
 
-                # Get transaction from blockchain
-                tx_response = await SOLANA_CLIENT.get_transaction(
-                    sig,
-                    commitment=COMMITMENT,
-                    max_supported_transaction_version=0
-                )
+            if not tx_response.value:
+                return {
+                    "valid": False,
+                    "error": "Transaction not found on blockchain",
+                    "signature": request.signature
+                }
 
-                if not tx_response.value:
-                    return {
-                        "valid": False,
-                        "error": "Transaction not found on blockchain",
-                        "signature": request.signature
-                    }
+            tx_data = tx_response.value
 
-                tx_data = tx_response.value
+            if not tx_data:
+                return {
+                    "valid": False,
+                    "error": "Transaction not found on blockchain",
+                    "signature": request.signature
+                }
 
-                if not tx_data:
-                    return {
-                        "valid": False,
-                        "error": "Transaction not found on blockchain",
-                        "signature": request.signature
-                    }
+            # Solders response carries transaction inside tx_data.transaction
+            metadata = None
+            if tx_data.transaction and hasattr(tx_data.transaction, "meta"):
+                metadata = tx_data.transaction.meta
 
-                # Solders response carries transaction inside tx_data.transaction
-                metadata = None
-                if tx_data.transaction and hasattr(tx_data.transaction, "meta"):
-                    metadata = tx_data.transaction.meta
+            # Validate transaction was successful
+            if metadata and metadata.err:
+                return {
+                    "valid": False,
+                    "error": "Transaction failed on blockchain",
+                    "signature": request.signature,
+                    "blockchain_error": str(metadata.err)
+                }
 
-                # Validate transaction was successful
-                if metadata and metadata.err:
-                    return {
-                        "valid": False,
-                        "error": "Transaction failed on blockchain",
-                        "signature": request.signature,
-                        "blockchain_error": str(metadata.err)
-                    }
-
-                valid = True
-
-                # Calculate amount from actual blockchain change when available
-                tx_amount = 0.01
-                if metadata and metadata.pre_balances and metadata.post_balances:
-                    balance_change = metadata.post_balances[1] - metadata.pre_balances[1]
-                    tx_amount = abs(balance_change) / 1_000_000_000  # Convert lamports to SOL
-
-                transaction = tx_data
+            # Calculate amount from actual blockchain change when available
+            tx_amount = 0.01
+            if metadata and metadata.pre_balances and metadata.post_balances:
+                balance_change = metadata.post_balances[1] - metadata.pre_balances[1]
+                tx_amount = abs(balance_change) / 1_000_000_000  # Convert lamports to SOL
 
             
             # Save transaction in central DB
             merchant_id = request.merchant_id or 0
-            with get_connection() as conn:
-                cur = conn.cursor()
-                cur.execute(
-                    "INSERT INTO transactions (wallet, merchant_id, amount, signature) VALUES (?, ?, ?, ?)",
-                    (request.wallet, merchant_id, tx_amount, request.signature),
+            insert_transaction(
+                wallet=request.wallet,
+                merchant_id=max(merchant_id, 1),
+                amount=tx_amount,
+                signature=request.signature,
+            )
+
+            try:
+                decision = loyalty_core.evaluate_cashback_and_nft(
+                    wallet=request.wallet,
+                    merchant_id=max(merchant_id, 1),
+                    transaction_amount=tx_amount,
                 )
-                conn.commit()
+                save_cashback_reward(
+                    wallet=request.wallet,
+                    merchant_id=max(merchant_id, 1),
+                    transaction_signature=request.signature,
+                    transaction_amount=tx_amount,
+                    cashback_amount=decision.cashback_amount,
+                    reward_tier=decision.reward_tier,
+                )
+            except Exception as cashback_exc:
+                print(f"⚠️ Cashback evaluation skipped: {cashback_exc}")
 
             # Mint one NFT reward based on transaction history
             minted_nft = await mint_nft(
@@ -619,37 +758,21 @@ def create_fastapi_app():
     async def connect_wallet(request: WalletConnectRequest):
         """Register wallet in loyalty program"""
         try:
-            # Load or create user data
-            user_data = {
-                "wallet": request.publicKey,
-                "joined_date": datetime.now().isoformat(),
-                "loyalty_tier": "bronze",
-                "total_spent": 0.0,
-                "nft_count": 0,
-                "status": "active"
-            }
-            
-            # Save user data
-            users_file = os.path.join(DATA_DIR, "loyalty_users.json")
-            os.makedirs(os.path.dirname(users_file), exist_ok=True)
-            
-            users = []
-            if os.path.exists(users_file):
-                with open(users_file, 'r') as f:
-                    users = json.load(f)
-            
-            # Check if user already exists
-            existing_user = next((u for u in users if u["wallet"] == request.publicKey), None)
+            existing_user = get_client_profile(request.publicKey)
             if existing_user:
                 return {
                     "success": True,
                     "message": "Welcome back!",
                     "user": existing_user
                 }
-            
-            users.append(user_data)
-            with open(users_file, 'w') as f:
-                json.dump(users, f, indent=2)
+
+            upsert_client_profile(request.publicKey, joined_date=datetime.now().isoformat(), loyalty_tier="bronze")
+            user_data = get_client_profile(request.publicKey) or {
+                "wallet_address": request.publicKey,
+                "joined_date": datetime.now().isoformat(),
+                "loyalty_tier": "bronze",
+                "status": "active",
+            }
             
             return {
                 "success": True,
@@ -668,34 +791,8 @@ def create_fastapi_app():
     async def get_user_nfts(wallet: str):
         """Get user's mystery NFT collection"""
         try:
-            nft_file = NFT_RECORDS_FILE
             normalized_wallet = wallet.strip()
-
-            print(f"DEBUG: /mystery-nft/{normalized_wallet} - loading {nft_file}")
-
-            if not os.path.exists(nft_file):
-                print(f"DEBUG: nft file missing: {nft_file}")
-                return {
-                    "wallet": normalized_wallet,
-                    "nfts": [],
-                    "total_count": 0,
-                    "rarity_breakdown": {},
-                    "unrevealed_count": 0,
-                    "message": "No NFTs found. Complete a purchase to receive your first mystery NFT!"
-                }
-
-            with open(nft_file, 'r') as f:
-                raw = f.read().strip()
-                if not raw:
-                    print(f"DEBUG: nft file empty: {nft_file}")
-                    all_nfts = []
-                else:
-                    all_nfts = json.loads(raw)
-
-            print(f"DEBUG: loaded {len(all_nfts)} nft records")
-
-            user_nfts = [nft for nft in all_nfts if str(nft.get("owner", "")).strip() == normalized_wallet]
-            print(f"DEBUG: filtered to {len(user_nfts)} records for wallet {normalized_wallet}")
+            user_nfts = list_nft_records(normalized_wallet)
 
             rarity_counts = {}
             for nft in user_nfts:
@@ -793,33 +890,13 @@ def create_fastapi_app():
             except Exception:
                 raise HTTPException(status_code=400, detail="Invalid wallet address")
             
-            # Load existing transactions
-            transactions = load_transaction_data()
-            
-            # Find the transaction with this reference
-            transaction_found = False
-            for tx in transactions:
-                if tx.get("reference") == reference:
-                    tx["user_wallet"] = user_wallet
-                    tx["store_id"] = store_id
-                    tx["status"] = "initiated"
-                    tx["initiated_at"] = datetime.now().isoformat()
-                    transaction_found = True
-                    break
-            
-            if not transaction_found:
-                # Create new transaction record
-                new_tx = {
-                    "reference": reference,
-                    "user_wallet": user_wallet,
-                    "store_id": store_id,
-                    "status": "initiated",
-                    "initiated_at": datetime.now().isoformat(),
-                    "qr_type": "backend"
-                }
-                transactions.append(new_tx)
-            
-            save_transaction_data(transactions)
+            save_payment_request(
+                reference=reference,
+                user_wallet=user_wallet,
+                store_id=store_id,
+                status="initiated",
+                qr_type="backend",
+            )
             
             # Return Solana Pay response format
             return {
@@ -839,27 +916,12 @@ def create_fastapi_app():
     async def get_user_stats(wallet: str):
         """Get user's loyalty program statistics"""
         try:
-            # Load user's NFTs and transaction history
-            nft_file = NFT_RECORDS_FILE
-            transaction_file = os.path.join(DATA_DIR, "transactions.json")
             normalized_wallet = wallet.strip()
-            
-            user_nfts = []
-            user_transactions = []
-            
-            if os.path.exists(nft_file):
-                with open(nft_file, 'r') as f:
-                    raw = f.read().strip()
-                    all_nfts = json.loads(raw) if raw else []
-                user_nfts = [nft for nft in all_nfts if str(nft.get("owner", "")).strip() == normalized_wallet]
-            
-            if os.path.exists(transaction_file):
-                with open(transaction_file, 'r') as f:
-                    all_transactions = json.load(f)
-                user_transactions = [tx for tx in all_transactions if tx.get("user_wallet") == wallet]
+            user_nfts = list_nft_records(normalized_wallet)
+            user_transactions = list_wallet_transactions(normalized_wallet, limit=200)
             
             # Calculate statistics
-            total_spent = sum(tx.get("amount_sol", 0) for tx in user_transactions if tx.get("status") == "confirmed")
+            total_spent = sum(float(tx.get("amount", 0) or 0) for tx in user_transactions)
             nft_counts = {}
             for nft in user_nfts:
                 nft_type = nft.get("nft_type", "unknown")
@@ -881,7 +943,7 @@ def create_fastapi_app():
                 "total_spent": total_spent,
                 "total_nfts": len(user_nfts),
                 "nft_breakdown": nft_counts,
-                "recent_transactions": user_transactions[-5:],  # Last 5 transactions
+                "recent_transactions": user_transactions[:5],
                 "unrevealed_nfts": len([nft for nft in user_nfts if not nft.get("mystery_revealed", False)]),
                 "next_milestone": get_next_milestone(total_spent)
             }
@@ -894,16 +956,7 @@ def create_fastapi_app():
         """Register a merchant and return api_key"""
         try:
             api_key = uuid.uuid4().hex
-            with get_connection() as conn:
-                cur = conn.cursor()
-                cur.execute(
-                    """
-                    INSERT INTO merchants (name, wallet_address, api_key)
-                    VALUES (?, ?, ?)
-                    """,
-                    (name, wallet_address, api_key),
-                )
-                conn.commit()
+            create_merchant(name=name, wallet_address=wallet_address, api_key=api_key)
 
             return {"success": True, "api_key": api_key}
         except Exception as e:
@@ -912,42 +965,24 @@ def create_fastapi_app():
     @app.get("/merchant/{merchant_id}")
     async def get_merchant(merchant_id: int):
         """Fetch merchant details by id"""
-        with get_connection() as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT id, name, wallet_address, api_key, created_at FROM merchants WHERE id = ?", (merchant_id,))
-            row = cur.fetchone()
-            if not row:
-                raise HTTPException(status_code=404, detail="Merchant not found")
-
-            return dict(row)
+        row = db_get_merchant_by_id(merchant_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Merchant not found")
+        return row
 
     @app.get("/merchant/by-name/{name}")
     async def get_merchant_by_name(name: str):
         """Fetch merchant details by name"""
-        with get_connection() as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT id, name, wallet_address, api_key, created_at FROM merchants WHERE name = ?", (name,))
-            row = cur.fetchone()
-            if not row:
-                raise HTTPException(status_code=404, detail="Merchant not found")
-
-            return dict(row)
+        row = db_get_merchant_by_name(name)
+        if not row:
+            raise HTTPException(status_code=404, detail="Merchant not found")
+        return row
 
     @app.get("/customer/{wallet}")
     async def get_customer(wallet: str):
         """Fetch customer data with NFT history and tier"""
         normalized_wallet = wallet.strip()
-        nfts = []
-
-        if os.path.exists(NFT_RECORDS_FILE):
-            try:
-                with open(NFT_RECORDS_FILE, 'r') as f:
-                    raw = f.read().strip()
-                    all_nfts = json.loads(raw) if raw else []
-
-                nfts = [n for n in all_nfts if str(n.get("owner", "")).strip() == normalized_wallet]
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Failed to load NFT records: {str(e)}")
+        nfts = list_nft_records(normalized_wallet)
 
         total_transactions = len(nfts)
 
@@ -999,15 +1034,13 @@ def create_fastapi_app():
             # Check Solana connection
             latest_blockhash = await SOLANA_CLIENT.get_latest_blockhash()
             blockchain_status = "connected" if latest_blockhash.value else "disconnected"
-            
-            # Check data files
-            required_files = [
-                NFT_RECORDS_FILE,
-                os.path.join(DATA_DIR, "transactions.json"),
-            ]
-            file_status = {}
-            for file_path in required_files:
-                file_status[file_path] = "exists" if os.path.exists(file_path) else "missing"
+
+            db_status = "connected"
+            stats_preview = {}
+            try:
+                stats_preview = get_platform_stats()
+            except Exception as db_exc:
+                db_status = f"error: {db_exc}"
             
             return {
                 "status": "healthy",
@@ -1015,9 +1048,13 @@ def create_fastapi_app():
                 "services": {
                     "api": "online",
                     "blockchain": blockchain_status,
+                    "database": db_status,
                     "merchant_wallet": str(MERCHANT_WALLET) if MERCHANT_WALLET else "not_configured"
                 },
-                "data_files": file_status,
+                "stats_preview": {
+                    "total_users": stats_preview.get("total_users", 0),
+                    "total_transactions": stats_preview.get("total_transactions", 0),
+                },
                 "version": "2.0.0"
             }
             
@@ -1029,6 +1066,9 @@ def create_fastapi_app():
             }
     
     return app
+
+
+app = create_fastapi_app()
 
 async def generate_qr():
     """Generate Solana Pay QR codes"""
@@ -1217,7 +1257,6 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python main.py demo     # Run comprehensive demo
   python main.py server   # Start API server
   python main.py qr       # Generate QR codes
   python main.py mint     # Mint mystery NFTs
@@ -1228,7 +1267,7 @@ Examples:
         'command',
         nargs='?',
         default='help',
-        choices=['demo', 'server', 'qr', 'mint', 'help'],
+        choices=['server', 'qr', 'mint', 'help'],
         help='Command to execute'
     )
     
@@ -1238,8 +1277,6 @@ Examples:
     
     if args.command == 'help':
         show_help()
-    elif args.command == 'demo':
-        asyncio.run(run_demo())
     elif args.command == 'server':
         start_server()
     elif args.command == 'qr':
