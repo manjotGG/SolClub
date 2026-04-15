@@ -18,7 +18,6 @@ Usage:
     python main.py [command]
 
 Commands:
-    demo     - Run comprehensive demonstration
     server   - Start production API server
     qr       - Generate Solana Pay QR codes
     mint     - Mint mystery NFTs
@@ -58,19 +57,6 @@ def show_banner():
 def show_help():
     """Show help information"""
     print(__doc__)
-
-async def run_demo():
-    """Run the comprehensive demo"""
-    print("🚀 Starting comprehensive demo...")
-    try:
-        # Import and run the real demo
-        from demo import demo_solana_loyalty
-        await demo_solana_loyalty()
-    except ImportError as e:
-        print(f"❌ Demo not available: {e}")
-        print("Make sure real_demo.py is in the current directory")
-    except Exception as e:
-        print(f"❌ Demo failed: {e}")
 
 def start_server():
     """Start the production API server"""
@@ -666,75 +652,59 @@ def create_fastapi_app():
         try:
             print(f"🔍 Validating transaction: {request.signature}")
 
-            # Demo flow bypass for local testing
-            if str(request.signature).startswith("demo_"):
-                valid = True
-                tx_amount = float(request.amount or 0.01)
-                transaction = type("DemoTx", (), {
-                    "meta": None,
-                    "block_time": None,
-                    "slot": None
-                })()
-            else:
-                valid = False
+            # Convert string signature to Signature object for RPC call
+            try:
+                sig = Signature.from_string(request.signature)
+            except Exception as exc:
+                return {
+                    "valid": False,
+                    "error": "Invalid signature format",
+                    "signature": request.signature,
+                    "details": str(exc)
+                }
 
-                # Convert string signature to Signature object for RPC call
-                try:
-                    sig = Signature.from_string(request.signature)
-                except Exception as exc:
-                    return {
-                        "valid": False,
-                        "error": "Invalid signature format",
-                        "signature": request.signature,
-                        "details": str(exc)
-                    }
+            # Get transaction from blockchain
+            tx_response = await SOLANA_CLIENT.get_transaction(
+                sig,
+                commitment=COMMITMENT,
+                max_supported_transaction_version=0
+            )
 
-                # Get transaction from blockchain
-                tx_response = await SOLANA_CLIENT.get_transaction(
-                    sig,
-                    commitment=COMMITMENT,
-                    max_supported_transaction_version=0
-                )
+            if not tx_response.value:
+                return {
+                    "valid": False,
+                    "error": "Transaction not found on blockchain",
+                    "signature": request.signature
+                }
 
-                if not tx_response.value:
-                    return {
-                        "valid": False,
-                        "error": "Transaction not found on blockchain",
-                        "signature": request.signature
-                    }
+            tx_data = tx_response.value
 
-                tx_data = tx_response.value
+            if not tx_data:
+                return {
+                    "valid": False,
+                    "error": "Transaction not found on blockchain",
+                    "signature": request.signature
+                }
 
-                if not tx_data:
-                    return {
-                        "valid": False,
-                        "error": "Transaction not found on blockchain",
-                        "signature": request.signature
-                    }
+            # Solders response carries transaction inside tx_data.transaction
+            metadata = None
+            if tx_data.transaction and hasattr(tx_data.transaction, "meta"):
+                metadata = tx_data.transaction.meta
 
-                # Solders response carries transaction inside tx_data.transaction
-                metadata = None
-                if tx_data.transaction and hasattr(tx_data.transaction, "meta"):
-                    metadata = tx_data.transaction.meta
+            # Validate transaction was successful
+            if metadata and metadata.err:
+                return {
+                    "valid": False,
+                    "error": "Transaction failed on blockchain",
+                    "signature": request.signature,
+                    "blockchain_error": str(metadata.err)
+                }
 
-                # Validate transaction was successful
-                if metadata and metadata.err:
-                    return {
-                        "valid": False,
-                        "error": "Transaction failed on blockchain",
-                        "signature": request.signature,
-                        "blockchain_error": str(metadata.err)
-                    }
-
-                valid = True
-
-                # Calculate amount from actual blockchain change when available
-                tx_amount = 0.01
-                if metadata and metadata.pre_balances and metadata.post_balances:
-                    balance_change = metadata.post_balances[1] - metadata.pre_balances[1]
-                    tx_amount = abs(balance_change) / 1_000_000_000  # Convert lamports to SOL
-
-                transaction = tx_data
+            # Calculate amount from actual blockchain change when available
+            tx_amount = 0.01
+            if metadata and metadata.pre_balances and metadata.post_balances:
+                balance_change = metadata.post_balances[1] - metadata.pre_balances[1]
+                tx_amount = abs(balance_change) / 1_000_000_000  # Convert lamports to SOL
 
             
             # Save transaction in central DB
@@ -1287,7 +1257,6 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python main.py demo     # Run comprehensive demo
   python main.py server   # Start API server
   python main.py qr       # Generate QR codes
   python main.py mint     # Mint mystery NFTs
@@ -1298,7 +1267,7 @@ Examples:
         'command',
         nargs='?',
         default='help',
-        choices=['demo', 'server', 'qr', 'mint', 'help'],
+        choices=['server', 'qr', 'mint', 'help'],
         help='Command to execute'
     )
     
@@ -1308,8 +1277,6 @@ Examples:
     
     if args.command == 'help':
         show_help()
-    elif args.command == 'demo':
-        asyncio.run(run_demo())
     elif args.command == 'server':
         start_server()
     elif args.command == 'qr':
