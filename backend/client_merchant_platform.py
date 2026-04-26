@@ -215,8 +215,11 @@ async def google_oauth_callback(code: Optional[str] = None, state: Optional[str]
     )
     profile = user_res.json()
 
+    google_email = str(profile.get("email") or "").strip().lower()
+    username_hint = str(profile.get("name") or "").strip() or (google_email.split("@")[0] if "@" in google_email else None)
     account = upsert_user_account(
-        email=profile.get("email"),
+        email=(google_email or None),
+        username=username_hint,
         display_name=profile.get("name"),
         role=role,
         google_sub=profile.get("sub"),
@@ -377,7 +380,8 @@ async def merchant_account_creation(payload: MerchantAccountRequest):
             ],
         },
     )
-    upsert_user_account(email=payload.email, display_name=payload.name, role="merchant")
+    merchant_username = re.sub(r"[^a-zA-Z0-9_]", "_", str(payload.name or "merchant")).strip("_")[:32] or "merchant"
+    upsert_user_account(email=payload.email, username=merchant_username, display_name=payload.name, role="merchant")
     return {"success": True, "merchant": merchant, "api_key": api_key}
 
 

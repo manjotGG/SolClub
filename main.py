@@ -80,7 +80,7 @@ def start_server():
 def create_fastapi_app():
     """Create and configure the FastAPI application with full blockchain integration"""
     from fastapi import FastAPI, HTTPException, Query, Request
-    from fastapi.responses import JSONResponse, RedirectResponse
+    from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
     from fastapi.staticfiles import StaticFiles
     from fastapi.middleware.gzip import GZipMiddleware
     from fastapi.middleware.cors import CORSMiddleware
@@ -595,6 +595,17 @@ def create_fastapi_app():
 
     @app.get("/")
     async def root():
+        """Serve the public landing page by default."""
+        index_path = os.path.join(BASE_DIR, "frontend", "templates", "index.html")
+        try:
+            with open(index_path, "r", encoding="utf-8") as f:
+                html = f.read()
+            return HTMLResponse(content=html)
+        except FileNotFoundError:
+            return RedirectResponse(url="/auth", status_code=303)
+
+    @app.get("/api")
+    async def api_info():
         """API information and status"""
         return {
             "name": "SolClub Loyalty Backend",
@@ -608,7 +619,8 @@ def create_fastapi_app():
                 "Multi-tier rewards"
             ],
             "endpoints": {
-                "GET /": "API information",
+                "GET /": "Landing page",
+                "GET /api": "API information",
                 "GET /ui/client": "Client dashboard",
                 "GET /ui/merchant": "Merchant dashboard",
                 "GET /ui/auth": "Authentication dashboard",

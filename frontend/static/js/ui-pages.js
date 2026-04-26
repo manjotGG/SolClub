@@ -151,8 +151,12 @@ async function createManagedWallet(role = "client") {
   });
   setWalletInput(data.wallet_address);
   setLocalSession(data.role || role, data.wallet_address);
-  const status = await getOnboardingStatus();
-  go(status.redirect || "/onboarding");
+  try {
+    const status = await getOnboardingStatus();
+    go(status.redirect || "/onboarding");
+  } catch {
+    go("/onboarding");
+  }
 }
 
 async function registerAccount(payload) {
@@ -678,6 +682,10 @@ function wirePortal(session) {
 async function bootstrap() {
   const page = pageId();
 
+  if (!page || page === "landing") {
+    return;
+  }
+
   if (page === "auth") {
     wireAuthButtons();
     const session = await getSession();
@@ -754,7 +762,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bootstrap().catch((error) => {
     console.error(error);
     alert(error.message || "UI bootstrap failed.");
-    if (!["auth", "auth-login", "onboarding"].includes(pageId())) {
+    if (!["landing", "auth", "auth-login", "onboarding"].includes(pageId())) {
       go("/auth");
     }
   });

@@ -431,6 +431,7 @@ def get_recent_cashback_events(limit: int = 10) -> List[Dict[str, Any]]:
 
 def upsert_user_account(
     email: Optional[str],
+    username: Optional[str],
     display_name: Optional[str],
     role: str,
     google_sub: Optional[str] = None,
@@ -440,42 +441,60 @@ def upsert_user_account(
     password_payload: Dict[str, Optional[str]] = {}
     if password:
         password_payload = _hash_password(password)
+    normalized_email = str(email or "").strip().lower() or None
+    normalized_username = str(username or "").strip() or None
+    normalized_display_name = str(display_name or "").strip() or None
+
     payload_candidates = [
         {
-            "email": email,
-            "display_name": display_name,
+            "email": normalized_email,
+            "username": normalized_username,
+            "display_name": normalized_display_name,
             "role": role,
             "google_sub": google_sub,
             **password_payload,
             "updated_at": _now_iso(),
         },
         {
-            "email": email,
-            "display_name": display_name,
+            "email": normalized_email,
+            "username": normalized_username,
+            "display_name": normalized_display_name,
             "role": role,
             **password_payload,
             "updated_at": _now_iso(),
         },
         {
-            "email": email,
-            "display_name": display_name,
+            "email": normalized_email,
+            "username": normalized_username,
+            "display_name": normalized_display_name,
             "role": role,
         },
         {
-            "email": email,
+            "email": normalized_email,
+            "username": normalized_username,
             "role": role,
         },
     ]
 
+    if not normalized_username and not normalized_email:
+        raise RuntimeError("username or email is required to upsert user account")
+
+    conflict_targets = []
+    if normalized_username:
+        conflict_targets.append("username")
+    if normalized_email:
+        conflict_targets.append("email")
+
     last_exc: Optional[Exception] = None
-    for payload in payload_candidates:
-        try:
-            result = _db.client.table("users").upsert(payload, on_conflict="email").execute()
-            rows = _require_data(result)
-            return rows[0] if rows else payload
-        except Exception as exc:
-            last_exc = exc
-            continue
+    for conflict_target in conflict_targets:
+        for payload in payload_candidates:
+            try:
+                result = _db.client.table("users").upsert(payload, on_conflict=conflict_target).execute()
+                rows = _require_data(result)
+                return rows[0] if rows else payload
+            except Exception as exc:
+                last_exc = exc
+                continue
 
     raise last_exc or RuntimeError("Failed to upsert user account")
 
@@ -508,12 +527,29 @@ def get_user_account_by_identifier(identifier: str) -> Optional[Dict[str, Any]]:
     if not value:
         return None
 
+    # Canonical identity is username first.
+    result = _db.client.table("users").select("*").eq("username", value).limit(1).execute()
+    rows = _require_data(result)
+    if rows:
+        return rows[0]
+
     if "@" in value:
-        result = _db.client.table("users").select("*").eq("email", value).limit(1).execute()
+        result = _db.client.table("users").select("*").eq("email", value.lower()).limit(1).execute()
         rows = _require_data(result)
         return rows[0] if rows else None
 
+    # Backward compatibility for old rows populated before username migration.
     result = _db.client.table("users").select("*").eq("display_name", value).limit(1).execute()
+    rows = _require_data(result)
+    return rows[0] if rows else None
+
+
+def get_user_account_by_google_sub(google_sub: str) -> Optional[Dict[str, Any]]:
+    _require_client()
+    value = str(google_sub or "").strip()
+    if not value:
+        return None
+    result = _db.client.table("users").select("*").eq("google_sub", value).limit(1).execute()
     rows = _require_data(result)
     return rows[0] if rows else None
 
