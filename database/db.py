@@ -69,10 +69,21 @@ def transaction_exists(signature: str) -> bool:
     return len(_require_data(result)) > 0
 
 
+def _resolve_username_for_wallet(wallet_address: str) -> Optional[str]:
+    """Lookup the username linked to a wallet address."""
+    try:
+        w = get_wallet_record(wallet_address)
+        return (w or {}).get("username")
+    except Exception:
+        return None
+
+
 def insert_transaction(wallet: str, merchant_id: int, amount: float, signature: str) -> Optional[Dict[str, Any]]:
     _require_client()
+    username = _resolve_username_for_wallet(wallet.strip())
     payload = {
         "wallet_address": wallet.strip(),
+        "username": username,
         "merchant_id": int(merchant_id),
         "amount": float(amount),
         "signature": signature,
@@ -197,9 +208,11 @@ def save_cashback_reward(
     )
     tx_rows = _require_data(tx_res)
     transaction_id = tx_rows[0].get("id") if tx_rows else None
+    username = _resolve_username_for_wallet(wallet.strip())
 
     payload = {
         "wallet_address": wallet.strip(),
+        "username": username,
         "merchant_id": int(merchant_id),
         "transaction_signature": transaction_signature,
         "transaction_amount": float(transaction_amount),
@@ -228,8 +241,10 @@ def list_cashback_rewards(wallet: str, merchant_id: Optional[int] = None, limit:
 
 def insert_nft_record(wallet: str, nft_type: str, mint_address: str, metadata_uri: Optional[str] = None):
     _require_client()
+    username = _resolve_username_for_wallet(wallet.strip())
     payload = {
         "wallet_address": wallet.strip(),
+        "username": username,
         "nft_type": nft_type,
         "mint_address": mint_address,
         "metadata_uri": metadata_uri,
@@ -272,26 +287,37 @@ def count_nft_records(wallet: str) -> int:
     return int(getattr(result, "count", 0) or 0)
 
 
-def upsert_client_profile(wallet: str, joined_date: Optional[str] = None, loyalty_tier: str = "bronze"):
+def upsert_client_profile(wallet: str, joined_date: Optional[str] = None, loyalty_tier: str = "bronze", username: Optional[str] = None):
     _require_client()
+    resolved_username = username
+    if not resolved_username and wallet:
+        w = get_wallet_record(wallet.strip())
+        resolved_username = (w or {}).get("username")
+    if not resolved_username:
+        return  # Cannot create client_profile without a username (PK)
     payload = {
-        "wallet_address": wallet.strip(),
+        "username": resolved_username,
+        "primary_wallet": wallet.strip() if wallet else None,
         "joined_date": joined_date or _now_iso(),
         "loyalty_tier": loyalty_tier,
         "status": "active",
     }
-    _db.client.table("client_profiles").upsert(payload, on_conflict="wallet_address").execute()
+    _db.client.table("client_profiles").upsert(payload, on_conflict="username").execute()
 
 
 def get_client_profile(wallet: str) -> Optional[Dict[str, Any]]:
+    """Get client profile. Tries by wallet first (via wallets table -> username), then direct username."""
     _require_client()
-    result = (
-        _db.client.table("client_profiles")
-        .select("*")
-        .eq("wallet_address", wallet.strip())
-        .limit(1)
-        .execute()
-    )
+    # Resolve username from wallet
+    w = get_wallet_record(wallet.strip()) if wallet else None
+    uname = (w or {}).get("username")
+    if uname:
+        result = _db.client.table("client_profiles").select("*").eq("username", uname).limit(1).execute()
+        rows = _require_data(result)
+        if rows:
+            return rows[0]
+    # Fallback: try wallet as username directly
+    result = _db.client.table("client_profiles").select("*").eq("username", wallet.strip()).limit(1).execute()
     rows = _require_data(result)
     return rows[0] if rows else None
 
@@ -431,61 +457,54 @@ def get_recent_cashback_events(limit: int = 10) -> List[Dict[str, Any]]:
 
 def upsert_user_account(
     email: Optional[str],
+    username: Optional[str],
     display_name: Optional[str],
     role: str,
     google_sub: Optional[str] = None,
     password: Optional[str] = None,
 ) -> Dict[str, Any]:
+    """Create or update a user account. username is the primary key."""
     _require_client()
+    normalized_username = str(username or "").strip() or None
+    normalized_email = str(email or "").strip().lower() or None
+    normalized_display_name = str(display_name or "").strip() or None
+
+    if not normalized_username:
+        raise RuntimeError("username is required to upsert user account")
+
     password_payload: Dict[str, Optional[str]] = {}
     if password:
         password_payload = _hash_password(password)
-    payload_candidates = [
-        {
-            "email": email,
-            "display_name": display_name,
-            "role": role,
-            "google_sub": google_sub,
-            **password_payload,
-            "updated_at": _now_iso(),
-        },
-        {
-            "email": email,
-            "display_name": display_name,
-            "role": role,
-            **password_payload,
-            "updated_at": _now_iso(),
-        },
-        {
-            "email": email,
-            "display_name": display_name,
-            "role": role,
-        },
-        {
-            "email": email,
-            "role": role,
-        },
-    ]
 
-    last_exc: Optional[Exception] = None
-    for payload in payload_candidates:
+    payload: Dict[str, Any] = {
+        "username": normalized_username,
+        "email": normalized_email,
+        "display_name": normalized_display_name,
+        "role": role,
+        "updated_at": _now_iso(),
+        **password_payload,
+    }
+    if google_sub:
+        payload["google_sub"] = google_sub
+
+    # Try with full payload first, then strip optional columns on failure
+    for attempt_payload in [payload, {k: v for k, v in payload.items() if k not in ("google_sub",)}, {"username": normalized_username, "role": role}]:
         try:
-            result = _db.client.table("users").upsert(payload, on_conflict="email").execute()
+            result = _db.client.table("users").upsert(attempt_payload, on_conflict="username").execute()
             rows = _require_data(result)
-            return rows[0] if rows else payload
-        except Exception as exc:
-            last_exc = exc
+            return rows[0] if rows else attempt_payload
+        except Exception:
             continue
+    raise RuntimeError("Failed to upsert user account")
 
-    raise last_exc or RuntimeError("Failed to upsert user account")
 
-
-def get_user_account_by_id(user_id: str) -> Optional[Dict[str, Any]]:
+def get_user_account_by_username(username: str) -> Optional[Dict[str, Any]]:
+    """Fetch user by username (primary key)."""
     _require_client()
     result = (
         _db.client.table("users")
         .select("*")
-        .eq("id", user_id)
+        .eq("username", username.strip())
         .limit(1)
         .execute()
     )
@@ -493,13 +512,18 @@ def get_user_account_by_id(user_id: str) -> Optional[Dict[str, Any]]:
     return rows[0] if rows else None
 
 
+# Backward-compat alias
+def get_user_account_by_id(user_id: str) -> Optional[Dict[str, Any]]:
+    return get_user_account_by_username(user_id)
+
+
 def get_user_account_by_wallet(wallet_address: str) -> Optional[Dict[str, Any]]:
     _require_client()
     wallet = get_wallet_record(wallet_address)
-    user_id = (wallet or {}).get("user_id")
-    if not user_id:
+    uname = (wallet or {}).get("username")
+    if not uname:
         return None
-    return get_user_account_by_id(str(user_id))
+    return get_user_account_by_username(str(uname))
 
 
 def get_user_account_by_identifier(identifier: str) -> Optional[Dict[str, Any]]:
@@ -508,12 +532,29 @@ def get_user_account_by_identifier(identifier: str) -> Optional[Dict[str, Any]]:
     if not value:
         return None
 
+    # Canonical identity is username first.
+    result = _db.client.table("users").select("*").eq("username", value).limit(1).execute()
+    rows = _require_data(result)
+    if rows:
+        return rows[0]
+
     if "@" in value:
-        result = _db.client.table("users").select("*").eq("email", value).limit(1).execute()
+        result = _db.client.table("users").select("*").eq("email", value.lower()).limit(1).execute()
         rows = _require_data(result)
         return rows[0] if rows else None
 
+    # Backward compatibility for old rows populated before username migration.
     result = _db.client.table("users").select("*").eq("display_name", value).limit(1).execute()
+    rows = _require_data(result)
+    return rows[0] if rows else None
+
+
+def get_user_account_by_google_sub(google_sub: str) -> Optional[Dict[str, Any]]:
+    _require_client()
+    value = str(google_sub or "").strip()
+    if not value:
+        return None
+    result = _db.client.table("users").select("*").eq("google_sub", value).limit(1).execute()
     rows = _require_data(result)
     return rows[0] if rows else None
 
@@ -526,6 +567,7 @@ def upsert_wallet_record(
     wallet_address: str,
     network: str,
     provider: Optional[str],
+    username: Optional[str] = None,
     user_id: Optional[str] = None,
     is_primary: bool = True,
     managed_wallet: bool = False,
@@ -533,11 +575,12 @@ def upsert_wallet_record(
     created_by: Optional[str] = None,
 ):
     _require_client()
+    resolved_username = username or user_id  # backward compat: accept user_id as username
     payload = {
         "wallet_address": wallet_address.strip(),
         "network": network,
         "provider": provider,
-        "user_id": user_id,
+        "username": resolved_username,
         "is_primary": bool(is_primary),
         "managed_wallet": bool(managed_wallet),
         "encrypted_secret": encrypted_secret,
@@ -547,7 +590,6 @@ def upsert_wallet_record(
         _db.client.table("wallets").upsert(payload, on_conflict="wallet_address").execute()
         return
     except Exception:
-        # Backward compatibility for environments where new columns are not yet migrated.
         fallback_payload = {
             "wallet_address": wallet_address.strip(),
             "network": network,
@@ -557,24 +599,25 @@ def upsert_wallet_record(
         _db.client.table("wallets").upsert(fallback_payload, on_conflict="wallet_address").execute()
 
 
-def assign_wallet_to_user(wallet_address: str, user_id: str):
+def assign_wallet_to_user(wallet_address: str, username: str):
+    """Link a wallet to a username. Accepts user_id param name for backward compat."""
     _require_client()
     try:
-        _db.client.table("wallets").update({"user_id": user_id}).eq(
+        _db.client.table("wallets").update({"username": username}).eq(
             "wallet_address", wallet_address.strip()
         ).execute()
     except Exception:
-        # Allow compatibility with environments where wallets.user_id has not been migrated yet.
         return
 
 
-def get_primary_wallet_for_user(user_id: str) -> Optional[Dict[str, Any]]:
+def get_primary_wallet_for_user(username: str) -> Optional[Dict[str, Any]]:
+    """Get primary wallet for a username."""
     _require_client()
     try:
         result = (
             _db.client.table("wallets")
             .select("*")
-            .eq("user_id", user_id)
+            .eq("username", username)
             .order("is_primary", desc=True)
             .order("created_at", desc=True)
             .limit(1)
@@ -584,6 +627,39 @@ def get_primary_wallet_for_user(user_id: str) -> Optional[Dict[str, Any]]:
         return rows[0] if rows else None
     except Exception:
         return None
+
+
+def list_wallets_for_user(username: str) -> List[Dict[str, Any]]:
+    """List all wallets linked to a username."""
+    _require_client()
+    try:
+        result = (
+            _db.client.table("wallets")
+            .select("*")
+            .eq("username", username)
+            .order("is_primary", desc=True)
+            .order("created_at", desc=True)
+            .execute()
+        )
+        return _require_data(result)
+    except Exception:
+        return []
+
+
+def link_external_wallet(username: str, wallet_address: str, network: str = "mainnet-beta") -> Dict[str, Any]:
+    """Link an external real Solana wallet to a user account."""
+    _require_client()
+    payload = {
+        "wallet_address": wallet_address.strip(),
+        "network": network,
+        "provider": "external",
+        "username": username,
+        "is_primary": False,
+        "managed_wallet": False,
+    }
+    result = _db.client.table("wallets").upsert(payload, on_conflict="wallet_address").execute()
+    rows = _require_data(result)
+    return rows[0] if rows else payload
 
 
 def get_wallet_record(wallet_address: str) -> Optional[Dict[str, Any]]:

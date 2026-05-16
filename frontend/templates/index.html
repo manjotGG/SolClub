@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SolClub - Sovereignty through Loyalty</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --primary: #a855f7;
+  --secondary: #38bdf8;
+  --tertiary: #4ade80;
+  --accent: #f472b6;
+  --bg: #060b14;
+  --surface: #0d1320;
+  --surface2: #131b2e;
+  --border: rgba(255,255,255,0.07);
+  --text: #e2e8f0;
+  --muted: #64748b;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+#pixel-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: 0.5; }
+
+.orb { position: fixed; border-radius: 50%; filter: blur(100px); pointer-events: none; z-index: 0; animation: orbDrift 20s ease-in-out infinite alternate; }
+.orb-1 { width: 600px; height: 600px; background: rgba(168,85,247,0.1); top: -150px; left: -150px; }
+.orb-2 { width: 500px; height: 500px; background: rgba(56,189,248,0.07); bottom: -100px; right: -100px; animation-delay: -8s; }
+.orb-3 { width: 350px; height: 350px; background: rgba(74,222,128,0.05); top: 50%; left: 50%; animation-delay: -14s; }
+@keyframes orbDrift { from{transform:translate(0,0) scale(1)} to{transform:translate(50px,30px) scale(1.1)} }
+
+/* NAV */
+.nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 0 48px; height: 68px;
+  background: rgba(6,11,20,0.75); backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--border);
+  max-width: 1280px; margin: 0 auto;
+}
+.nav-wrap { position: fixed; top: 0; left: 0; right: 0; z-index: 100; border-bottom: 1px solid var(--border); background: rgba(6,11,20,0.75); backdrop-filter: blur(24px); }
+.nav-inner { display: flex; justify-content: space-between; align-items: center; padding: 0 48px; height: 68px; max-width: 1280px; margin: 0 auto; }
+.nav-logo { font-family: 'Press Start 2P', monospace; font-size: 13px; color: #fff; text-decoration: none; display: flex; align-items: center; gap: 10px; }
+.logo-gem { width: 20px; height: 20px; background: linear-gradient(135deg, var(--primary), var(--secondary)); clip-path: polygon(50% 0%,100% 35%,75% 100%,25% 100%,0% 35%); animation: gemPulse 4s ease-in-out infinite; display: inline-block; flex-shrink: 0; }
+@keyframes gemPulse { 0%,100%{filter:brightness(1) hue-rotate(0deg)} 50%{filter:brightness(1.4) hue-rotate(30deg)} }
+.nav-links { display: flex; gap: 4px; }
+.nav-link { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--muted); text-decoration: none; padding: 8px 14px; border-radius: 8px; transition: all 0.2s; letter-spacing: 0.04em; }
+.nav-link:hover { color: #fff; background: rgba(255,255,255,0.06); }
+.nav-actions { display: flex; align-items: center; gap: 12px; }
+.nav-icon-btn { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--muted); transition: all 0.2s; text-decoration: none; }
+.nav-icon-btn:hover { color: var(--primary); border-color: rgba(168,85,247,0.4); background: rgba(168,85,247,0.08); }
+.nav-icon-btn .material-symbols-outlined { font-size: 18px; }
+.btn-connect { font-family: 'Press Start 2P', monospace; font-size: 9px; padding: 10px 18px; border-radius: 10px; background: linear-gradient(135deg, #7c3aed, #2563eb); color: #fff; text-decoration: none; border: none; cursor: pointer; transition: all 0.3s; white-space: nowrap; box-shadow: 0 0 20px rgba(124,58,237,0.3); }
+.btn-connect:hover { box-shadow: 0 0 35px rgba(168,85,247,0.5); transform: translateY(-1px); }
+
+/* HERO */
+.hero { position: relative; z-index: 10; min-height: 100vh; display: flex; align-items: center; padding: 120px 48px 80px; max-width: 1280px; margin: 0 auto; }
+.hero-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; width: 100%; align-items: center; }
+@media(max-width:900px) { .hero-inner{grid-template-columns:1fr;gap:60px} .nav-links{display:none} }
+
+.hero-eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--tertiary); letter-spacing: 0.18em; text-transform: uppercase; display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+.hero-eyebrow .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--tertiary); box-shadow: 0 0 10px var(--tertiary); animation: blink 2s ease infinite; }
+@keyframes blink { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
+
+.hero-title { font-family: 'Press Start 2P', monospace; font-size: clamp(20px, 3vw, 32px); line-height: 1.6; color: #fff; margin-bottom: 24px; }
+.gradient-text { background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent)); background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; animation: shimmer 4s linear infinite; }
+@keyframes shimmer { 0%{background-position:0%} 100%{background-position:200%} }
+
+.hero-desc { font-size: 16px; line-height: 1.75; color: #94a3b8; max-width: 480px; margin-bottom: 40px; }
+.hero-btns { display: flex; gap: 14px; flex-wrap: wrap; }
+.btn-primary { font-family: 'Press Start 2P', monospace; font-size: 9px; padding: 14px 24px; border-radius: 12px; background: linear-gradient(135deg, #7c3aed, #2563eb); color: #fff; text-decoration: none; border: none; cursor: pointer; transition: all 0.3s; box-shadow: 0 0 25px rgba(124,58,237,0.35); letter-spacing: 0.04em; }
+.btn-primary:hover { box-shadow: 0 0 45px rgba(168,85,247,0.55); transform: translateY(-2px); }
+.btn-outline { font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 14px 24px; border-radius: 12px; background: transparent; color: var(--secondary); border: 1px solid rgba(56,189,248,0.35); text-decoration: none; cursor: pointer; transition: all 0.3s; letter-spacing: 0.04em; }
+.btn-outline:hover { background: rgba(56,189,248,0.08); border-color: var(--secondary); box-shadow: 0 0 20px rgba(56,189,248,0.2); }
+
+/* Hero illustration */
+.hero-right { position: relative; }
+.hero-scene { border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,0.07); background: linear-gradient(160deg, #0a1628, #0f1f10); position: relative; }
+.hero-scene::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 60%, var(--bg) 100%); pointer-events: none; }
+.floating-badge { position: absolute; display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 10px; background: rgba(13,19,32,0.9); border: 1px solid var(--border); backdrop-filter: blur(10px); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+.badge-tl { top: 20px; left: -20px; animation: float 4s ease-in-out infinite; }
+.badge-br { bottom: 40px; right: -20px; animation: float 4s ease-in-out infinite; animation-delay: -2s; }
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+
+/* Ticker bar */
+.ticker-wrap { position: relative; z-index: 10; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: rgba(13,19,32,0.6); overflow: hidden; padding: 12px 0; }
+.ticker-inner { display: flex; gap: 60px; animation: tickerScroll 30s linear infinite; white-space: nowrap; }
+.ticker-item { display: flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); flex-shrink: 0; }
+.ticker-item .val { color: var(--tertiary); }
+.ticker-item .neg { color: #f87171; }
+@keyframes tickerScroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+
+/* FEATURES */
+.section { position: relative; z-index: 10; padding: 100px 48px; max-width: 1280px; margin: 0 auto; }
+.section-label { font-family: 'Press Start 2P', monospace; font-size: 9px; color: var(--primary); letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 16px; text-align: center; }
+.section-title { font-family: 'Press Start 2P', monospace; font-size: clamp(16px, 2.5vw, 24px); color: #fff; text-align: center; line-height: 1.7; margin-bottom: 16px; }
+.section-desc { font-size: 15px; color: var(--muted); text-align: center; max-width: 560px; margin: 0 auto 56px; line-height: 1.7; }
+
+.bento-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+@media(max-width:900px){.bento-grid{grid-template-columns:1fr}}
+.bento-wide { grid-column: span 2; }
+@media(max-width:900px){.bento-wide{grid-column:span 1}}
+
+.bento-card { background: rgba(13,19,32,0.8); border: 1px solid var(--border); border-radius: 20px; padding: 32px; position: relative; overflow: hidden; transition: all 0.3s; min-height: 240px; display: flex; flex-direction: column; justify-content: space-between; }
+.bento-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--primary), transparent); opacity: 0; transition: opacity 0.3s; }
+.bento-card:hover::before { opacity: 0.6; }
+.bento-card:hover { border-color: rgba(255,255,255,0.12); transform: translateY(-4px); box-shadow: 0 20px 60px rgba(0,0,0,0.4); }
+
+.card-glow { position: absolute; border-radius: 50%; filter: blur(60px); pointer-events: none; transition: opacity 0.3s; opacity: 0.12; }
+.bento-card:hover .card-glow { opacity: 0.22; }
+.glow-blue { width: 200px; height: 200px; background: var(--secondary); top: -60px; right: -60px; }
+.glow-purple { width: 180px; height: 180px; background: var(--primary); bottom: -40px; right: -40px; }
+.glow-green { width: 160px; height: 160px; background: var(--tertiary); bottom: -40px; left: -40px; }
+
+.card-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+.icon-blue { background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.2); }
+.icon-purple { background: rgba(168,85,247,0.12); border: 1px solid rgba(168,85,247,0.2); }
+.icon-green { background: rgba(74,222,128,0.12); border: 1px solid rgba(74,222,128,0.2); }
+.icon-pink { background: rgba(244,114,182,0.12); border: 1px solid rgba(244,114,182,0.2); }
+.card-icon .material-symbols-outlined { font-size: 22px; }
+.icon-blue .material-symbols-outlined { color: var(--secondary); }
+.icon-purple .material-symbols-outlined { color: var(--primary); }
+.icon-green .material-symbols-outlined { color: var(--tertiary); }
+.icon-pink .material-symbols-outlined { color: var(--accent); }
+
+.card-tag { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 8px; }
+.card-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 20px; color: #e2e8f0; margin-bottom: 8px; }
+.card-desc { font-size: 14px; color: var(--muted); line-height: 1.65; }
+
+/* Mini progress bar in card */
+.mini-bar-wrap { margin-top: 20px; }
+.mini-bar-label { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); margin-bottom: 6px; }
+.mini-bar { height: 4px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
+.mini-bar-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--secondary), var(--tertiary)); }
+
+/* LEVEL SECTION */
+.level-section { position: relative; z-index: 10; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: rgba(13,19,32,0.4); }
+.level-inner { padding: 100px 48px; max-width: 1280px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
+@media(max-width:900px){.level-inner{grid-template-columns:1fr;gap:50px}}
+
+.level-card { background: rgba(13,19,32,0.9); border: 1px solid rgba(168,85,247,0.25); border-radius: 24px; padding: 36px; box-shadow: 0 0 40px rgba(168,85,247,0.1); position: relative; overflow: hidden; }
+.level-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--primary), var(--secondary)); }
+
+.level-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
+.level-avatar { width: 64px; height: 64px; border-radius: 50%; background: rgba(56,189,248,0.12); border: 2px solid rgba(56,189,248,0.4); display: flex; align-items: center; justify-content: center; position: relative; }
+.level-avatar .material-symbols-outlined { color: var(--secondary); font-size: 28px; font-variation-settings: 'FILL' 1; }
+.level-badge { font-family: 'Press Start 2P', monospace; font-size: 18px; color: var(--primary); }
+.level-tier { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--secondary); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 4px; }
+.level-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 20px; color: #fff; }
+
+.xp-label { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+.xp-bar { height: 8px; background: rgba(255,255,255,0.06); border-radius: 8px; overflow: hidden; margin-bottom: 24px; position: relative; }
+.xp-fill { height: 100%; width: 84.5%; background: linear-gradient(90deg, var(--secondary), var(--tertiary)); border-radius: 8px; position: relative; }
+.xp-fill::after { content: ''; position: absolute; right: 0; top: 0; bottom: 0; width: 12px; background: rgba(255,255,255,0.5); filter: blur(3px); }
+
+.milestone { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-left: 3px solid var(--tertiary); border-radius: 10px; }
+.milestone-left { display: flex; align-items: center; gap: 10px; }
+.milestone .material-symbols-outlined { color: var(--tertiary); font-size: 18px; font-variation-settings: 'FILL' 1; }
+.milestone-name { font-family: 'Syne', sans-serif; font-weight: 600; font-size: 14px; color: var(--text); }
+.milestone-reward { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--tertiary); background: rgba(74,222,128,0.1); padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(74,222,128,0.2); }
+
+/* Tier row */
+.tier-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 20px; }
+.tier-pill { padding: 8px; border-radius: 8px; text-align: center; border: 1px solid var(--border); background: rgba(255,255,255,0.02); }
+.tier-pill.active { border-color: rgba(56,189,248,0.4); background: rgba(56,189,248,0.08); }
+.tier-pill-name { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--muted); text-transform: uppercase; display: block; margin-bottom: 3px; }
+.tier-pill.active .tier-pill-name { color: var(--secondary); }
+.tier-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); margin: 0 auto; }
+.tier-pill.active .tier-dot { background: var(--secondary); box-shadow: 0 0 6px var(--secondary); }
+
+/* STATS BAND */
+.stats-band { position: relative; z-index: 10; padding: 60px 48px; max-width: 1280px; margin: 0 auto; }
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+@media(max-width:900px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
+.stat-card { background: rgba(13,19,32,0.7); border: 1px solid var(--border); border-radius: 16px; padding: 24px; text-align: center; transition: all 0.3s; }
+.stat-card:hover { border-color: rgba(168,85,247,0.3); transform: translateY(-3px); }
+.stat-num { font-family: 'Press Start 2P', monospace; font-size: 22px; color: var(--primary); display: block; margin-bottom: 8px; }
+.stat-lbl { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+
+/* FOOTER */
+footer { position: relative; z-index: 10; border-top: 1px solid var(--border); padding: 40px 48px; max-width: 1280px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
+.footer-logo { font-family: 'Press Start 2P', monospace; font-size: 11px; color: #fff; display: flex; align-items: center; gap: 8px; }
+.footer-copy { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); }
+.footer-links { display: flex; gap: 24px; }
+.footer-links a { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); text-decoration: none; transition: color 0.2s; }
+.footer-links a:hover { color: var(--primary); }
+
+/* fade-up */
+.fade-up { opacity: 0; transform: translateY(28px); animation: fadeUp 0.65s ease forwards; }
+@keyframes fadeUp { to{opacity:1;transform:translateY(0)} }
+.d1{animation-delay:.05s} .d2{animation-delay:.15s} .d3{animation-delay:.25s} .d4{animation-delay:.35s} .d5{animation-delay:.45s} .d6{animation-delay:.55s}
+</style>
+</head>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+<canvas id="pixel-canvas"></canvas>
+
+<!-- NAV -->
+<div class="nav-wrap">
+  <div class="nav-inner">
+    <a class="nav-logo" href="/">
+      <span class="logo-gem"></span> SolClub
+    </a>
+    <nav class="nav-links">
+      <a class="nav-link" href="#">Ecosystem</a>
+      <a class="nav-link" href="#">Tiers</a>
+      <a class="nav-link" href="#">Impact</a>
+      <a class="nav-link" href="#">Community</a>
+    </nav>
+    <div class="nav-actions">
+      <a class="nav-icon-btn" href="#"><span class="material-symbols-outlined">notifications</span></a>
+      <a class="nav-icon-btn" href="#"><span class="material-symbols-outlined">account_balance_wallet</span></a>
+      <a class="btn-connect" href="/auth">Connect Wallet</a>
+    </div>
+  </div>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="hero-eyebrow fade-up d1"><span class="dot"></span> Web3 Loyalty Protocol · Solana</div>
+      <h1 class="hero-title fade-up d2">Loyalty that<br/>belongs<br/><span class="gradient-text">to you</span></h1>
+      <p class="hero-desc fade-up d3">Decentralized rewards. Real ownership. Seamless progression. SolClub redefines customer loyalty on the Solana blockchain — no middlemen, no rent.</p>
+      <div class="hero-btns fade-up d4">
+        <a class="btn-primary" href="/auth">Get Started</a>
+        <a class="btn-outline" href="/onboarding">Explore Ecosystem</a>
+      </div>
+    </div>
+
+    <!-- Right: pixel scene + floating badges -->
+    <div class="hero-right fade-up d3">
+      <div class="floating-badge badge-tl">
+        <span style="width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 8px #4ade80;flex-shrink:0;display:inline-block;"></span>
+        <span style="color:#4ade80;">+1,240 XP</span>
+        <span style="color:#64748b;">earned today</span>
+      </div>
+      <div class="hero-scene">
+        <svg viewBox="0 0 560 340" xmlns="http://www.w3.org/2000/svg" width="100%" style="display:block;">
+          <defs>
+            <linearGradient id="hsky" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:#04091a"/>
+              <stop offset="100%" style="stop-color:#0a1f3a"/>
+            </linearGradient>
+            <linearGradient id="hground" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:#0a2010"/>
+              <stop offset="100%" style="stop-color:#051008"/>
+            </linearGradient>
+            <radialGradient id="hglow" cx="50%" cy="45%" r="35%">
+              <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:0.45"/>
+              <stop offset="100%" style="stop-color:transparent;stop-opacity:0"/>
+            </radialGradient>
+            <radialGradient id="hglow2" cx="70%" cy="30%" r="25%">
+              <stop offset="0%" style="stop-color:#0ea5e9;stop-opacity:0.2"/>
+              <stop offset="100%" style="stop-color:transparent;stop-opacity:0"/>
+            </radialGradient>
+          </defs>
+          <rect width="560" height="340" fill="url(#hsky)"/>
+          <rect width="560" height="340" fill="url(#hglow)"/>
+          <rect width="560" height="340" fill="url(#hglow2)"/>
+          <!-- Mountains -->
+          <polygon points="0,260 80,140 160,260" fill="#0f2040" opacity="0.7"/>
+          <polygon points="100,260 200,110 300,260" fill="#0d1c38" opacity="0.8"/>
+          <polygon points="320,260 420,120 520,260" fill="#0f2040" opacity="0.7"/>
+          <polygon points="460,260 530,160 560,260" fill="#0d1c38" opacity="0.6"/>
+          <!-- Snow caps -->
+          <polygon points="200,110 220,145 180,145" fill="rgba(255,255,255,0.12)"/>
+          <polygon points="420,120 435,148 405,148" fill="rgba(255,255,255,0.1)"/>
+          <!-- Ground -->
+          <rect y="260" width="560" height="80" fill="url(#hground)"/>
+          <rect y="260" width="560" height="2" fill="#1a5c30" opacity="0.5"/>
+          <!-- Trees left -->
+          <g>
+            <rect x="28" y="210" width="8" height="52" fill="#1a3d20"/>
+            <rect x="20" y="186" width="24" height="28" fill="#1f5c2a"/>
+            <rect x="24" y="168" width="16" height="22" fill="#28814a"/>
+            <rect x="28" y="154" width="8" height="16" fill="#35a055"/>
+          </g>
+          <g>
+            <rect x="68" y="220" width="6" height="42" fill="#1a3d20"/>
+            <rect x="62" y="200" width="18" height="24" fill="#1f5c2a"/>
+            <rect x="65" y="186" width="12" height="17" fill="#28814a"/>
+          </g>
+          <g>
+            <rect x="100" y="225" width="5" height="37" fill="#1a3d20"/>
+            <rect x="95" y="208" width="15" height="20" fill="#1f5c2a"/>
+            <rect x="97" y="196" width="11" height="15" fill="#28814a"/>
+          </g>
+          <!-- Trees right -->
+          <g>
+            <rect x="470" y="210" width="8" height="52" fill="#1a3d20"/>
+            <rect x="462" y="186" width="24" height="28" fill="#1f5c2a"/>
+            <rect x="466" y="168" width="16" height="22" fill="#28814a"/>
+            <rect x="470" y="154" width="8" height="16" fill="#35a055"/>
+          </g>
+          <g>
+            <rect x="500" y="218" width="6" height="44" fill="#1a3d20"/>
+            <rect x="494" y="198" width="18" height="24" fill="#1f5c2a"/>
+            <rect x="497" y="185" width="12" height="16" fill="#28814a"/>
+          </g>
+          <!-- Central gem tower (larger) -->
+          <g transform="translate(248,50)">
+            <ellipse cx="32" cy="140" rx="55" ry="40" fill="#7c3aed" opacity="0.12"/>
+            <polygon points="32,0 58,35 46,95 18,95 6,35" fill="#4c1d95" opacity="0.95"/>
+            <polygon points="32,0 58,35 32,58" fill="#7c3aed"/>
+            <polygon points="32,0 6,35 32,58" fill="#a855f7"/>
+            <polygon points="6,35 18,95 32,58" fill="#3b0764"/>
+            <polygon points="58,35 46,95 32,58" fill="#5b21b6"/>
+            <polygon points="32,6 48,32 32,28" fill="rgba(255,255,255,0.35)"/>
+            <rect x="16" y="95" width="32" height="6" fill="#2d1b69"/>
+            <rect x="12" y="101" width="40" height="5" fill="#1e1243"/>
+            <!-- Glow rings -->
+            <circle cx="32" cy="47" r="72" fill="none" stroke="#7c3aed" stroke-width="1" opacity="0.15"/>
+            <circle cx="32" cy="47" r="88" fill="none" stroke="#a855f7" stroke-width="0.5" opacity="0.1"/>
+          </g>
+          <!-- Side crystals small -->
+          <g transform="translate(140,160)" opacity="0.6">
+            <polygon points="10,0 18,14 14,34 6,34 2,14" fill="#1d4ed8"/>
+            <polygon points="10,0 18,14 10,22" fill="#3b82f6"/>
+            <polygon points="10,0 2,14 10,22" fill="#60a5fa"/>
+          </g>
+          <g transform="translate(395,155)" opacity="0.6">
+            <polygon points="10,0 18,14 14,34 6,34 2,14" fill="#0e7490"/>
+            <polygon points="10,0 18,14 10,22" fill="#0ea5e9"/>
+            <polygon points="10,0 2,14 10,22" fill="#38bdf8"/>
+          </g>
+          <!-- Stars -->
+          <g fill="#fff">
+            <rect x="25" y="18" width="2" height="2" opacity="0.9"/>
+            <rect x="90" y="40" width="2" height="2" opacity="0.6"/>
+            <rect x="160" y="22" width="2" height="2" opacity="0.8"/>
+            <rect x="240" y="35" width="2" height="2" opacity="0.5"/>
+            <rect x="380" y="20" width="2" height="2" opacity="0.9"/>
+            <rect x="440" y="45" width="2" height="2" opacity="0.7"/>
+            <rect x="510" y="30" width="2" height="2" opacity="0.8"/>
+            <rect x="540" y="14" width="2" height="2" opacity="0.6"/>
+            <rect x="70" y="65" width="2" height="2" opacity="0.4"/>
+            <rect x="490" y="70" width="2" height="2" opacity="0.4"/>
+            <rect x="340" y="50" width="2" height="2" opacity="0.6"/>
+          </g>
+          <!-- Characters -->
+          <g transform="translate(180,200)">
+            <!-- Knight -->
+            <rect x="10" y="10" width="18" height="24" fill="#2563eb"/>
+            <rect x="12" y="1" width="14" height="12" fill="#fbbf24"/>
+            <rect x="11" y="1" width="16" height="7" fill="#1d4ed8"/>
+            <rect x="10" y="34" width="8" height="10" fill="#1e40af"/>
+            <rect x="20" y="34" width="8" height="10" fill="#1e40af"/>
+            <rect x="30" y="5" width="3" height="22" fill="#94a3b8"/>
+            <rect x="25" y="12" width="13" height="3" fill="#64748b"/>
+            <!-- Shield -->
+            <rect x="-5" y="12" width="10" height="14" fill="#1d4ed8"/>
+            <rect x="-4" y="13" width="8" height="12" fill="#3b82f6"/>
+            <rect x="-1" y="15" width="2" height="2" fill="#fbbf24"/>
+          </g>
+          <g transform="translate(360,198)">
+            <!-- Mage -->
+            <rect x="10" y="10" width="18" height="24" fill="#6d28d9"/>
+            <rect x="12" y="2" width="14" height="10" fill="#fcd34d"/>
+            <rect x="10" y="2" width="18" height="5" fill="#4c1d95"/>
+            <rect x="10" y="34" width="8" height="10" fill="#5b21b6"/>
+            <rect x="20" y="34" width="8" height="10" fill="#5b21b6"/>
+            <rect x="-2" y="0" width="3" height="34" fill="#92400e"/>
+            <ellipse cx="-0.5" cy="-2" rx="8" ry="5" fill="#f59e0b" opacity="0.9"/>
+            <circle cx="-0.5" cy="-2" r="3" fill="#fde68a"/>
+          </g>
+          <!-- Ground flowers -->
+          <g fill="#ec4899" opacity="0.7">
+            <rect x="140" y="257" width="5" height="5"/>
+            <rect x="200" y="255" width="4" height="4"/>
+            <rect x="340" y="256" width="5" height="5"/>
+            <rect x="410" y="254" width="4" height="4"/>
+          </g>
+          <g fill="#a3e635" opacity="0.5">
+            <rect x="170" y="259" width="3" height="3"/>
+            <rect x="375" y="258" width="3" height="3"/>
+          </g>
+          <!-- Pixel UI panel floating -->
+          <g transform="translate(30,30)" opacity="0.7">
+            <rect width="80" height="40" rx="4" fill="rgba(13,19,32,0.8)" stroke="rgba(168,85,247,0.3)" stroke-width="1"/>
+            <rect x="6" y="8" width="20" height="2" fill="#7c3aed" opacity="0.8"/>
+            <rect x="6" y="14" width="32" height="2" fill="#475569" opacity="0.7"/>
+            <rect x="6" y="20" width="24" height="2" fill="#475569" opacity="0.7"/>
+            <rect x="6" y="28" width="50" height="4" rx="2" fill="rgba(255,255,255,0.05)"/>
+            <rect x="6" y="28" width="35" height="4" rx="2" fill="#2563eb" opacity="0.7"/>
+          </g>
+        </svg>
+      </div>
+      <div class="floating-badge badge-br">
+        <span class="material-symbols-outlined" style="color:#a855f7;font-size:16px;font-variation-settings:'FILL' 1;">military_tech</span>
+        <span style="color:#e2e8f0;font-weight:600;">Silver Elite</span>
+        <span style="color:#64748b;">· Lv 42</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TICKER -->
+<div class="ticker-wrap" style="position:relative;z-index:10;">
+  <div class="ticker-inner" id="ticker">
+    <span class="ticker-item">SOL/USDC <span class="val">$142.80</span> <span class="val">▲ 3.2%</span></span>
+    <span class="ticker-item">Active Members <span class="val">12,847</span></span>
+    <span class="ticker-item">Total XP Distributed <span class="val">4.2M</span></span>
+    <span class="ticker-item">Rewards Paid Out <span class="val">$840K</span></span>
+    <span class="ticker-item">Avg Cashback <span class="val">4.8%</span></span>
+    <span class="ticker-item">Network <span class="val">Solana Mainnet</span></span>
+    <span class="ticker-item">Block Time <span class="val">400ms</span></span>
+    <span class="ticker-item">SOL/USDC <span class="val">$142.80</span> <span class="val">▲ 3.2%</span></span>
+    <span class="ticker-item">Active Members <span class="val">12,847</span></span>
+    <span class="ticker-item">Total XP Distributed <span class="val">4.2M</span></span>
+    <span class="ticker-item">Rewards Paid Out <span class="val">$840K</span></span>
+    <span class="ticker-item">Avg Cashback <span class="val">4.8%</span></span>
+    <span class="ticker-item">Network <span class="val">Solana Mainnet</span></span>
+    <span class="ticker-item">Block Time <span class="val">400ms</span></span>
+  </div>
+</div>
+
+<!-- FEATURES BENTO -->
+<div class="section">
+  <div class="section-label">Core Protocol</div>
+  <h2 class="section-title">Own your <span class="gradient-text">rewards</span></h2>
+  <p class="section-desc">Stop renting points. Start owning assets. The future of commerce is decentralized, transparent, and completely in your control.</p>
+
+  <div class="bento-grid">
+    <!-- QR Payments - wide -->
+    <div class="bento-card bento-wide">
+      <div class="card-glow glow-blue"></div>
+      <div>
+        <div class="card-icon icon-blue"><span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">qr_code_scanner</span></div>
+        <div class="card-tag">Solana Pay · Gasless</div>
+        <div class="card-title">QR Payments</div>
+        <div class="card-desc">Instant, gasless transactions at your favorite merchants. Tap, scan, done. Every payment earns XP and cashback automatically credited to your wallet.</div>
+      </div>
+      <div class="mini-bar-wrap">
+        <div class="mini-bar-label"><span>Transaction Speed</span><span>~400ms</span></div>
+        <div class="mini-bar"><div class="mini-bar-fill" style="width:96%"></div></div>
+      </div>
+    </div>
+
+    <!-- Progression -->
+    <div class="bento-card">
+      <div class="card-glow glow-purple"></div>
+      <div class="card-icon icon-purple"><span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">trending_up</span></div>
+      <div class="card-tag">Dynamic Tiers</div>
+      <div class="card-title">Progression</div>
+      <div class="card-desc">Earn XP and climb tiers. Every interaction shapes your sovereign profile.</div>
+      <div class="mini-bar-wrap">
+        <div class="mini-bar-label"><span>Your XP</span><span>84%</span></div>
+        <div class="mini-bar"><div class="mini-bar-fill" style="width:84%;background:linear-gradient(90deg,var(--primary),var(--accent))"></div></div>
+      </div>
+    </div>
+
+    <!-- Cashback -->
+    <div class="bento-card">
+      <div class="card-glow glow-green"></div>
+      <div class="card-icon icon-green"><span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">payments</span></div>
+      <div class="card-tag">Auto-Yield</div>
+      <div class="card-title">Cashback</div>
+      <div class="card-desc">Earn real yield on every purchase. Compounding rewards with no lock-ups.</div>
+      <div class="mini-bar-wrap">
+        <div class="mini-bar-label"><span>Avg Yield</span><span>4.8%</span></div>
+        <div class="mini-bar"><div class="mini-bar-fill" style="width:48%;background:linear-gradient(90deg,var(--tertiary),var(--secondary))"></div></div>
+      </div>
+    </div>
+
+    <!-- Dashboard - wide -->
+    <div class="bento-card bento-wide">
+      <div class="card-glow glow-purple" style="top:-40px;left:-40px;"></div>
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div class="card-icon icon-purple" style="margin-bottom:0;"><span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">monitoring</span></div>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--tertiary);background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.2);padding:4px 10px;border-radius:6px;">● LIVE</span>
+        </div>
+        <div style="margin-top:16px;" class="card-tag">Real-Time Analytics</div>
+        <div class="card-title">Dashboard Insights</div>
+        <div class="card-desc">Track your ecosystem footprint, spending habits, and reward accumulation in real-time. Every metric. Every transaction.</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px;">
+        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">
+          <span style="font-family:'Press Start 2P',monospace;font-size:14px;color:var(--secondary);display:block;margin-bottom:4px;">$2.4K</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);">EARNED</span>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">
+          <span style="font-family:'Press Start 2P',monospace;font-size:14px;color:var(--primary);display:block;margin-bottom:4px;">8.4K</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);">XP TOTAL</span>
+        </div>
+        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center;">
+          <span style="font-family:'Press Start 2P',monospace;font-size:14px;color:var(--tertiary);display:block;margin-bottom:4px;">142</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);">DAYS</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- NFTs -->
+    <div class="bento-card">
+      <div class="card-icon icon-pink"><span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">diamond</span></div>
+      <div class="card-tag">Dynamic NFTs</div>
+      <div class="card-title">Digital Assets</div>
+      <div class="card-desc">Tier unlocks mint unique on-chain NFTs. Your loyalty becomes a tradeable, evolving asset.</div>
+    </div>
+  </div>
+</div>
+
+<!-- LEVEL UP SECTION -->
+<div class="level-section">
+  <div class="level-inner">
+    <div>
+      <div class="section-label" style="text-align:left;">Gamification Layer</div>
+      <h2 class="section-title" style="text-align:left;font-size:clamp(16px,2.2vw,22px);">Gamify your<br/><span class="gradient-text">engagement</span></h2>
+      <p style="font-size:15px;color:var(--muted);line-height:1.75;max-width:420px;margin:20px 0 32px;">Every interaction, purchase, and referral contributes to your sovereign profile. Unlock exclusive tiers, dynamic NFTs, and multiplying reward rates as you level up.</p>
+      <a href="/login" style="display:inline-flex;align-items:center;gap:8px;font-family:'Press Start 2P',monospace;font-size:9px;color:var(--primary);text-decoration:none;transition:all 0.2s;" class="btn-link">
+        View Leaderboard
+        <span class="material-symbols-outlined" style="font-size:16px;">arrow_forward</span>
+      </a>
+    </div>
+    <div>
+      <div class="level-card">
+        <div class="level-header">
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div class="level-avatar"><span class="material-symbols-outlined">military_tech</span></div>
+            <div>
+              <div class="level-tier">Current Tier</div>
+              <div class="level-name">Silver Elite</div>
+            </div>
+          </div>
+          <div class="level-badge">Lv 42</div>
+        </div>
+        <div class="xp-label"><span>XP Progress</span><span>8,450 / 10,000</span></div>
+        <div class="xp-bar"><div class="xp-fill"></div></div>
+        <div class="milestone">
+          <div class="milestone-left">
+            <span class="material-symbols-outlined">lock_open</span>
+            <span class="milestone-name">Gold Tier Status</span>
+          </div>
+          <span class="milestone-reward">+15% Yield</span>
+        </div>
+        <div class="tier-row">
+          <div class="tier-pill"><span class="tier-pill-name">Bronze</span><span class="tier-dot"></span></div>
+          <div class="tier-pill active"><span class="tier-pill-name">Silver</span><span class="tier-dot"></span></div>
+          <div class="tier-pill"><span class="tier-pill-name">Gold</span><span class="tier-dot"></span></div>
+          <div class="tier-pill"><span class="tier-pill-name">Elite</span><span class="tier-dot"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats-band">
+  <div class="stats-grid">
+    <div class="stat-card">
+      <span class="stat-num">12K+</span>
+      <span class="stat-lbl">Active Members</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-num">4.2M</span>
+      <span class="stat-lbl">XP Distributed</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-num">$840K</span>
+      <span class="stat-lbl">Rewards Paid</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-num">99.9%</span>
+      <span class="stat-lbl">Uptime</span>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo"><span class="logo-gem"></span> SolClub</div>
+  <div class="footer-copy">© 2024 SolClub Ecosystem · Sovereignty through Loyalty.</div>
+  <div class="footer-links">
+    <a href="#">Privacy Protocol</a>
+    <a href="#">Terms</a>
+    <a href="#">Discord</a>
+    <a href="#">Twitter</a>
+  </div>
+</footer>
+
+<script>
+const canvas = document.getElementById('pixel-canvas');
+const ctx = canvas.getContext('2d');
+let stars = [];
+function resize() { canvas.width = innerWidth; canvas.height = innerHeight; }
+function makeStars() {
+  stars = [];
+  for (let i = 0; i < 140; i++) {
+    stars.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height*0.7, sz: Math.random()<0.25?2:1, a: Math.random()*0.7+0.2, sp: Math.random()*0.012+0.004, o: Math.random()*Math.PI*2, c: Math.random()<0.15?'#a855f7':Math.random()<0.15?'#38bdf8':'#fff' });
+  }
+}
+let f = 0;
+function draw() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  f++;
+  stars.forEach(s => {
+    const a = s.a*(0.5+0.5*Math.sin(f*s.sp+s.o));
+    ctx.fillStyle = s.c; ctx.globalAlpha = a;
+    ctx.fillRect(Math.floor(s.x), Math.floor(s.y), s.sz, s.sz);
+  });
+  ctx.globalAlpha = 1;
+  requestAnimationFrame(draw);
+}
+resize(); makeStars(); draw();
+addEventListener('resize', () => { resize(); makeStars(); });
+</script>
+</body>
+</html>

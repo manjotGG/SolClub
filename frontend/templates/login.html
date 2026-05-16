@@ -2,30 +2,339 @@
 <html class="dark" lang="en">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>SolClub | Login</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-<style>body{font-family:'Inter',sans-serif;background:#0f131e;color:#dfe2f2}.font-headline{font-family:'Space Grotesk',sans-serif}.glass{background:rgba(27,31,43,.78);backdrop-filter:blur(16px)}</style>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Login - SolClub</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --primary: #a855f7;
+  --secondary: #38bdf8;
+  --tertiary: #4ade80;
+  --accent: #f472b6;
+  --bg: #060b14;
+  --surface: #0d1320;
+  --surface2: #131b2e;
+  --border: rgba(255,255,255,0.07);
+  --text: #e2e8f0;
+  --muted: #64748b;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* BG effects */
+#pixel-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: 0.45; }
+.orb { position: fixed; border-radius: 50%; filter: blur(100px); pointer-events: none; z-index: 0; animation: orbDrift 18s ease-in-out infinite alternate; }
+.orb-1 { width: 500px; height: 500px; background: rgba(168,85,247,0.1); top: -120px; left: -120px; }
+.orb-2 { width: 400px; height: 400px; background: rgba(56,189,248,0.08); bottom: -100px; right: -100px; animation-delay: -9s; }
+@keyframes orbDrift { from{transform:translate(0,0)} to{transform:translate(40px,25px)} }
+
+/* Grid overlay */
+.grid-overlay { position: fixed; inset: 0; z-index: 0; pointer-events: none; background-image: linear-gradient(rgba(255,255,255,0.02) 1px,transparent 1px), linear-gradient(90deg,rgba(255,255,255,0.02) 1px,transparent 1px); background-size: 40px 40px; opacity: 0.4; }
+
+/* NAV */
+.nav-wrap { position: fixed; top: 0; left: 0; right: 0; z-index: 100; border-bottom: 1px solid var(--border); background: rgba(6,11,20,0.8); backdrop-filter: blur(24px); }
+.nav-inner { display: flex; justify-content: space-between; align-items: center; padding: 0 40px; height: 64px; max-width: 1280px; margin: 0 auto; }
+.nav-logo { font-family: 'Press Start 2P', monospace; font-size: 12px; color: #fff; text-decoration: none; display: flex; align-items: center; gap: 10px; }
+.logo-gem { width: 18px; height: 18px; background: linear-gradient(135deg, var(--primary), var(--secondary)); clip-path: polygon(50% 0%,100% 35%,75% 100%,25% 100%,0% 35%); animation: gemPulse 4s ease-in-out infinite; display: inline-block; }
+@keyframes gemPulse { 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.5) hue-rotate(20deg)} }
+.nav-back { display: flex; align-items: center; gap: 6px; color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 11px; text-decoration: none; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); transition: all 0.2s; }
+.nav-back:hover { color: #fff; border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); }
+.nav-back .material-symbols-outlined { font-size: 15px; }
+
+/* MAIN layout */
+.page-wrap { position: relative; z-index: 10; flex: 1; display: flex; align-items: center; justify-content: center; padding: 100px 24px 60px; }
+.login-layout { display: grid; grid-template-columns: 1fr 460px; gap: 60px; width: 100%; max-width: 960px; align-items: center; }
+@media(max-width:800px){.login-layout{grid-template-columns:1fr;}.login-left{display:none}}
+
+/* LEFT decorative column */
+.login-left { display: flex; flex-direction: column; gap: 24px; }
+.left-eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--tertiary); text-transform: uppercase; letter-spacing: 0.18em; display: flex; align-items: center; gap: 8px; }
+.left-eyebrow::before { content: '▶'; font-size: 8px; }
+.left-title { font-family: 'Press Start 2P', monospace; font-size: clamp(16px,2.5vw,22px); color: #fff; line-height: 1.7; }
+.gradient-text { background: linear-gradient(90deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.left-desc { font-size: 14px; color: var(--muted); line-height: 1.7; max-width: 360px; }
+
+/* Pixel scene left */
+.mini-scene { border-radius: 16px; overflow: hidden; border: 1px solid var(--border); }
+
+/* Info cards left */
+.info-cards { display: flex; flex-direction: column; gap: 10px; }
+.info-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: rgba(13,19,32,0.8); border: 1px solid var(--border); border-radius: 12px; transition: all 0.25s; }
+.info-card:hover { border-color: rgba(168,85,247,0.3); transform: translateX(4px); }
+.info-card-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.info-card .material-symbols-outlined { font-size: 16px; font-variation-settings: 'FILL' 1; }
+.info-card-text { font-family: 'Syne', sans-serif; font-size: 13px; color: var(--text); font-weight: 600; }
+.info-card-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); }
+
+/* Login card */
+.login-card { background: rgba(13,19,32,0.85); border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; padding: 36px; backdrop-filter: blur(20px); position: relative; overflow: hidden; }
+.login-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--primary), var(--secondary), transparent); }
+
+.card-top { display: flex; flex-direction: column; align-items: center; margin-bottom: 28px; }
+.card-icon-wrap { width: 60px; height: 60px; border-radius: 50%; background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.3); display: flex; align-items: center; justify-content: center; margin-bottom: 16px; box-shadow: 0 0 30px rgba(168,85,247,0.2); }
+.card-icon-wrap .material-symbols-outlined { font-size: 28px; color: var(--primary); font-variation-settings: 'FILL' 1; }
+.card-title { font-family: 'Press Start 2P', monospace; font-size: 16px; color: #fff; margin-bottom: 6px; }
+.card-sub { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); }
+
+/* Form */
+.form-group { margin-bottom: 18px; }
+.form-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; display: block; margin-bottom: 8px; }
+.input-wrap { position: relative; }
+.input-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-family: 'Material Symbols Outlined'; font-size: 18px; color: var(--muted); font-variation-settings: 'FILL' 0; pointer-events: none; transition: color 0.2s; }
+.form-input { width: 100%; background: rgba(255,255,255,0.04) !important; border: 1px solid rgba(255,255,255,0.09); border-radius: 12px; padding: 13px 16px 13px 46px; color: #e2e8f0 !important; -webkit-text-fill-color: #e2e8f0; caret-color: #38bdf8; font-family: 'JetBrains Mono', monospace; font-size: 13px; outline: none; transition: all 0.25s; }
+.form-input::placeholder { color: rgba(255,255,255,0.2); }
+.form-input:focus { border-color: var(--secondary); box-shadow: 0 0 0 3px rgba(56,189,248,0.12); }
+.form-input:focus + .input-icon, .input-wrap:focus-within .input-icon { color: var(--secondary); }
+
+/* forgot */
+.forgot-row { display: flex; justify-content: flex-end; margin-top: -10px; margin-bottom: 18px; }
+.forgot-link { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); text-decoration: none; transition: color 0.2s; }
+.forgot-link:hover { color: var(--primary); }
+
+/* Buttons */
+.btn-login { width: 100%; padding: 14px; border-radius: 12px; border: none; cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 10px; color: #fff; background: linear-gradient(135deg, #7c3aed, #2563eb); position: relative; overflow: hidden; transition: all 0.3s; box-shadow: 0 0 25px rgba(124,58,237,0.3); display: flex; align-items: center; justify-content: center; gap: 10px; letter-spacing: 0.04em; }
+.btn-login:hover { box-shadow: 0 0 45px rgba(168,85,247,0.5); transform: translateY(-2px); }
+.btn-login:active { transform: scale(0.98); }
+.btn-login .material-symbols-outlined { font-size: 18px; }
+
+.divider { display: flex; align-items: center; gap: 14px; margin: 18px 0; color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; }
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+.btn-google { width: 100%; padding: 13px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); cursor: pointer; font-family: 'Syne', sans-serif; font-weight: 600; font-size: 14px; color: var(--text); transition: all 0.25s; display: flex; align-items: center; justify-content: center; gap: 10px; }
+.btn-google:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.18); }
+.btn-google .material-symbols-outlined { font-size: 20px; color: var(--muted); }
+
+/* Status & Footer */
+#returningLoginStatus { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 12px; display: block; }
+.card-footer { border-top: 1px solid var(--border); padding-top: 18px; margin-top: 20px; text-align: center; }
+.card-footer a { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--secondary); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; }
+.card-footer a:hover { color: var(--primary); }
+.card-footer .material-symbols-outlined { font-size: 14px; }
+
+/* Security badge */
+.security-badge { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.18); border-radius: 10px; margin-top: 16px; }
+.security-badge .material-symbols-outlined { font-size: 15px; color: var(--tertiary); font-variation-settings: 'FILL' 1; }
+.security-badge span { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #64748b; }
+.security-badge .highlight { color: var(--tertiary); }
+
+/* Fade up */
+.fade-up { opacity: 0; transform: translateY(24px); animation: fadeUp 0.6s ease forwards; }
+@keyframes fadeUp { to{opacity:1;transform:translateY(0)} }
+.d1{animation-delay:.05s}.d2{animation-delay:.15s}.d3{animation-delay:.25s}.d4{animation-delay:.35s}.d5{animation-delay:.45s}
+</style>
 </head>
-<body class="min-h-screen px-6 py-12">
-<main class="max-w-xl mx-auto">
-<section class="glass rounded-2xl border border-white/10 p-8">
-<h1 class="font-headline text-4xl font-black text-cyan-300">Login</h1>
-<p class="mt-2 text-slate-300">Use wallet address, username, or email.</p>
-<form id="returningLoginForm" class="mt-6 space-y-3">
-<input id="returningIdentifier" type="text" placeholder="Wallet / username / email" class="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2" required/>
-<input id="returningPassword" type="password" placeholder="Password" class="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2"/>
-<select id="returningRole" class="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2">
-<option value="client">Client</option>
-<option value="merchant">Merchant</option>
-</select>
-<button type="submit" class="w-full rounded-lg bg-purple-300 text-purple-900 py-3 font-bold uppercase tracking-wider">Login</button>
-</form>
-<button id="btnGoogleSignin" type="button" class="mt-4 w-full rounded-lg bg-slate-700/70 text-white py-3 font-bold">Sign in with Google</button>
-<p id="returningLoginStatus" class="mt-3 text-sm text-slate-300"></p>
-<a href="/auth" class="mt-6 inline-block text-cyan-300">Back to auth</a>
-</section>
-</main>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="grid-overlay"></div>
+<canvas id="pixel-canvas"></canvas>
+
+<!-- NAV -->
+<div class="nav-wrap">
+  <div class="nav-inner">
+    <a class="nav-logo" href="/"><span class="logo-gem"></span> SolClub</a>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#4ade80;background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);padding:4px 10px;border-radius:6px;">● Secure Connection</span>
+    </div>
+    <a class="nav-back" href="/auth">
+      <span class="material-symbols-outlined">arrow_back</span> Return to Auth
+    </a>
+  </div>
+</div>
+
+<div class="page-wrap">
+  <div class="login-layout">
+
+    <!-- LEFT decorative -->
+    <div class="login-left fade-up d1">
+      <div class="left-eyebrow">Returning Operative</div>
+      <h1 class="left-title">Welcome<br/>back to<br/><span class="gradient-text">The Club</span></h1>
+      <p class="left-desc">Your sovereignty awaits. Sign in to reclaim your tier, rewards, and on-chain history.</p>
+
+      <!-- Mini pixel scene -->
+      <div class="mini-scene">
+        <svg viewBox="0 0 320 140" xmlns="http://www.w3.org/2000/svg" width="100%" style="display:block;">
+          <defs>
+            <linearGradient id="ls" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:#050d22"/>
+              <stop offset="100%" style="stop-color:#0a1f3a"/>
+            </linearGradient>
+            <radialGradient id="lg" cx="50%" cy="50%" r="40%">
+              <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:0.35"/>
+              <stop offset="100%" style="stop-color:transparent;stop-opacity:0"/>
+            </radialGradient>
+          </defs>
+          <rect width="320" height="140" fill="url(#ls)"/>
+          <rect width="320" height="140" fill="url(#lg)"/>
+          <!-- Mountains -->
+          <polygon points="0,110 50,60 100,110" fill="#0f2040" opacity="0.8"/>
+          <polygon points="70,110 130,40 190,110" fill="#0d1c38"/>
+          <polygon points="200,110 265,55 320,110" fill="#0f2040" opacity="0.8"/>
+          <!-- Ground -->
+          <rect y="110" width="320" height="30" fill="#091508"/>
+          <rect y="110" width="320" height="2" fill="#1a5c30" opacity="0.4"/>
+          <!-- Trees -->
+          <g>
+            <rect x="15" y="82" width="6" height="30" fill="#1a3d20"/>
+            <rect x="9" y="64" width="18" height="22" fill="#28814a"/>
+            <rect x="12" y="54" width="12" height="13" fill="#35a055"/>
+          </g>
+          <g>
+            <rect x="280" y="84" width="6" height="28" fill="#1a3d20"/>
+            <rect x="274" y="67" width="18" height="20" fill="#28814a"/>
+            <rect x="277" y="58" width="12" height="12" fill="#35a055"/>
+          </g>
+          <!-- Central gem -->
+          <g transform="translate(146,18)">
+            <ellipse cx="14" cy="70" rx="30" ry="22" fill="#7c3aed" opacity="0.12"/>
+            <polygon points="14,0 26,16 20,46 8,46 2,16" fill="#4c1d95"/>
+            <polygon points="14,0 26,16 14,26" fill="#7c3aed"/>
+            <polygon points="14,0 2,16 14,26" fill="#a855f7"/>
+            <polygon points="14,6 22,15 14,12" fill="rgba(255,255,255,0.3)"/>
+          </g>
+          <!-- Stars -->
+          <g fill="#fff">
+            <rect x="12" y="8" width="2" height="2" opacity="0.8"/>
+            <rect x="60" y="20" width="2" height="2" opacity="0.6"/>
+            <rect x="100" y="12" width="2" height="2" opacity="0.9"/>
+            <rect x="220" y="15" width="2" height="2" opacity="0.7"/>
+            <rect x="280" y="8" width="2" height="2" opacity="0.8"/>
+            <rect x="300" y="25" width="2" height="2" opacity="0.5"/>
+          </g>
+          <!-- Flowers -->
+          <g fill="#ec4899" opacity="0.7">
+            <rect x="80" y="107" width="4" height="4"/>
+            <rect x="220" y="106" width="4" height="4"/>
+          </g>
+        </svg>
+      </div>
+
+      <!-- Info cards -->
+      <div class="info-cards">
+        <div class="info-card">
+          <div class="info-card-icon" style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);">
+            <span class="material-symbols-outlined" style="color:var(--secondary);">verified_user</span>
+          </div>
+          <div>
+            <div class="info-card-text">Cryptographic Auth</div>
+            <div class="info-card-sub">Zero-knowledge login protocol</div>
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-icon" style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.2);">
+            <span class="material-symbols-outlined" style="color:var(--primary);">military_tech</span>
+          </div>
+          <div>
+            <div class="info-card-text">Tier Preserved</div>
+            <div class="info-card-sub">Your XP &amp; rank awaits on-chain</div>
+          </div>
+        </div>
+        <div class="info-card">
+          <div class="info-card-icon" style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.2);">
+            <span class="material-symbols-outlined" style="color:var(--tertiary);">hub</span>
+          </div>
+          <div>
+            <div class="info-card-text">Network Integrity</div>
+            <div class="info-card-sub">solclub.io · Bookmark this domain</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Login card -->
+    <div class="fade-up d2">
+      <div class="login-card">
+        <div class="card-top">
+          <div class="card-icon-wrap"><span class="material-symbols-outlined">hub</span></div>
+          <div class="card-title">Login</div>
+          <div class="card-sub">Access your sovereign digital ecosystem</div>
+        </div>
+
+        <form id="returningLoginForm">
+          <input id="returningRole" type="hidden" value="client"/>
+
+          <div class="form-group">
+            <label class="form-label" for="returningIdentifier">Identifier (wallet / email)</label>
+            <div class="input-wrap">
+              <span class="input-icon material-symbols-outlined">wallet</span>
+              <input class="form-input" id="returningIdentifier" name="identifier" placeholder="0x... or email@domain.com" type="text"/>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="returningPassword">Password</label>
+            <div class="input-wrap">
+              <span class="input-icon material-symbols-outlined">lock</span>
+              <input class="form-input" id="returningPassword" name="password" placeholder="••••••••" type="password"/>
+            </div>
+          </div>
+
+          <div class="forgot-row">
+            <a class="forgot-link" href="#">Forgot password?</a>
+          </div>
+
+          <button class="btn-login" type="submit">
+            <span>Login</span>
+            <span class="material-symbols-outlined">arrow_forward</span>
+          </button>
+        </form>
+
+        <div class="divider">or</div>
+
+        <button class="btn-google" id="btnGoogleSignin" type="button">
+          <span class="material-symbols-outlined">login</span>
+          Sign in with Google
+        </button>
+
+        <div class="security-badge">
+          <span class="material-symbols-outlined">shield_locked</span>
+          <span>Connection secured · <span class="highlight">TLS 1.3</span> · No seed phrase required</span>
+        </div>
+
+        <p id="returningLoginStatus"></p>
+
+        <div class="card-footer">
+          <a href="/auth">
+            <span class="material-symbols-outlined">arrow_back</span>
+            Back to auth
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// pixel canvas
+const canvas = document.getElementById('pixel-canvas');
+const ctx = canvas.getContext('2d');
+let stars = [];
+function resize() { canvas.width = innerWidth; canvas.height = innerHeight; }
+function makeStars() {
+  stars = [];
+  for (let i = 0; i < 100; i++) {
+    stars.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height*0.8, sz: Math.random()<0.2?2:1, a: Math.random()*0.7+0.2, sp: Math.random()*0.012+0.004, o: Math.random()*Math.PI*2, c: Math.random()<0.15?'#a855f7':Math.random()<0.15?'#38bdf8':'#fff' });
+  }
+}
+let f = 0;
+function draw() {
+  ctx.clearRect(0,0,canvas.width,canvas.height); f++;
+  stars.forEach(s => { const a = s.a*(0.5+0.5*Math.sin(f*s.sp+s.o)); ctx.fillStyle=s.c; ctx.globalAlpha=a; ctx.fillRect(Math.floor(s.x),Math.floor(s.y),s.sz,s.sz); });
+  ctx.globalAlpha=1; requestAnimationFrame(draw);
+}
+resize(); makeStars(); draw();
+addEventListener('resize', () => { resize(); makeStars(); });
+</script>
 </body>
 </html>

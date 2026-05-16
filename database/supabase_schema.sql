@@ -1,10 +1,29 @@
 -- SolClub Supabase schema (Supabase/PostgreSQL)
 -- Apply in Supabase SQL editor.
+-- Username-centric identity: `username` is the canonical primary key for users.
 
 create extension if not exists "pgcrypto";
 
+-- Drop existing tables to ensure clean migration to username schema
+drop table if exists public.reward_feedback cascade;
+drop table if exists public.auth_challenges cascade;
+drop table if exists public.payment_requests cascade;
+drop table if exists public.cashback_rewards cascade;
+drop table if exists public.nfts cascade;
+drop table if exists public.transactions cascade;
+drop table if exists public.loyalty_tiers cascade;
+drop table if exists public.franchises cascade;
+drop table if exists public.merchant_profiles cascade;
+drop table if exists public.merchants cascade;
+drop table if exists public.wallets cascade;
+drop table if exists public.client_profiles cascade;
+drop table if exists public.users cascade;
+
+-- ============================================================
+-- USERS — username is the primary key
+-- ============================================================
 create table if not exists public.users (
-  id uuid primary key default gen_random_uuid(),
+  username text primary key,
   email text unique,
   display_name text,
   google_sub text unique,
@@ -15,8 +34,12 @@ create table if not exists public.users (
   updated_at timestamptz not null default now()
 );
 
+-- ============================================================
+-- CLIENT PROFILES — keyed by username
+-- ============================================================
 create table if not exists public.client_profiles (
-  wallet_address text primary key,
+  username text primary key references public.users(username) on delete cascade,
+  primary_wallet text,
   joined_date timestamptz not null default now(),
   loyalty_tier text not null default 'bronze',
   status text not null default 'active',
@@ -24,9 +47,12 @@ create table if not exists public.client_profiles (
   updated_at timestamptz not null default now()
 );
 
+-- ============================================================
+-- WALLETS — linked to username
+-- ============================================================
 create table if not exists public.wallets (
   id bigserial primary key,
-  user_id uuid references public.users(id) on delete cascade,
+  username text references public.users(username) on delete set null,
   wallet_address text not null unique,
   network text not null default 'testnet',
   provider text,
@@ -37,6 +63,9 @@ create table if not exists public.wallets (
   created_at timestamptz not null default now()
 );
 
+-- ============================================================
+-- MERCHANTS
+-- ============================================================
 create table if not exists public.merchants (
   id bigserial primary key,
   name text not null,
@@ -67,6 +96,9 @@ create table if not exists public.franchises (
   created_at timestamptz not null default now()
 );
 
+-- ============================================================
+-- LOYALTY TIERS
+-- ============================================================
 create table if not exists public.loyalty_tiers (
   id bigserial primary key,
   tier_name text not null unique,
@@ -83,9 +115,13 @@ values
   ('Platinum', 10, 0.05)
 on conflict (tier_name) do nothing;
 
+-- ============================================================
+-- TRANSACTIONS — wallet_address for chain data, username for identity
+-- ============================================================
 create table if not exists public.transactions (
   id bigserial primary key,
   wallet_address text not null,
+  username text references public.users(username) on delete set null,
   merchant_id bigint not null default 1 references public.merchant_profiles(id),
   amount numeric(18,6) not null,
   signature text not null unique,
@@ -93,18 +129,26 @@ create table if not exists public.transactions (
   created_at timestamptz not null default now()
 );
 
+-- ============================================================
+-- NFTS — wallet_address for chain data, username for identity
+-- ============================================================
 create table if not exists public.nfts (
   id bigserial primary key,
   wallet_address text not null,
+  username text references public.users(username) on delete set null,
   nft_type text not null,
   mint_address text not null unique,
   metadata_uri text,
   created_at timestamptz not null default now()
 );
 
+-- ============================================================
+-- CASHBACK REWARDS — wallet_address for chain data, username for identity
+-- ============================================================
 create table if not exists public.cashback_rewards (
   id bigserial primary key,
   wallet_address text not null,
+  username text references public.users(username) on delete set null,
   merchant_id bigint not null references public.merchant_profiles(id),
   transaction_id bigint references public.transactions(id) on delete set null,
   transaction_signature text not null unique,
@@ -115,6 +159,9 @@ create table if not exists public.cashback_rewards (
   created_at timestamptz not null default now()
 );
 
+-- ============================================================
+-- PAYMENT REQUESTS
+-- ============================================================
 create table if not exists public.payment_requests (
   reference text primary key,
   user_wallet text not null,
@@ -126,6 +173,9 @@ create table if not exists public.payment_requests (
   created_at timestamptz not null default now()
 );
 
+-- ============================================================
+-- AUTH CHALLENGES
+-- ============================================================
 create table if not exists public.auth_challenges (
   id bigserial primary key,
   wallet_address text not null,
@@ -137,6 +187,9 @@ create table if not exists public.auth_challenges (
   unique(wallet_address, nonce)
 );
 
+-- ============================================================
+-- REWARD FEEDBACK
+-- ============================================================
 create table if not exists public.reward_feedback (
   id bigserial primary key,
   wallet_address text not null,
@@ -146,11 +199,21 @@ create table if not exists public.reward_feedback (
   created_at timestamptz not null default now()
 );
 
+-- ============================================================
+-- INDEXES
+-- ============================================================
+create index if not exists idx_wallets_username on public.wallets(username);
+create index if not exists idx_transactions_username on public.transactions(username);
 create index if not exists idx_transactions_wallet_created_at on public.transactions(wallet_address, created_at desc);
 create index if not exists idx_transactions_merchant_created_at on public.transactions(merchant_id, created_at desc);
+create index if not exists idx_cashback_username on public.cashback_rewards(username);
 create index if not exists idx_cashback_wallet_created_at on public.cashback_rewards(wallet_address, created_at desc);
+create index if not exists idx_nfts_username on public.nfts(username);
 create index if not exists idx_nfts_wallet_created_at on public.nfts(wallet_address, created_at desc);
 
+-- ============================================================
+-- ROW LEVEL SECURITY
+-- ============================================================
 alter table public.users enable row level security;
 alter table public.client_profiles enable row level security;
 alter table public.wallets enable row level security;

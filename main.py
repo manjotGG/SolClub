@@ -80,7 +80,7 @@ def start_server():
 def create_fastapi_app():
     """Create and configure the FastAPI application with full blockchain integration"""
     from fastapi import FastAPI, HTTPException, Query, Request
-    from fastapi.responses import JSONResponse, RedirectResponse
+    from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
     from fastapi.staticfiles import StaticFiles
     from fastapi.middleware.gzip import GZipMiddleware
     from fastapi.middleware.cors import CORSMiddleware
@@ -380,6 +380,8 @@ def create_fastapi_app():
             "/api/auth/logout",
             "/api/auth/wallet/connect",
             "/api/auth/wallet/create",
+            "/api/auth/wallet/link",
+            "/api/auth/wallet/list",
             "/api/auth/onboarding/complete",
         }
         if path in public_ui_paths:
@@ -421,6 +423,7 @@ def create_fastapi_app():
         """Background task to detect and process new merchant transactions."""
         # Track processed transactions for real NFT minting (duplicate prevention)
         minted_signatures = set()
+        initial_load_done = False
         
         while True:
             try:
@@ -433,6 +436,20 @@ def create_fastapi_app():
                     MERCHANT_WALLET,
                     limit=20,
                 )
+
+                if not signatures_resp or not signatures_resp.value:
+                    initial_load_done = True
+                    await asyncio.sleep(10)
+                    continue
+
+                # On first run, ignore all historical transactions to prevent flood after DB wipe
+                if not initial_load_done:
+                    for sig_info in signatures_resp.value:
+                        minted_signatures.add(str(sig_info.signature))
+                    initial_load_done = True
+                    print(f"🤫 Startup: Ignored {len(signatures_resp.value)} historical transactions.")
+                    await asyncio.sleep(10)
+                    continue
 
                 if not signatures_resp or not signatures_resp.value:
                     await asyncio.sleep(10)
@@ -595,6 +612,17 @@ def create_fastapi_app():
 
     @app.get("/")
     async def root():
+        """Serve the public landing page by default."""
+        index_path = os.path.join(BASE_DIR, "frontend", "templates", "index.html")
+        try:
+            with open(index_path, "r", encoding="utf-8") as f:
+                html = f.read()
+            return HTMLResponse(content=html)
+        except FileNotFoundError:
+            return RedirectResponse(url="/auth", status_code=303)
+
+    @app.get("/api")
+    async def api_info():
         """API information and status"""
         return {
             "name": "SolClub Loyalty Backend",
@@ -608,7 +636,8 @@ def create_fastapi_app():
                 "Multi-tier rewards"
             ],
             "endpoints": {
-                "GET /": "API information",
+                "GET /": "Landing page",
+                "GET /api": "API information",
                 "GET /ui/client": "Client dashboard",
                 "GET /ui/merchant": "Merchant dashboard",
                 "GET /ui/auth": "Authentication dashboard",

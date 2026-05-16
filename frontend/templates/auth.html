@@ -2,53 +2,981 @@
 <html class="dark" lang="en">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>SolClub | Authentication</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SolClub - Authentication</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=Press+Start+2P&family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+
 <style>
-body{font-family:'Inter',sans-serif;background:#0f131e;color:#dfe2f2}
-.font-headline{font-family:'Space Grotesk',sans-serif}
-.glass{background:rgba(27,31,43,.78);backdrop-filter:blur(16px)}
+  :root {
+    --primary: #a855f7;
+    --secondary: #38bdf8;
+    --tertiary: #4ade80;
+    --accent: #f472b6;
+    --bg: #060b14;
+    --surface: #0d1320;
+    --surface2: #131b2e;
+    --border: rgba(255,255,255,0.07);
+    --text: #e2e8f0;
+    --muted: #64748b;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  /* ── Pixel canvas bg ── */
+  #pixel-canvas {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.55;
+  }
+
+  /* ── Animated gradient orbs ── */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(90px);
+    pointer-events: none;
+    z-index: 0;
+    animation: orbDrift 18s ease-in-out infinite alternate;
+  }
+  .orb-1 { width: 500px; height: 500px; background: rgba(168,85,247,0.12); top: -100px; left: -100px; animation-delay: 0s; }
+  .orb-2 { width: 400px; height: 400px; background: rgba(56,189,248,0.08); bottom: 0; right: -80px; animation-delay: -6s; }
+  .orb-3 { width: 300px; height: 300px; background: rgba(244,114,182,0.06); top: 40%; left: 40%; animation-delay: -12s; }
+  @keyframes orbDrift { from { transform: translate(0,0) scale(1); } to { transform: translate(40px,30px) scale(1.08); } }
+
+  /* ── Nav ── */
+  .nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 40px;
+    height: 64px;
+    background: rgba(6,11,20,0.7);
+    backdrop-filter: blur(24px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-logo {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 14px;
+    color: #fff;
+    text-decoration: none;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .nav-logo .logo-gem {
+    width: 22px; height: 22px;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    clip-path: polygon(50% 0%, 100% 35%, 75% 100%, 25% 100%, 0% 35%);
+    animation: gemSpin 6s linear infinite;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  @keyframes gemSpin { 0%,100%{filter:hue-rotate(0deg) brightness(1)} 50%{filter:hue-rotate(40deg) brightness(1.3)} }
+
+  .nav-back {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    transition: all 0.2s;
+  }
+  .nav-back:hover { color: #fff; background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.15); }
+  .nav-status {
+    display: flex; align-items: center; gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 8px #4ade80; animation: pulse 2s ease infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ── Main layout ── */
+  .main {
+    position: relative;
+    z-index: 10;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    padding: 90px 40px 60px;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+
+  .grid-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    width: 100%;
+    align-items: center;
+  }
+  @media(max-width:900px){.grid-layout{grid-template-columns:1fr;gap:40px}}
+
+  /* ── Left column ── */
+  .hero-eyebrow {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    color: var(--primary);
+    letter-spacing: 0.15em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .hero-eyebrow::before, .hero-eyebrow::after {
+    content: '▶';
+    font-size: 8px;
+    opacity: 0.5;
+  }
+
+  .hero-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(22px, 3.5vw, 36px);
+    line-height: 1.5;
+    color: #fff;
+    margin: 0 0 20px;
+  }
+  .hero-title .gradient-text {
+    background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent));
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 4s linear infinite;
+  }
+  @keyframes shimmer { 0%{background-position:0%} 100%{background-position:200%} }
+
+  .hero-desc {
+    font-size: 15px;
+    line-height: 1.7;
+    color: #94a3b8;
+    max-width: 440px;
+    margin-bottom: 40px;
+    font-family: 'Syne', sans-serif;
+  }
+
+  /* ── Auth Card ── */
+  .auth-card {
+    background: rgba(13,19,32,0.8);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    padding: 32px;
+    backdrop-filter: blur(20px);
+    position: relative;
+    overflow: hidden;
+  }
+  .auth-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--primary), var(--secondary), transparent);
+    opacity: 0.6;
+  }
+
+  /* ── Pixel art scene ── */
+  .pixel-scene {
+    width: 100%;
+    border-radius: 16px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 28px;
+    background: linear-gradient(180deg, #0c1a3a 0%, #0f2d1e 60%, #091a12 100%);
+    min-height: 180px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  /* Pixel stars */
+  .pixel-scene canvas { display: block; width: 100%; }
+
+  /* ── Buttons ── */
+  .btn-primary {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px 24px;
+    border-radius: 14px;
+    border: none;
+    cursor: pointer;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: #fff;
+    background: linear-gradient(135deg, #7c3aed, #2563eb);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+    text-decoration: none;
+    box-shadow: 0 0 30px rgba(124,58,237,0.3);
+  }
+  .btn-primary::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #a855f7, #38bdf8);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .btn-primary:hover::before { opacity: 1; }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 50px rgba(168,85,247,0.5); }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-primary span, .btn-primary .material-symbols-outlined { position: relative; z-index: 1; }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 20px 0;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .alt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+
+  .btn-alt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.02);
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    text-decoration: none;
+    transition: all 0.25s;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-alt::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.25s;
+    border-radius: 12px;
+  }
+  .btn-alt:hover { transform: translateY(-2px); border-color: rgba(168,85,247,0.4); }
+  .btn-alt:hover::after { opacity: 1; background: rgba(168,85,247,0.06); }
+  .btn-alt .material-symbols-outlined { color: var(--secondary); font-size: 22px; }
+
+  .btn-ghost {
+    width: 100%;
+    padding: 13px 20px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: transparent;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    transition: all 0.25s;
+  }
+  .btn-ghost:hover { border-color: rgba(255,255,255,0.2); color: #fff; background: rgba(255,255,255,0.04); }
+
+  /* ── Right panel ── */
+  .rules-panel {
+    background: rgba(13,19,32,0.7);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 24px;
+    padding: 36px;
+    backdrop-filter: blur(20px);
+    position: relative;
+    overflow: hidden;
+  }
+  .rules-panel::after {
+    content: '';
+    position: absolute;
+    bottom: -80px; right: -80px;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(56,189,248,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 24px;
+    margin-bottom: 28px;
+    border-bottom: 1px solid var(--border);
+  }
+  .panel-header .icon-wrap {
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    background: rgba(56,189,248,0.1);
+    border: 1px solid rgba(56,189,248,0.2);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .panel-header .material-symbols-outlined { color: var(--secondary); font-size: 22px; }
+  .panel-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    color: #fff;
+    line-height: 1.6;
+  }
+
+  .rule-item {
+    display: flex;
+    gap: 16px;
+    padding: 20px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.02);
+    border: 1px solid var(--border);
+    margin-bottom: 12px;
+    transition: all 0.25s;
+    position: relative;
+    overflow: hidden;
+  }
+  .rule-item:hover { border-color: rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); transform: translateX(4px); }
+  .rule-item::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; border-radius: 3px 0 0 3px; }
+  .rule-item:nth-child(1)::before { background: var(--secondary); }
+  .rule-item:nth-child(2)::before { background: var(--primary); }
+  .rule-item:nth-child(3)::before { background: var(--tertiary); }
+
+  .rule-icon {
+    width: 36px; height: 36px; flex-shrink: 0;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 2px;
+  }
+  .rule-icon-1 { background: rgba(56,189,248,0.1); }
+  .rule-icon-2 { background: rgba(168,85,247,0.1); }
+  .rule-icon-3 { background: rgba(74,222,128,0.1); }
+  .rule-icon .material-symbols-outlined { font-size: 18px; }
+  .rule-icon-1 .material-symbols-outlined { color: var(--secondary); }
+  .rule-icon-2 .material-symbols-outlined { color: var(--primary); }
+  .rule-icon-3 .material-symbols-outlined { color: var(--tertiary); }
+
+  .rule-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: #e2e8f0;
+    margin: 0 0 6px;
+  }
+  .rule-desc {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #64748b;
+    margin: 0;
+    font-family: 'Syne', sans-serif;
+  }
+
+  .panel-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 20px;
+    margin-top: 8px;
+    border-top: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .panel-footer .online { color: var(--tertiary); }
+  .panel-footer .fast { color: var(--secondary); }
+
+  /* ── Pixel art illustration SVG ── */
+  .illustration-wrap {
+    margin-bottom: 28px;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.07);
+    background: linear-gradient(160deg, #0a1628 0%, #0f1f10 100%);
+    position: relative;
+  }
+
+  /* ── Stats strip ── */
+  .stats-strip {
+    display: flex;
+    gap: 0;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+  .stat-item {
+    flex: 1;
+    padding: 14px;
+    text-align: center;
+    border-right: 1px solid var(--border);
+    background: rgba(255,255,255,0.015);
+  }
+  .stat-item:last-child { border-right: none; }
+  .stat-val {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 12px;
+    color: var(--primary);
+    display: block;
+    margin-bottom: 4px;
+  }
+  .stat-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* ── Wallet Modal ── */
+  #walletConnectModal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(8px);
+    padding: 20px;
+  }
+  #walletConnectModal.show { display: flex; }
+  .modal-box {
+    width: 100%;
+    max-width: 420px;
+    background: var(--surface2);
+    border: 1px solid rgba(168,85,247,0.3);
+    border-radius: 20px;
+    padding: 32px;
+    box-shadow: 0 0 60px rgba(168,85,247,0.2);
+    position: relative;
+    animation: modalIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes modalIn { from{transform:scale(0.85) translateY(20px);opacity:0} to{transform:scale(1) translateY(0);opacity:1} }
+  .modal-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  }
+  .modal-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 12px;
+    color: #fff;
+    margin: 0 0 24px;
+  }
+  .modal-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    display: block;
+    margin-bottom: 8px;
+  }
+  .modal-input, .modal-select {
+    width: 100%;
+    background: rgba(255,255,255,0.04) !important;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: #e2e8f0 !important;
+    -webkit-text-fill-color: #e2e8f0;
+    caret-color: #38bdf8;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+    margin-bottom: 18px;
+  }
+  .modal-input:focus, .modal-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(168,85,247,0.15); }
+  .modal-select option { background: #1e293b; }
+  .modal-actions { display: flex; gap: 12px; margin-top: 8px; }
+  .modal-submit {
+    flex: 1; padding: 13px;
+    border-radius: 10px; border: none;
+    background: linear-gradient(135deg, var(--primary), #7c3aed);
+    color: #fff;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .modal-submit:hover { opacity: 0.9; transform: translateY(-1px); }
+  .modal-cancel {
+    padding: 13px 20px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: transparent;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .modal-cancel:hover { color: #fff; border-color: rgba(255,255,255,0.25); }
+  .modal-close-btn {
+    position: absolute; top: 16px; right: 16px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    width: 32px; height: 32px;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .modal-close-btn:hover { color: #fff; background: rgba(255,255,255,0.1); }
+
+  /* ── Footer ── */
+  footer {
+    position: relative;
+    z-index: 10;
+    border-top: 1px solid var(--border);
+    padding: 24px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+  .footer-copy {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .footer-links { display: flex; gap: 24px; flex-wrap: wrap; }
+  .footer-links a {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .footer-links a:hover { color: var(--primary); }
+
+  /* ── Stagger entrance ── */
+  .fade-up {
+    opacity: 0;
+    transform: translateY(24px);
+    animation: fadeUp 0.6s ease forwards;
+  }
+  @keyframes fadeUp { to { opacity:1; transform:translateY(0); } }
+  .delay-1 { animation-delay: 0.1s; }
+  .delay-2 { animation-delay: 0.2s; }
+  .delay-3 { animation-delay: 0.3s; }
+  .delay-4 { animation-delay: 0.4s; }
+  .delay-5 { animation-delay: 0.5s; }
+  .delay-6 { animation-delay: 0.6s; }
+
+  /* Google icon */
+  .google-img { width: 22px; height: 22px; border-radius: 50%; }
+
+  /* Pixel badge */
+  .pixel-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    background: rgba(74,222,128,0.1);
+    border: 1px solid rgba(74,222,128,0.25);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--tertiary);
+    margin-bottom: 16px;
+  }
+  .pixel-badge::before { content: '▮'; font-size: 8px; animation: blink 1.2s step-end infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 </style>
 </head>
-<body class="min-h-screen px-6 py-12">
-<main class="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
-<section class="glass rounded-2xl border border-white/10 p-8">
-<h1 class="font-headline text-5xl font-black tracking-tight text-cyan-300">SOLCLUB</h1>
-<p class="mt-3 text-slate-300">Choose how you want to continue.</p>
-<div class="mt-8 space-y-3">
-<button id="btnOpenLoginPage" type="button" class="w-full rounded-xl bg-slate-700/60 hover:bg-slate-700 text-white py-3 font-bold uppercase tracking-wider">Login</button>
-<button id="btnConnectWallet" type="button" class="w-full rounded-xl bg-purple-300 text-purple-900 py-3 font-bold uppercase tracking-wider">Connect Wallet</button>
-<button id="btnGoogleSignin" type="button" class="w-full rounded-xl bg-slate-700/60 hover:bg-slate-700 text-white py-3 font-bold">Sign in with Google</button>
-<button id="btnCreateWallet" type="button" class="w-full rounded-xl bg-cyan-400 text-cyan-950 py-3 font-bold uppercase tracking-wider">Create New Wallet</button>
-</div>
-</section>
-<section class="glass rounded-2xl border border-white/10 p-8">
-<h2 class="font-headline text-3xl font-bold">Access Rules</h2>
-<p class="mt-3 text-slate-300">Existing users go to dashboard. New users complete onboarding once, then continue to dashboard.</p>
-<p class="mt-2 text-slate-400 text-sm">Wallet setup is optional and can be completed later from dashboard.</p>
-</section>
-</main>
-<div id="walletConnectModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 px-4">
-  <div class="w-full max-w-md rounded-2xl border border-white/10 bg-[#1b1f2b] p-6">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="font-headline text-2xl font-bold">Connect your wallet</h3>
-      <button id="closeWalletModal" type="button" class="text-slate-300">X</button>
+<body>
+
+<!-- Background orbs -->
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<!-- Pixel star canvas -->
+<canvas id="pixel-canvas"></canvas>
+
+<!-- Navigation -->
+<nav class="nav">
+  <a class="nav-logo" href="/">
+    <span class="logo-gem"></span>
+    SolClub
+  </a>
+  <div class="nav-status">
+    <span class="status-dot"></span>
+    <span>Network Active</span>
+  </div>
+  <a class="nav-back" href="/">
+    <span class="material-symbols-outlined" style="font-size:16px;font-variation-settings:'FILL' 0;">arrow_back</span>
+    Return to Ecosystem
+  </a>
+</nav>
+
+<!-- Main -->
+<main class="main">
+  <div class="grid-layout">
+
+    <!-- LEFT: Auth Panel -->
+    <div>
+      <div class="hero-eyebrow fade-up">Sovereign Access Protocol</div>
+      <h1 class="hero-title fade-up delay-1">
+        ENTER<br/>
+        <span class="gradient-text">THE CLUB</span>
+      </h1>
+      <p class="hero-desc fade-up delay-2">
+        Connect your digital identity to access elite tiers, sovereign rewards, and the full ecosystem.
+      </p>
+
+      <!-- Stats strip -->
+      <div class="stats-strip fade-up delay-2">
+        <div class="stat-item">
+          <span class="stat-val">12K+</span>
+          <span class="stat-label">Members</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-val">4.2M</span>
+          <span class="stat-label">XP Earned</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-val">99.9%</span>
+          <span class="stat-label">Uptime</span>
+        </div>
+      </div>
+
+      <!-- Auth Card -->
+      <div class="auth-card fade-up delay-3">
+        <div class="pixel-badge">Live portal</div>
+
+        <input id="registerRole" type="hidden" value="client"/>
+
+        <!-- Pixel scene illustration -->
+        <div class="illustration-wrap">
+          <svg viewBox="0 0 480 160" xmlns="http://www.w3.org/2000/svg" width="100%" style="display:block;">
+            <!-- Sky gradient -->
+            <defs>
+              <linearGradient id="sky" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#050d24"/>
+                <stop offset="100%" style="stop-color:#0a1f3a"/>
+              </linearGradient>
+              <linearGradient id="ground" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:#0a1f12"/>
+                <stop offset="100%" style="stop-color:#061008"/>
+              </linearGradient>
+              <radialGradient id="glow1" cx="50%" cy="40%" r="30%">
+                <stop offset="0%" style="stop-color:#7c3aed;stop-opacity:0.5"/>
+                <stop offset="100%" style="stop-color:transparent;stop-opacity:0"/>
+              </radialGradient>
+            </defs>
+            <rect width="480" height="160" fill="url(#sky)"/>
+            <rect width="480" height="160" fill="url(#glow1)"/>
+            <!-- Ground -->
+            <rect y="120" width="480" height="40" fill="url(#ground)"/>
+            <!-- Ground line -->
+            <rect y="120" width="480" height="2" fill="#1a4f2a" opacity="0.6"/>
+            <!-- Pixel mountains -->
+            <g opacity="0.25">
+              <polygon points="0,120 60,60 120,120" fill="#1e3a5f"/>
+              <polygon points="80,120 150,50 220,120" fill="#1a3454"/>
+              <polygon points="280,120 350,55 420,120" fill="#1e3a5f"/>
+              <polygon points="380,120 440,70 480,120" fill="#1a3454"/>
+            </g>
+            <!-- Pixel trees (left) -->
+            <g>
+              <rect x="30" y="95" width="6" height="25" fill="#2d5a3d"/>
+              <rect x="24" y="80" width="18" height="18" fill="#2d7a3d"/>
+              <rect x="27" y="70" width="12" height="14" fill="#34a050"/>
+              <rect x="30" y="63" width="6" height="10" fill="#40c063"/>
+            </g>
+            <g>
+              <rect x="60" y="100" width="5" height="20" fill="#2d5a3d"/>
+              <rect x="55" y="87" width="15" height="16" fill="#2d7a3d"/>
+              <rect x="57" y="79" width="11" height="11" fill="#34a050"/>
+            </g>
+            <!-- Pixel trees (right) -->
+            <g>
+              <rect x="420" y="95" width="6" height="25" fill="#2d5a3d"/>
+              <rect x="414" y="80" width="18" height="18" fill="#2d7a3d"/>
+              <rect x="417" y="70" width="12" height="14" fill="#34a050"/>
+              <rect x="420" y="63" width="6" height="10" fill="#40c063"/>
+            </g>
+            <g>
+              <rect x="450" y="98" width="5" height="22" fill="#2d5a3d"/>
+              <rect x="445" y="85" width="15" height="16" fill="#2d7a3d"/>
+              <rect x="447" y="77" width="11" height="11" fill="#34a050"/>
+            </g>
+            <!-- Central crystal/gem tower -->
+            <g transform="translate(220,20)">
+              <!-- Glow behind gem -->
+              <ellipse cx="20" cy="80" rx="35" ry="35" fill="#7c3aed" opacity="0.15"/>
+              <!-- Gem body -->
+              <polygon points="20,0 38,25 28,65 12,65 2,25" fill="#5b21b6" opacity="0.9"/>
+              <polygon points="20,0 38,25 20,40" fill="#7c3aed"/>
+              <polygon points="20,0 2,25 20,40" fill="#a855f7"/>
+              <polygon points="2,25 12,65 20,40" fill="#4c1d95"/>
+              <polygon points="38,25 28,65 20,40" fill="#6d28d9"/>
+              <!-- Shine -->
+              <polygon points="20,5 30,22 20,18" fill="rgba(255,255,255,0.3)"/>
+              <!-- Pixel base -->
+              <rect x="10" y="65" width="20" height="4" fill="#2d1b69"/>
+              <rect x="8" y="69" width="24" height="4" fill="#1e1243"/>
+            </g>
+            <!-- Stars -->
+            <g fill="#fff">
+              <rect x="20" y="15" width="2" height="2" opacity="0.8"/>
+              <rect x="80" y="30" width="2" height="2" opacity="0.6"/>
+              <rect x="140" y="12" width="2" height="2" opacity="0.9"/>
+              <rect x="200" y="25" width="2" height="2" opacity="0.5"/>
+              <rect x="320" y="18" width="2" height="2" opacity="0.8"/>
+              <rect x="380" y="8" width="2" height="2" opacity="0.7"/>
+              <rect x="440" y="28" width="2" height="2" opacity="0.6"/>
+              <rect x="460" y="15" width="2" height="2" opacity="0.9"/>
+              <rect x="100" y="45" width="2" height="2" opacity="0.4"/>
+              <rect x="350" y="40" width="2" height="2" opacity="0.5"/>
+            </g>
+            <!-- Pixel character (knight/user) -->
+            <g transform="translate(170,82)">
+              <!-- Body -->
+              <rect x="8" y="8" width="14" height="18" fill="#3b82f6"/>
+              <!-- Head -->
+              <rect x="10" y="0" width="10" height="10" fill="#fbbf24"/>
+              <!-- Helmet -->
+              <rect x="9" y="0" width="12" height="5" fill="#1d4ed8"/>
+              <!-- Legs -->
+              <rect x="8" y="26" width="6" height="8" fill="#1e40af"/>
+              <rect x="16" y="26" width="6" height="8" fill="#1e40af"/>
+              <!-- Sword -->
+              <rect x="24" y="4" width="2" height="16" fill="#94a3b8"/>
+              <rect x="20" y="9" width="10" height="2" fill="#64748b"/>
+            </g>
+            <!-- Pixel character 2 (mage) -->
+            <g transform="translate(280,85)">
+              <rect x="8" y="8" width="14" height="18" fill="#7c3aed"/>
+              <rect x="10" y="0" width="10" height="10" fill="#fcd34d"/>
+              <rect x="8" y="0" width="14" height="4" fill="#4c1d95"/>
+              <!-- Staff -->
+              <rect x="-4" y="0" width="2" height="26" fill="#92400e"/>
+              <rect x="-8" y="-4" width="10" height="6" fill="#f59e0b" opacity="0.8"/>
+              <!-- Legs -->
+              <rect x="8" y="26" width="6" height="8" fill="#5b21b6"/>
+              <rect x="16" y="26" width="6" height="8" fill="#5b21b6"/>
+            </g>
+            <!-- Ground flowers/pixels -->
+            <g fill="#ec4899" opacity="0.7">
+              <rect x="100" y="117" width="4" height="4"/>
+              <rect x="150" y="115" width="4" height="4"/>
+              <rect x="300" y="116" width="4" height="4"/>
+              <rect x="360" y="114" width="4" height="4"/>
+            </g>
+            <g fill="#34d399" opacity="0.5">
+              <rect x="120" y="119" width="3" height="3"/>
+              <rect x="340" y="118" width="3" height="3"/>
+            </g>
+          </svg>
+        </div>
+
+        <!-- Connect Wallet -->
+        <button class="btn-primary" id="btnConnectWallet" type="button">
+          <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">account_balance_wallet</span>
+          <span>Connect Wallet</span>
+        </button>
+
+        <div class="divider">Or Secondary Protocols</div>
+
+        <div class="alt-grid">
+          <a class="btn-alt" href="/login" id="btnOpenLoginPage">
+            <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 0;">login</span>
+            <span>Standard Login</span>
+          </a>
+          <button class="btn-alt" id="btnGoogleSignin" type="button">
+            <img alt="Google" class="google-img" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDjQPAdTW3Vm7XGt06j9XktjRA7EUnRylItjcy3ll4qUrtOHEC4ElKcQW2a-P3997yP_nQuuv4VjiZkQjW0l2W9yCf-oA8D4Yrql_btRvhwGtxDv4cOGBnJNtfgbqRv2C2tK4-fkSCxEBJPTXKKQoNIKoD4PARMeSOqXRqy3OoXqaBxkHEzfz27SrURJ8zbTIgXIBpG47FiLYr-3YjWfB6r9Kat3VyFwh1wOSk9B9C0fFfDpNgJ09VIsFmjL2gEjdnh9VTk3cqJnzc"/>
+            <span>Sign in with Google</span>
+          </button>
+        </div>
+
+        <button class="btn-ghost" id="btnCreateWallet" type="button">
+          + Create New Wallet
+        </button>
+      </div>
     </div>
-    <p class="text-sm text-slate-300 mb-4">Unlock full features by connecting your wallet.</p>
-    <form id="walletConnectForm" class="space-y-3">
-      <input id="walletConnectAddress" type="text" placeholder="Wallet address" class="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2" required/>
-      <select id="walletConnectRole" class="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2">
-        <option value="client">Client</option>
-        <option value="merchant">Merchant</option>
+
+    <!-- RIGHT: Rules Panel -->
+    <div class="fade-up delay-4">
+      <div class="rules-panel">
+        <div class="panel-header">
+          <div class="icon-wrap">
+            <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">shield_locked</span>
+          </div>
+          <div class="panel-title">Access Protocol<br/>Rules</div>
+        </div>
+
+        <div>
+          <!-- Rule 1 -->
+          <div class="rule-item fade-up delay-4">
+            <div class="rule-icon rule-icon-1">
+              <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">verified_user</span>
+            </div>
+            <div>
+              <p class="rule-title">Asset Verification</p>
+              <p class="rule-desc">Connecting a wallet requires a cryptographic signature. No assets will be moved. We only verify holdings for tier placement.</p>
+            </div>
+          </div>
+          <!-- Rule 2 -->
+          <div class="rule-item fade-up delay-5">
+            <div class="rule-icon rule-icon-2">
+              <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">military_tech</span>
+            </div>
+            <div>
+              <p class="rule-title">Guild Standing</p>
+              <p class="rule-desc">Your historical on-chain activity determines initial XP. Malicious actors are automatically shadowbanned from elite channels.</p>
+            </div>
+          </div>
+          <!-- Rule 3 -->
+          <div class="rule-item fade-up delay-6">
+            <div class="rule-icon rule-icon-3">
+              <span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1;">hub</span>
+            </div>
+            <div>
+              <p class="rule-title">Network Integrity</p>
+              <p class="rule-desc">Ensure you are on the correct domain. Bookmark this URL. The protocol will never ask for your seed phrase directly.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-footer">
+          <span>Sys_Status: <span class="online">Operational</span></span>
+          <span>Ping: <span class="fast">12ms</span></span>
+          <span>Block: <span style="color:var(--primary)">Latest</span></span>
+        </div>
+      </div>
+
+      <!-- Extra info card -->
+      <div style="margin-top:16px;padding:20px;border-radius:16px;border:1px solid var(--border);background:rgba(168,85,247,0.04);display:flex;gap:14px;align-items:flex-start;" class="fade-up delay-6">
+        <span class="material-symbols-outlined" style="color:var(--primary);font-variation-settings:'FILL' 1;font-size:20px;margin-top:2px;flex-shrink:0;">info</span>
+        <p style="margin:0;font-family:'Syne',sans-serif;font-size:13px;line-height:1.6;color:#64748b;">
+          New to SolClub? Create a wallet to earn your starting XP and unlock the <span style="color:var(--primary)">Initiate tier</span>. No experience required.
+        </p>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- Wallet Connect Modal (backend unchanged) -->
+<div id="walletConnectModal">
+  <div class="modal-box">
+    <button class="modal-close-btn" id="closeWalletModal" type="button">✕</button>
+    <h3 class="modal-title">Connect Wallet</h3>
+    <form id="walletConnectForm">
+      <label class="modal-label" for="walletConnectAddress">Wallet Address</label>
+      <input class="modal-input" id="walletConnectAddress" placeholder="Enter Solana wallet address" type="text"/>
+      <label class="modal-label" for="walletConnectRole">Role</label>
+      <select class="modal-select" id="walletConnectRole">
+        <option value="client">client</option>
+        <option value="merchant">merchant</option>
       </select>
-      <div class="flex gap-3">
-        <button type="submit" class="flex-1 rounded-lg bg-cyan-400 text-cyan-950 font-bold py-2">Connect Wallet</button>
-        <button id="cancelWalletModal" type="button" class="rounded-lg border border-slate-500 px-4">Maybe later</button>
+      <div class="modal-actions">
+        <button class="modal-submit" type="submit">Connect</button>
+        <button class="modal-cancel" id="cancelWalletModal" type="button">Cancel</button>
       </div>
     </form>
   </div>
 </div>
+
+<!-- Footer -->
+<footer>
+  <div class="footer-copy">© 2024 SolClub Ecosystem — Sovereignty through Loyalty.</div>
+  <div class="footer-links">
+    <a href="#">Privacy Protocol</a>
+    <a href="#">Terms of Engagement</a>
+    <a href="#">Discord</a>
+    <a href="#">Twitter</a>
+  </div>
+</footer>
+
+<script>
+  // ── Pixel star canvas ──
+  const canvas = document.getElementById('pixel-canvas');
+  const ctx = canvas.getContext('2d');
+  let stars = [];
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  function createStars() {
+    stars = [];
+    for (let i = 0; i < 120; i++) {
+      stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height * 0.7,
+        size: Math.random() < 0.3 ? 2 : 1,
+        alpha: Math.random() * 0.8 + 0.2,
+        twinkleSpeed: Math.random() * 0.015 + 0.005,
+        twinkleOffset: Math.random() * Math.PI * 2,
+        color: Math.random() < 0.2 ? '#a855f7' : Math.random() < 0.2 ? '#38bdf8' : '#ffffff'
+      });
+    }
+  }
+  let frame = 0;
+  function animateStars() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    frame++;
+    stars.forEach(s => {
+      const alpha = s.alpha * (0.5 + 0.5 * Math.sin(frame * s.twinkleSpeed + s.twinkleOffset));
+      ctx.fillStyle = s.color;
+      ctx.globalAlpha = alpha;
+      ctx.fillRect(Math.floor(s.x), Math.floor(s.y), s.size, s.size);
+    });
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(animateStars);
+  }
+  resizeCanvas(); createStars(); animateStars();
+  window.addEventListener('resize', () => { resizeCanvas(); createStars(); });
+
+  // ── Modal logic (backend unchanged) ──
+  const modal = document.getElementById('walletConnectModal');
+  document.getElementById('btnConnectWallet').addEventListener('click', () => modal.classList.add('show'));
+  document.getElementById('closeWalletModal').addEventListener('click', () => modal.classList.remove('show'));
+  document.getElementById('cancelWalletModal').addEventListener('click', () => modal.classList.remove('show'));
+  modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('show'); });
+</script>
 </body>
 </html>

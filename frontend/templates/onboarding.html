@@ -2,30 +2,381 @@
 <html class="dark" lang="en">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>SolClub | Onboarding</title>
-<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-<style>body{font-family:'Inter',sans-serif;background:#0f131e;color:#dfe2f2}.font-headline{font-family:'Space Grotesk',sans-serif}.glass{background:rgba(27,31,43,.78);backdrop-filter:blur(16px)}</style>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Onboarding - SolClub</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --primary: #a855f7;
+  --secondary: #38bdf8;
+  --tertiary: #4ade80;
+  --accent: #f472b6;
+  --bg: #060b14;
+  --surface: #0d1320;
+  --surface2: #131b2e;
+  --border: rgba(255,255,255,0.07);
+  --text: #e2e8f0;
+  --muted: #64748b;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Syne', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+#pixel-canvas { position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: 0.4; }
+.orb { position: fixed; border-radius: 50%; filter: blur(100px); pointer-events: none; z-index: 0; animation: orbDrift 20s ease-in-out infinite alternate; }
+.orb-1 { width: 550px; height: 550px; background: rgba(168,85,247,0.1); top: -150px; left: -150px; }
+.orb-2 { width: 450px; height: 450px; background: rgba(56,189,248,0.08); bottom: -100px; right: -100px; animation-delay: -10s; }
+.orb-3 { width: 300px; height: 300px; background: rgba(244,114,182,0.05); top: 30%; right: 10%; animation-delay: -5s; }
+@keyframes orbDrift { from{transform:translate(0,0)} to{transform:translate(45px,30px)} }
+.grid-overlay { position: fixed; inset: 0; z-index: 0; pointer-events: none; background-image: linear-gradient(rgba(255,255,255,0.015) 1px,transparent 1px), linear-gradient(90deg,rgba(255,255,255,0.015) 1px,transparent 1px); background-size: 40px 40px; opacity: 0.5; }
+
+/* NAV */
+.nav-wrap { position: fixed; top: 0; left: 0; right: 0; z-index: 100; border-bottom: 1px solid var(--border); background: rgba(6,11,20,0.8); backdrop-filter: blur(24px); }
+.nav-inner { display: flex; justify-content: space-between; align-items: center; padding: 0 40px; height: 64px; max-width: 1280px; margin: 0 auto; }
+.nav-logo { font-family: 'Press Start 2P', monospace; font-size: 12px; color: #fff; text-decoration: none; display: flex; align-items: center; gap: 10px; }
+.logo-gem { width: 18px; height: 18px; background: linear-gradient(135deg, var(--primary), var(--secondary)); clip-path: polygon(50% 0%,100% 35%,75% 100%,25% 100%,0% 35%); animation: gemPulse 4s ease-in-out infinite; display: inline-block; }
+@keyframes gemPulse { 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.5) hue-rotate(20deg)} }
+.nav-steps { display: flex; align-items: center; gap: 8px; }
+.step-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-size: 10px; border: 1px solid var(--border); color: var(--muted); background: rgba(255,255,255,0.03); transition: all 0.3s; }
+.step-dot.active { border-color: var(--primary); color: var(--primary); background: rgba(168,85,247,0.1); }
+.step-dot.done { border-color: var(--tertiary); color: var(--tertiary); background: rgba(74,222,128,0.1); }
+.step-line { width: 24px; height: 1px; background: var(--border); }
+.nav-back { display: flex; align-items: center; gap: 6px; color: var(--muted); font-family: 'JetBrains Mono', monospace; font-size: 11px; text-decoration: none; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); transition: all 0.2s; }
+.nav-back:hover { color: #fff; border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); }
+.nav-back .material-symbols-outlined { font-size: 15px; }
+
+/* PAGE */
+.page { position: relative; z-index: 10; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 100px 24px 60px; }
+.page-inner { display: grid; grid-template-columns: 1fr 520px; gap: 60px; width: 100%; max-width: 1040px; align-items: start; }
+@media(max-width:900px){.page-inner{grid-template-columns:1fr;}.page-left{display:none}}
+
+/* LEFT column */
+.page-left { position: sticky; top: 100px; display: flex; flex-direction: column; gap: 24px; }
+.left-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--primary); text-transform: uppercase; letter-spacing: 0.18em; display: flex; align-items: center; gap: 8px; }
+.left-label::before { content: '▶'; font-size: 8px; }
+.left-title { font-family: 'Press Start 2P', monospace; font-size: clamp(14px,2vw,20px); color: #fff; line-height: 1.75; }
+.gradient-text { background: linear-gradient(90deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.left-desc { font-size: 14px; color: var(--muted); line-height: 1.7; }
+
+.perks-list { display: flex; flex-direction: column; gap: 10px; }
+.perk { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; background: rgba(13,19,32,0.8); border: 1px solid var(--border); border-radius: 12px; transition: all 0.25s; }
+.perk:hover { border-color: rgba(168,85,247,0.25); transform: translateX(4px); }
+.perk-icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+.perk-icon .material-symbols-outlined { font-size: 15px; font-variation-settings: 'FILL' 1; }
+.perk-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px; color: var(--text); margin-bottom: 2px; }
+.perk-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); }
+
+.xp-preview { background: rgba(13,19,32,0.8); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+.xp-preview-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px; display: flex; justify-content: space-between; }
+.xp-preview-label span { color: var(--tertiary); }
+.xp-bar { height: 6px; background: rgba(255,255,255,0.06); border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
+.xp-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--primary), var(--secondary)); border-radius: 6px; transition: width 1s cubic-bezier(0.34,1.56,0.64,1); }
+.xp-nums { display: flex; justify-content: space-between; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); }
+
+/* FORM CARD */
+.form-card { background: rgba(13,19,32,0.85); border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; overflow: hidden; backdrop-filter: blur(20px); position: relative; }
+.form-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--primary), var(--secondary), transparent); }
+
+/* Progress bar top */
+.progress-bar-wrap { height: 4px; background: rgba(255,255,255,0.05); position: relative; }
+.progress-bar-fill { height: 100%; width: 60%; background: linear-gradient(90deg, var(--secondary), var(--tertiary)); box-shadow: 0 0 10px rgba(56,189,248,0.5); transition: width 0.5s ease; }
+
+.form-inner { padding: 36px; }
+
+.form-header { text-align: center; margin-bottom: 28px; }
+.form-header-title { font-family: 'Press Start 2P', monospace; font-size: 16px; color: var(--primary); margin-bottom: 8px; line-height: 1.6; }
+.form-header-sub { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); }
+
+/* form fields */
+.form-group { margin-bottom: 18px; }
+.form-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.12em; display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.form-badge { font-size: 9px; color: var(--secondary); background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.2); padding: 2px 8px; border-radius: 4px; text-transform: uppercase; }
+.form-badge-optional { color: var(--tertiary); background: rgba(74,222,128,0.1); border-color: rgba(74,222,128,0.2); }
+.input-wrap { position: relative; }
+.input-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-family: 'Material Symbols Outlined'; font-size: 18px; color: var(--muted); pointer-events: none; transition: color 0.2s; }
+.form-input { width: 100%; background: rgba(255,255,255,0.04) !important; border: 1px solid rgba(255,255,255,0.09); border-radius: 12px; padding: 13px 16px 13px 46px; color: #e2e8f0 !important; -webkit-text-fill-color: #e2e8f0; caret-color: #38bdf8; font-family: 'JetBrains Mono', monospace; font-size: 13px; outline: none; transition: all 0.25s; }
+.form-input::placeholder { color: rgba(255,255,255,0.2); }
+.form-input:focus { border-color: var(--secondary); box-shadow: 0 0 0 3px rgba(56,189,248,0.1); }
+.form-input:focus ~ .input-icon, .input-wrap:focus-within .input-icon { color: var(--secondary); }
+
+/* Role grid */
+.role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.role-option { cursor: pointer; }
+.role-option input { display: none; }
+.role-box { padding: 16px; border-radius: 14px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.09); text-align: center; transition: all 0.25s; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.role-box .material-symbols-outlined { font-size: 26px; color: var(--muted); transition: all 0.25s; font-variation-settings: 'FILL' 0; }
+.role-box-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px; color: var(--text); }
+.role-box-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); }
+.role-option input:checked ~ .role-box { border-color: rgba(168,85,247,0.45); background: rgba(168,85,247,0.08); box-shadow: 0 0 20px rgba(168,85,247,0.15); }
+.role-option input:checked ~ .role-box .material-symbols-outlined { color: var(--primary); font-variation-settings: 'FILL' 1; }
+.role-option input[value="merchant"]:checked ~ .role-box { border-color: rgba(56,189,248,0.45); background: rgba(56,189,248,0.08); box-shadow: 0 0 20px rgba(56,189,248,0.15); }
+.role-option input[value="merchant"]:checked ~ .role-box .material-symbols-outlined { color: var(--secondary); }
+
+/* Wallet input special */
+.wallet-input { font-family: 'JetBrains Mono', monospace; letter-spacing: 0.04em; }
+
+/* Submit */
+.btn-submit { width: 100%; padding: 16px; border-radius: 14px; border: none; cursor: pointer; font-family: 'Press Start 2P', monospace; font-size: 10px; color: #fff; background: linear-gradient(135deg, #7c3aed, #2563eb); position: relative; overflow: hidden; transition: all 0.3s; box-shadow: 0 0 30px rgba(124,58,237,0.3); display: flex; align-items: center; justify-content: center; gap: 10px; letter-spacing: 0.04em; margin-top: 8px; }
+.btn-submit::before { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, var(--primary), var(--secondary)); opacity: 0; transition: opacity 0.3s; }
+.btn-submit:hover::before { opacity: 1; }
+.btn-submit:hover { box-shadow: 0 0 50px rgba(168,85,247,0.5); transform: translateY(-2px); }
+.btn-submit span, .btn-submit .material-symbols-outlined { position: relative; z-index: 1; }
+.btn-submit .material-symbols-outlined { font-size: 18px; transition: transform 0.3s; }
+.btn-submit:hover .material-symbols-outlined { transform: translateX(4px); }
+
+/* Status */
+#authRegisterStatus { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); display: block; margin-top: 10px; text-align: center; }
+
+/* Footer link */
+.form-footer { border-top: 1px solid var(--border); padding-top: 18px; margin-top: 20px; text-align: center; }
+.form-footer a { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--secondary); text-decoration: none; transition: color 0.2s; }
+.form-footer a:hover { color: var(--primary); }
+
+/* Tip boxes */
+.tip-box { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; background: rgba(168,85,247,0.04); border: 1px solid rgba(168,85,247,0.15); border-radius: 10px; margin-top: 16px; }
+.tip-box .material-symbols-outlined { font-size: 15px; color: var(--primary); flex-shrink: 0; margin-top: 1px; font-variation-settings: 'FILL' 1; }
+.tip-box-text { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); line-height: 1.6; }
+
+/* fade up */
+.fade-up { opacity: 0; transform: translateY(24px); animation: fadeUp 0.6s ease forwards; }
+@keyframes fadeUp { to{opacity:1;transform:translateY(0)} }
+.d1{animation-delay:.05s}.d2{animation-delay:.15s}.d3{animation-delay:.25s}.d4{animation-delay:.35s}
+</style>
 </head>
-<body class="min-h-screen px-6 py-12">
-<main class="max-w-xl mx-auto">
-<section class="glass rounded-2xl border border-white/10 p-8" id="detailsPanel">
-<h1 class="font-headline text-4xl font-black text-cyan-300">Onboarding</h1>
-<p class="mt-2 text-slate-300">Complete profile once to continue to dashboard.</p>
-<form id="authRegisterForm" class="mt-6 space-y-3">
-<input id="registerDisplayName" type="text" placeholder="Username" class="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2" required/>
-<input id="registerEmail" type="email" placeholder="Email" class="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2" required/>
-<input id="registerPassword" type="password" placeholder="Password (wallet users)" class="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2"/>
-<select id="registerRole" class="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2">
-<option value="client">Client</option>
-<option value="merchant">Merchant</option>
-</select>
-<input id="registerWallet" type="text" placeholder="Wallet (optional)" class="w-full rounded-lg bg-slate-700 border border-slate-600 px-3 py-2"/>
-<button type="submit" class="w-full rounded-lg bg-cyan-400 text-cyan-950 py-3 font-bold uppercase tracking-wider">Complete Onboarding</button>
-</form>
-<p id="authRegisterStatus" class="mt-3 text-sm text-slate-300"></p>
-</section>
-</main>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+<div class="grid-overlay"></div>
+<canvas id="pixel-canvas"></canvas>
+
+<!-- NAV -->
+<div class="nav-wrap">
+  <div class="nav-inner">
+    <a class="nav-logo" href="/"><span class="logo-gem"></span> SolClub</a>
+    <div class="nav-steps">
+      <div class="step-dot done">✓</div>
+      <div class="step-line"></div>
+      <div class="step-dot active">2</div>
+      <div class="step-line"></div>
+      <div class="step-dot">3</div>
+    </div>
+    <a class="nav-back" href="/auth">
+      <span class="material-symbols-outlined">arrow_back</span> Back
+    </a>
+  </div>
+</div>
+
+<div class="page">
+  <div class="page-inner">
+
+    <!-- LEFT -->
+    <div class="page-left fade-up d1">
+      <div class="left-label">New Operative</div>
+      <h1 class="left-title">Initialize<br/>your<br/><span class="gradient-text">Identity</span></h1>
+      <p class="left-desc">Configure your SolClub parameters. Your identity is sovereign — stored on-chain, owned by you.</p>
+
+      <div class="perks-list">
+        <div class="perk">
+          <div class="perk-icon" style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.2);">
+            <span class="material-symbols-outlined" style="color:var(--primary);">auto_awesome</span>
+          </div>
+          <div>
+            <div class="perk-title">500 Starter XP</div>
+            <div class="perk-sub">Credited on profile completion</div>
+          </div>
+        </div>
+        <div class="perk">
+          <div class="perk-icon" style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);">
+            <span class="material-symbols-outlined" style="color:var(--secondary);">diamond</span>
+          </div>
+          <div>
+            <div class="perk-title">Genesis NFT Badge</div>
+            <div class="perk-sub">Founding member — limited supply</div>
+          </div>
+        </div>
+        <div class="perk">
+          <div class="perk-icon" style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.2);">
+            <span class="material-symbols-outlined" style="color:var(--tertiary);">payments</span>
+          </div>
+          <div>
+            <div class="perk-title">3× Cashback Boost</div>
+            <div class="perk-sub">First 30 days after onboarding</div>
+          </div>
+        </div>
+        <div class="perk">
+          <div class="perk-icon" style="background:rgba(244,114,182,0.1);border:1px solid rgba(244,114,182,0.2);">
+            <span class="material-symbols-outlined" style="color:var(--accent);">group</span>
+          </div>
+          <div>
+            <div class="perk-title">Elite Discord Access</div>
+            <div class="perk-sub">Private channels &amp; alpha drops</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="xp-preview">
+        <div class="xp-preview-label">
+          <span>Starting XP</span>
+          <span id="xpCount">0 / 500</span>
+        </div>
+        <div class="xp-bar"><div class="xp-fill" id="xpBar"></div></div>
+        <div class="xp-nums"><span>Bronze Tier</span><span>Initiate → Scout</span></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Form -->
+    <div class="fade-up d2">
+      <div class="form-card">
+        <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBar"></div></div>
+        <div class="form-inner">
+          <div class="form-header">
+            <div class="form-header-title">Initialize<br/>Identity</div>
+            <div class="form-header-sub">Step 2 of 3 · Profile configuration</div>
+          </div>
+
+          <form id="authRegisterForm">
+            <input id="registerRole" type="hidden" value="client"/>
+
+            <!-- Username -->
+            <div class="form-group">
+              <label class="form-label">
+                <span>Username</span>
+                <span class="form-badge">Required</span>
+              </label>
+              <div class="input-wrap">
+                <span class="input-icon material-symbols-outlined">person</span>
+                <input class="form-input" id="registerDisplayName" name="username" placeholder="Enter your alias" type="text" oninput="updateProgress()"/>
+              </div>
+            </div>
+
+            <!-- Email -->
+            <div class="form-group">
+              <label class="form-label">
+                <span>Secure Comms</span>
+                <span class="form-badge">Required</span>
+              </label>
+              <div class="input-wrap">
+                <span class="input-icon material-symbols-outlined">mail</span>
+                <input class="form-input" id="registerEmail" name="email" placeholder="transmission@address.com" type="email" oninput="updateProgress()"/>
+              </div>
+            </div>
+
+            <!-- Password -->
+            <div class="form-group">
+              <label class="form-label">
+                <span>Encryption Key</span>
+                <span class="form-badge">Required</span>
+              </label>
+              <div class="input-wrap">
+                <span class="input-icon material-symbols-outlined">lock</span>
+                <input class="form-input" id="registerPassword" name="password" placeholder="••••••••••••" type="password" oninput="updateProgress()"/>
+              </div>
+            </div>
+
+            <!-- Role -->
+            <div class="form-group">
+              <label class="form-label">
+                <span>Operational Directive</span>
+                <span class="form-badge">Select Role</span>
+              </label>
+              <div class="role-grid">
+                <label class="role-option">
+                  <input checked name="role" type="radio" value="client" onchange="document.getElementById('registerRole').value='client'; updateProgress()"/>
+                  <div class="role-box">
+                    <span class="material-symbols-outlined">explore</span>
+                    <div class="role-box-name">Explorer</div>
+                    <div class="role-box-sub">Discover &amp; Earn</div>
+                  </div>
+                </label>
+                <label class="role-option">
+                  <input name="role" type="radio" value="merchant" onchange="document.getElementById('registerRole').value='merchant'; updateProgress()"/>
+                  <div class="role-box">
+                    <span class="material-symbols-outlined">storefront</span>
+                    <div class="role-box-name">Merchant</div>
+                    <div class="role-box-sub">Provide &amp; Scale</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Wallet (optional) -->
+            <div class="form-group">
+              <label class="form-label">
+                <span>Web3 Uplink</span>
+                <span class="form-badge form-badge-optional">Optional</span>
+              </label>
+              <div class="input-wrap">
+                <span class="input-icon material-symbols-outlined">account_balance_wallet</span>
+                <input class="form-input wallet-input" id="registerWallet" name="wallet" placeholder="0x... or .sol domain" type="text" oninput="updateProgress()"/>
+              </div>
+            </div>
+
+            <div class="tip-box">
+              <span class="material-symbols-outlined">info</span>
+              <span class="tip-box-text">Connecting a wallet is optional here. After onboarding, you can link your <strong>real Solana wallet</strong> (Phantom, Solflare) from the dashboard to make real on-chain transactions, or use the managed testnet wallet created during sign-up.</span>
+            </div>
+
+            <button class="btn-submit" type="submit">
+              <span>Complete Onboarding</span>
+              <span class="material-symbols-outlined">arrow_forward</span>
+            </button>
+          </form>
+
+          <p id="authRegisterStatus"></p>
+
+          <div class="form-footer">
+            <a href="/login">Returning operative? Establish link here →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function updateProgress() {
+  const fields = [
+    document.getElementById('registerDisplayName').value,
+    document.getElementById('registerEmail').value,
+    document.getElementById('registerPassword').value,
+  ];
+  const wallet = document.getElementById('registerWallet').value;
+  const filled = fields.filter(v => v.trim().length > 0).length;
+  const pct = Math.round((filled / fields.length) * 100);
+  document.getElementById('progressBar').style.width = pct + '%';
+  const xp = Math.round((pct/100)*500) + (wallet.trim() ? 100 : 0);
+  document.getElementById('xpCount').textContent = Math.min(xp,500) + ' / 500';
+  document.getElementById('xpBar').style.width = Math.min((xp/500)*100,100) + '%';
+}
+
+// pixel canvas
+const canvas = document.getElementById('pixel-canvas');
+const ctx = canvas.getContext('2d');
+let stars = [];
+function resize() { canvas.width = innerWidth; canvas.height = innerHeight; }
+function makeStars() {
+  stars = [];
+  for (let i = 0; i < 110; i++) {
+    stars.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height*0.8, sz: Math.random()<0.2?2:1, a: Math.random()*0.7+0.2, sp: Math.random()*0.012+0.004, o: Math.random()*Math.PI*2, c: Math.random()<0.15?'#a855f7':Math.random()<0.15?'#38bdf8':'#fff' });
+  }
+}
+let f = 0;
+function draw() {
+  ctx.clearRect(0,0,canvas.width,canvas.height); f++;
+  stars.forEach(s => { const a = s.a*(0.5+0.5*Math.sin(f*s.sp+s.o)); ctx.fillStyle=s.c; ctx.globalAlpha=a; ctx.fillRect(Math.floor(s.x),Math.floor(s.y),s.sz,s.sz); });
+  ctx.globalAlpha=1; requestAnimationFrame(draw);
+}
+resize(); makeStars(); draw();
+addEventListener('resize', () => { resize(); makeStars(); });
+</script>
 </body>
 </html>

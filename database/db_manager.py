@@ -46,7 +46,7 @@ class DBManager:
         if not self.client:
             return {"status": "not_configured"}
         try:
-            self.client.table("users").select("id").limit(1).execute()
+            self.client.table("users").select("username").limit(1).execute()
             return {"status": "ok"}
         except Exception as exc:
             return {"status": "error", "detail": str(exc)}

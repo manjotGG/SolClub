@@ -126,9 +126,15 @@ async function connectWallet(role) {
   });
   setWalletInput(wallet);
   setLocalSession(data.role || resolvedRole, wallet);
-  const status = await getOnboardingStatus();
   closeModal($("#walletConnectModal"));
-  go(status.redirect || "/onboarding");
+
+  if (data.linked_to) {
+    // Already-onboarded user linked a wallet — stay on current page
+    window.location.reload();
+  } else {
+    const status = await getOnboardingStatus();
+    go(status.redirect || "/onboarding");
+  }
 }
 
 async function loginWithCredentials() {
@@ -151,8 +157,79 @@ async function createManagedWallet(role = "client") {
   });
   setWalletInput(data.wallet_address);
   setLocalSession(data.role || role, data.wallet_address);
-  const status = await getOnboardingStatus();
-  go(status.redirect || "/onboarding");
+
+  let redirectUrl = "/onboarding";
+  try {
+    const status = await getOnboardingStatus();
+    redirectUrl = status.redirect || "/onboarding";
+  } catch {
+    redirectUrl = "/onboarding";
+  }
+
+  // Show private key modal — un-dismissible until user acknowledges
+  if (data.private_key_base58) {
+    showPrivateKeyModal(data.wallet_address, data.private_key_base58, redirectUrl);
+  } else {
+    go(redirectUrl);
+  }
+}
+
+function showPrivateKeyModal(walletAddress, privateKey, redirectUrl = "/onboarding") {
+  let modal = $("#privateKeyModal");
+  if (modal) modal.remove();
+  modal = document.createElement("div");
+  modal.id = "privateKeyModal";
+  modal.className = "fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4";
+  modal.innerHTML = `
+    <div class="w-full max-w-lg rounded-2xl border border-red-500/30 bg-[#0d1320] p-8 shadow-[0_0_60px_rgba(239,68,68,0.15)]">
+      <div class="flex items-center gap-3 mb-4">
+        <span class="material-symbols-outlined text-red-400 text-3xl" style="font-variation-settings:'FILL' 1">warning</span>
+        <h3 class="text-xl font-bold text-red-400" style="font-family:'Space Grotesk',sans-serif">CRITICAL — Save Your Private Key</h3>
+      </div>
+      <p class="text-sm text-slate-300 mb-4 leading-relaxed">Your managed wallet has been created. <strong class="text-white">This is the ONLY time your private key will be shown.</strong> Copy it now and import it into Phantom or another Solana wallet to make real transactions.</p>
+      <div class="mb-3">
+        <label class="text-[10px] uppercase tracking-widest text-slate-500 mb-1 block" style="font-family:'JetBrains Mono',monospace">Wallet Address</label>
+        <div class="bg-slate-900/80 border border-slate-700 rounded-lg px-4 py-3 text-xs text-cyan-300 break-all" style="font-family:'JetBrains Mono',monospace">${walletAddress}</div>
+      </div>
+      <div class="mb-4">
+        <label class="text-[10px] uppercase tracking-widest text-red-400 mb-1 block" style="font-family:'JetBrains Mono',monospace">Private Key (Base58)</label>
+        <div id="pkDisplay" class="bg-red-950/30 border border-red-500/30 rounded-lg px-4 py-3 text-xs text-red-200 break-all select-all cursor-text" style="font-family:'JetBrains Mono',monospace;word-break:break-all">${privateKey}</div>
+      </div>
+      <div class="flex gap-3 mb-4">
+        <button id="copyPkBtn" class="flex-1 rounded-lg bg-slate-800 border border-slate-600 text-white font-bold py-2 text-sm hover:bg-slate-700 transition-colors" type="button">📋 Copy Private Key</button>
+      </div>
+      <div class="bg-yellow-900/20 border border-yellow-500/20 rounded-lg p-3 mb-4">
+        <p class="text-[11px] text-yellow-300" style="font-family:'JetBrains Mono',monospace">⚠ Import this key into Phantom Wallet to sign real Solana transactions. Never share it with anyone.</p>
+      </div>
+      <button id="ackPkBtn" class="w-full rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold py-3 text-sm transition-colors" type="button" disabled>I've saved my private key (5s)</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  // Prevent dismissal for 5 seconds
+  const ackBtn = $("#ackPkBtn", modal);
+  let countdown = 5;
+  const timer = setInterval(() => {
+    countdown--;
+    if (countdown > 0) {
+      ackBtn.textContent = `I've saved my private key (${countdown}s)`;
+    } else {
+      clearInterval(timer);
+      ackBtn.disabled = false;
+      ackBtn.textContent = "I've saved my private key — Continue";
+    }
+  }, 1000);
+
+  $("#copyPkBtn", modal)?.addEventListener("click", () => {
+    navigator.clipboard.writeText(privateKey).then(() => {
+      $("#copyPkBtn", modal).textContent = "✅ Copied!";
+    });
+  });
+
+  ackBtn?.addEventListener("click", () => {
+    modal.remove();
+    go(redirectUrl);
+  });
 }
 
 async function registerAccount(payload) {
@@ -343,42 +420,62 @@ function getOrCreateLivePanel() {
 }
 
 function showSoftWalletPrompt() {
-  let modal = $("#softWalletPrompt");
-  if (!modal) {
-    modal = document.createElement("div");
-    modal.id = "softWalletPrompt";
-    modal.className = "fixed inset-0 z-40 flex items-center justify-center bg-black/60 px-4";
-    modal.innerHTML = `
-      <div class="w-full max-w-md rounded-2xl border border-white/10 bg-[#1b1f2b] p-6">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-xl font-bold">Connect your wallet</h3>
-          <button id="softWalletCloseX" class="text-slate-300" type="button">X</button>
-        </div>
-        <p class="text-sm text-slate-300 mb-4">Unlock full features by connecting your wallet.</p>
-        <div class="flex gap-3">
-          <button id="softWalletConnect" class="flex-1 rounded-lg bg-cyan-400 text-cyan-950 font-bold py-2" type="button">Connect Wallet</button>
-          <button id="softWalletLater" class="rounded-lg border border-slate-500 px-4" type="button">Maybe later</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
+  showWalletManageModal();
+}
 
-    $("#softWalletCloseX", modal)?.addEventListener("click", () => closeModal(modal));
-    $("#softWalletLater", modal)?.addEventListener("click", () => closeModal(modal));
-    $("#softWalletConnect", modal)?.addEventListener("click", () => {
-      closeModal(modal);
-      go("/auth");
-    });
-  }
-  openModal(modal);
+function showWalletManageModal() {
+  let modal = $("#walletManageModal");
+  if (modal) modal.remove();
+  modal = document.createElement("div");
+  modal.id = "walletManageModal";
+  modal.className = "fixed inset-0 z-[80] flex items-center justify-center bg-black/70 px-4";
+  modal.innerHTML = `
+    <div class="w-full max-w-md rounded-2xl border border-purple-500/20 bg-[#0d1320] p-6 shadow-[0_0_60px_rgba(168,85,247,0.1)]">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-lg font-bold" style="font-family:'Space Grotesk',sans-serif">Wallet Manager</h3>
+        <button id="closeWalletManage" class="text-slate-400 hover:text-white text-xl" type="button">✕</button>
+      </div>
+      <p class="text-sm text-slate-400 mb-6">Link an existing Solana wallet or create a new managed one.</p>
+      <div class="space-y-3">
+        <button id="wmLinkExternal" class="w-full flex items-center gap-4 p-4 rounded-xl border border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 transition-colors text-left">
+          <span class="material-symbols-outlined text-purple-400 text-2xl">link</span>
+          <div>
+            <div class="font-bold text-sm">Link Existing Wallet</div>
+            <div class="text-[11px] text-slate-500">Paste your Phantom / Solflare address</div>
+          </div>
+        </button>
+        <button id="wmCreateManaged" class="w-full flex items-center gap-4 p-4 rounded-xl border border-cyan-500/20 bg-cyan-500/5 hover:bg-cyan-500/10 transition-colors text-left">
+          <span class="material-symbols-outlined text-cyan-400 text-2xl">add_circle</span>
+          <div>
+            <div class="font-bold text-sm">Create Managed Wallet</div>
+            <div class="text-[11px] text-slate-500">Generate a new Solana testnet keypair</div>
+          </div>
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  $("#closeWalletManage", modal)?.addEventListener("click", () => modal.remove());
+  modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
+
+  $("#wmLinkExternal", modal)?.addEventListener("click", () => {
+    modal.remove();
+    showLinkWalletModal();
+  });
+  $("#wmCreateManaged", modal)?.addEventListener("click", () => {
+    modal.remove();
+    createManagedWallet(localStorage.getItem(SOLCLUB_ROLE_KEY) || "client").catch((e) => alert(e.message));
+  });
 }
 
 function updateClientLivePanel(snapshot, preview) {
   const panel = getOrCreateLivePanel();
+  const displayName = snapshot.username || snapshot.wallet || "-";
   panel.innerHTML = `
     <div class="font-bold tracking-wider uppercase text-xs mb-2">Live Client Data</div>
     <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
-      <div><div class="text-[10px] uppercase text-slate-300">Wallet</div><div class="font-mono text-xs">${snapshot.wallet || "-"}</div></div>
+      <div><div class="text-[10px] uppercase text-slate-300">Identity</div><div class="font-mono text-xs">${displayName}</div></div>
       <div><div class="text-[10px] uppercase text-slate-300">Tier</div><div class="font-bold">${String(snapshot.tier || "-").toUpperCase()}</div></div>
       <div><div class="text-[10px] uppercase text-slate-300">Transactions</div><div class="font-bold">${snapshot.total_transactions || 0}</div></div>
       <div><div class="text-[10px] uppercase text-slate-300">Spent</div><div class="font-bold">${snapshot.total_spent || 0} SOL</div></div>
@@ -386,6 +483,62 @@ function updateClientLivePanel(snapshot, preview) {
       <div><div class="text-[10px] uppercase text-slate-300">Next Reward</div><div class="font-bold">${preview.reward_tier || "-"}</div></div>
     </div>
   `;
+
+  // Hydrate dashboard cards if present
+  hydrateDashboardCards(snapshot, preview);
+}
+
+function hydrateDashboardCards(snapshot, preview) {
+  const el = (id) => document.getElementById(id);
+  const username = snapshot.username || snapshot.wallet || "Agent";
+  if (el("dashUsername")) el("dashUsername").textContent = username;
+  if (el("dashTier")) el("dashTier").textContent = String(snapshot.tier || "Bronze").toUpperCase();
+  if (el("dashTotalCashback")) el("dashTotalCashback").textContent = snapshot.total_cashback || "0";
+  if (el("dashNftCount")) el("dashNftCount").textContent = `${snapshot.nft_count || 0} Collected`;
+  if (el("dashTxCount")) el("dashTxCount").textContent = `${snapshot.total_transactions || 0} Txns`;
+  if (el("dashXp")) el("dashXp").textContent = `XP: ${(snapshot.total_transactions || 0) * 10}`;
+  if (el("dashCashbackCard")) el("dashCashbackCard").textContent = `${snapshot.total_cashback || 0} SOL`;
+  if (el("dashSpentCard")) el("dashSpentCard").textContent = `${snapshot.total_spent || 0} SOL`;
+  if (el("dashBadgeCard")) el("dashBadgeCard").textContent = `${snapshot.nft_count || 0} NFTs`;
+
+  // Render activity list with real transaction data
+  const actList = el("dashActivityList");
+  if (actList && snapshot.recent_transactions && snapshot.recent_transactions.length) {
+    actList.innerHTML = snapshot.recent_transactions.slice(0, 5).map((tx) => {
+      const date = tx.created_at ? new Date(tx.created_at).toLocaleString() : "-";
+      const sig = tx.signature ? tx.signature.slice(0, 12) + "..." : "-";
+      return `
+        <div class="bg-[#171b27] hover:bg-[#1b1f2b] p-4 rounded-2xl flex items-center justify-between transition-colors">
+          <div class="flex items-center gap-4 md:gap-6">
+            <div class="w-10 h-10 md:w-12 md:h-12 bg-slate-900 rounded-xl flex items-center justify-center border border-white/5">
+              <span class="material-symbols-outlined text-cyan-400">shopping_cart</span>
+            </div>
+            <div>
+              <p class="font-headline font-bold text-on-background text-sm">${sig}</p>
+              <p class="text-xs text-slate-500">${date}</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <p class="font-headline font-bold text-cyan-400">${tx.amount || 0} SOL</p>
+            <p class="text-[10px] text-slate-500 uppercase">Merchant #${tx.merchant_id || 1}</p>
+          </div>
+        </div>
+      `;
+    }).join("");
+  } else if (actList) {
+    actList.innerHTML = `
+      <div class="bg-[#171b27] p-6 rounded-2xl text-center">
+        <span class="material-symbols-outlined text-slate-600 text-4xl mb-2 block">receipt_long</span>
+        <p class="text-slate-500 text-sm">No transactions yet. Make your first purchase to see activity here.</p>
+      </div>
+    `;
+  }
+
+  // Update nav button text if wallet is connected
+  const navBtn = el("navConnectWallet");
+  if (navBtn && snapshot.wallet) {
+    navBtn.textContent = snapshot.wallet.slice(0, 4) + "..." + snapshot.wallet.slice(-4);
+  }
 }
 
 function updateMerchantLivePanel(analytics, nfts) {
@@ -568,8 +721,11 @@ function wireCommonButtons(session) {
     if (label.includes("connect wallet")) {
       button.addEventListener("click", (event) => {
         event.preventDefault();
-        const resolvedRole = preferredRole();
-        connectWallet(resolvedRole).catch((error) => alert(error.message));
+        if (session && session.authenticated) {
+          showWalletManageModal();
+        } else {
+          go("/auth");
+        }
       });
       return;
     }
@@ -646,6 +802,127 @@ function wireCommonButtons(session) {
       });
       return;
     }
+
+    if (label.includes("link wallet") || label.includes("link real wallet")) {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        showLinkWalletModal();
+      });
+      return;
+    }
+  });
+}
+
+function showLinkWalletModal() {
+  let modal = $("#linkWalletModal");
+  if (modal) modal.remove();
+  modal = document.createElement("div");
+  modal.id = "linkWalletModal";
+  modal.className = "fixed inset-0 z-[90] flex items-center justify-center bg-black/70 px-4";
+  modal.innerHTML = `
+    <div class="w-full max-w-md rounded-2xl border border-purple-500/20 bg-[#0d1320] p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-bold" style="font-family:'Space Grotesk',sans-serif">Link Real Solana Wallet</h3>
+        <button id="closeLinkWallet" class="text-slate-400 hover:text-white" type="button">✕</button>
+      </div>
+      <p class="text-sm text-slate-400 mb-4">Paste your real Solana wallet address (mainnet) to link it to your SolClub account for real transactions.</p>
+      <form id="linkWalletForm">
+        <div class="mb-3">
+          <label class="text-[10px] uppercase tracking-widest text-slate-500 mb-1 block" style="font-family:'JetBrains Mono',monospace">Wallet Address</label>
+          <input id="linkWalletAddress" class="w-full bg-slate-900/80 border border-slate-600 rounded-lg px-4 py-3 text-sm text-white" style="font-family:'JetBrains Mono',monospace" placeholder="Your Solana wallet address..." required />
+        </div>
+        <div class="mb-4">
+          <label class="text-[10px] uppercase tracking-widest text-slate-500 mb-1 block" style="font-family:'JetBrains Mono',monospace">Network</label>
+          <select id="linkWalletNetwork" class="w-full bg-slate-900/80 border border-slate-600 rounded-lg px-4 py-3 text-sm text-white">
+            <option value="mainnet-beta">Mainnet</option>
+            <option value="testnet">Testnet</option>
+            <option value="devnet">Devnet</option>
+          </select>
+        </div>
+        <p id="linkWalletStatus" class="text-xs text-slate-500 mb-3" style="font-family:'JetBrains Mono',monospace"></p>
+        <div class="flex gap-3">
+          <button type="submit" class="flex-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 text-sm transition-colors">Link Wallet</button>
+          <button type="button" id="cancelLinkWallet" class="rounded-lg border border-slate-600 px-4 py-2 text-sm text-slate-300 hover:text-white transition-colors">Cancel</button>
+        </div>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  $("#closeLinkWallet", modal)?.addEventListener("click", () => modal.remove());
+  $("#cancelLinkWallet", modal)?.addEventListener("click", () => modal.remove());
+
+  $("#linkWalletForm", modal)?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const addr = $("#linkWalletAddress", modal)?.value?.trim();
+    const network = $("#linkWalletNetwork", modal)?.value || "mainnet-beta";
+    const status = $("#linkWalletStatus", modal);
+    if (!addr) return;
+    try {
+      if (status) status.textContent = "Linking...";
+      await apiJson(`${AUTH_BASE}/wallet/link`, {
+        method: "POST",
+        body: JSON.stringify({ wallet_address: addr, network }),
+      });
+      if (status) status.textContent = "✅ Wallet linked successfully!";
+      setTimeout(() => { modal.remove(); loadWalletList(); }, 1500);
+    } catch (err) {
+      if (status) status.textContent = err.message;
+    }
+  });
+}
+
+async function loadWalletList() {
+  try {
+    const data = await apiJson(`${AUTH_BASE}/wallet/list`);
+    renderWalletList(data.wallets || []);
+  } catch { /* ignore */ }
+}
+
+function renderWalletList(wallets) {
+  let container = $("#walletListPanel");
+  if (!container) {
+    container = document.createElement("section");
+    container.id = "walletListPanel";
+    container.className = "mb-6 p-4 rounded-2xl border border-purple-400/20 bg-purple-500/5 text-sm";
+    const livePanel = $("#solclubLivePanel");
+    if (livePanel && livePanel.parentNode) {
+      livePanel.parentNode.insertBefore(container, livePanel.nextSibling);
+    } else {
+      const main = $("main");
+      if (main) main.prepend(container);
+    }
+  }
+  if (!wallets.length) {
+    container.innerHTML = `
+      <div class="flex items-center justify-between">
+        <div class="font-bold tracking-wider uppercase text-xs">Linked Wallets</div>
+        <button id="btnLinkRealWallet" class="text-xs text-purple-400 hover:text-purple-300 font-bold uppercase tracking-wider">+ Link Real Wallet</button>
+      </div>
+      <p class="text-xs text-slate-500 mt-2">No wallets linked yet. Link a real Solana wallet to make on-chain transactions.</p>
+    `;
+  } else {
+    const rows = wallets.map(w => `
+      <div class="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+        <div>
+          <span class="font-mono text-xs">${w.wallet_address || "-"}</span>
+          <span class="ml-2 text-[9px] uppercase px-2 py-0.5 rounded ${w.managed_wallet ? 'bg-cyan-500/10 text-cyan-400' : 'bg-purple-500/10 text-purple-400'}">${w.managed_wallet ? 'Managed' : 'External'}</span>
+          <span class="ml-1 text-[9px] uppercase px-2 py-0.5 rounded bg-slate-700 text-slate-300">${w.network || 'testnet'}</span>
+          ${w.is_primary ? '<span class="ml-1 text-[9px] uppercase px-2 py-0.5 rounded bg-green-500/10 text-green-400">Primary</span>' : ''}
+        </div>
+      </div>
+    `).join("");
+    container.innerHTML = `
+      <div class="flex items-center justify-between mb-2">
+        <div class="font-bold tracking-wider uppercase text-xs">Linked Wallets (${wallets.length})</div>
+        <button id="btnLinkRealWallet" class="text-xs text-purple-400 hover:text-purple-300 font-bold uppercase tracking-wider">+ Link Real Wallet</button>
+      </div>
+      ${rows}
+    `;
+  }
+  $("#btnLinkRealWallet", container)?.addEventListener("click", (e) => {
+    e.preventDefault();
+    showLinkWalletModal();
   });
 }
 
@@ -677,6 +954,10 @@ function wirePortal(session) {
 
 async function bootstrap() {
   const page = pageId();
+
+  if (!page || page === "landing") {
+    return;
+  }
 
   if (page === "auth") {
     wireAuthButtons();
@@ -737,10 +1018,35 @@ async function bootstrap() {
   wireCommonButtons(session);
   wirePortal(session);
 
+  // Mobile sidebar toggle
+  const menuBtn = $("#mobileMenuBtn");
+  const sidebar = $("#sidebar");
+  const overlay = $("#sidebarOverlay");
+  if (menuBtn && sidebar) {
+    menuBtn.addEventListener("click", () => {
+      sidebar.classList.toggle("-translate-x-full");
+      if (overlay) overlay.classList.toggle("hidden");
+    });
+    if (overlay) overlay.addEventListener("click", () => {
+      sidebar.classList.add("-translate-x-full");
+      overlay.classList.add("hidden");
+    });
+  }
+
+  // Nav connect wallet button
+  const navConnBtn = $("#navConnectWallet");
+  if (navConnBtn) {
+    navConnBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      showWalletManageModal();
+    });
+  }
+
   if (page.startsWith("client")) {
     if (session.wallet) {
       await hydrateClientPages(session.wallet);
       attachSSE("client", session.wallet);
+      loadWalletList();
     } else if (page === "client-dashboard") {
       showSoftWalletPrompt();
     }
@@ -754,7 +1060,7 @@ document.addEventListener("DOMContentLoaded", () => {
   bootstrap().catch((error) => {
     console.error(error);
     alert(error.message || "UI bootstrap failed.");
-    if (!["auth", "auth-login", "onboarding"].includes(pageId())) {
+    if (!["landing", "auth", "auth-login", "onboarding"].includes(pageId())) {
       go("/auth");
     }
   });
