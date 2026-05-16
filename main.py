@@ -380,6 +380,8 @@ def create_fastapi_app():
             "/api/auth/logout",
             "/api/auth/wallet/connect",
             "/api/auth/wallet/create",
+            "/api/auth/wallet/link",
+            "/api/auth/wallet/list",
             "/api/auth/onboarding/complete",
         }
         if path in public_ui_paths:
@@ -421,6 +423,7 @@ def create_fastapi_app():
         """Background task to detect and process new merchant transactions."""
         # Track processed transactions for real NFT minting (duplicate prevention)
         minted_signatures = set()
+        initial_load_done = False
         
         while True:
             try:
@@ -433,6 +436,20 @@ def create_fastapi_app():
                     MERCHANT_WALLET,
                     limit=20,
                 )
+
+                if not signatures_resp or not signatures_resp.value:
+                    initial_load_done = True
+                    await asyncio.sleep(10)
+                    continue
+
+                # On first run, ignore all historical transactions to prevent flood after DB wipe
+                if not initial_load_done:
+                    for sig_info in signatures_resp.value:
+                        minted_signatures.add(str(sig_info.signature))
+                    initial_load_done = True
+                    print(f"🤫 Startup: Ignored {len(signatures_resp.value)} historical transactions.")
+                    await asyncio.sleep(10)
+                    continue
 
                 if not signatures_resp or not signatures_resp.value:
                     await asyncio.sleep(10)

@@ -19,4 +19,4 @@ __pycache__/
 logs/
 data/*.json
 .env
-
+implementation_plan.md

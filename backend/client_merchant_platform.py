@@ -1,5 +1,7 @@
 import base64
+import base58
 import os
+import re
 import secrets
 import time
 from datetime import datetime, timedelta, timezone
@@ -318,12 +320,16 @@ async def wallet_auto_create(payload: AutoWalletRequest):
     )
     upsert_client_profile(wallet_address)
 
+    private_key_base58 = base58.b58encode(secret_bytes).decode("utf-8")
+
     return {
         "success": True,
         "wallet_address": wallet_address,
+        "public_key": wallet_address,
+        "private_key_base58": private_key_base58,
         "network": payload.network,
         "managed_wallet": True,
-        "warning": "Private key is encrypted in DB. Keep WALLET_ENCRYPTION_KEY secure.",
+        "warning": "Save your private key now. Import into Phantom for real transactions.",
     }
 
 

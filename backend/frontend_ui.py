@@ -31,12 +31,15 @@ from database.db import (
     get_merchant_profile,
     get_user_account_by_identifier,
     get_user_account_by_google_sub,
+    get_user_account_by_username,
     get_user_account_by_wallet,
     get_primary_wallet_for_user,
+    link_external_wallet,
     list_franchises,
     list_cashback_rewards,
     list_nft_records,
     list_reward_feedback,
+    list_wallets_for_user,
     list_wallet_transactions,
     save_reward_feedback,
     assign_wallet_to_user,
@@ -223,8 +226,13 @@ def _client_snapshot(wallet: str, merchant_id: int) -> Dict[str, Any]:
     total_spent = round(sum(float(t.get("amount", 0) or 0) for t in txs), 6)
     total_cashback = round(sum(float(r.get("cashback_amount", 0) or 0) for r in rewards), 6)
 
+    # Resolve username from wallet
+    user = get_user_account_by_wallet(normalized_wallet)
+    username = str((user or {}).get("username") or "").strip() or None
+
     return {
         "wallet": normalized_wallet,
+        "username": username,
         "merchant_id": merchant_id,
         "tier": tier,
         "next_milestone": milestone,
@@ -474,7 +482,7 @@ async def ui_merchant_franchises_post(merchant_id: int, payload: Dict[str, Any])
 
 @router.post("/api/wallet/connect")
 @auth_router.post("/wallet/connect")
-async def ui_wallet_connect(payload: Dict[str, Any], response: Response):
+async def ui_wallet_connect(payload: Dict[str, Any], request: Request, response: Response):
     wallet = str(payload.get("wallet_address", "")).strip()
     if not wallet:
         raise HTTPException(status_code=400, detail="wallet_address is required")
@@ -483,6 +491,35 @@ async def ui_wallet_connect(payload: Dict[str, Any], response: Response):
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid Solana wallet address")
 
+    user_role = str(payload.get("user_role", "client")).strip().lower()
+    if user_role not in {"client", "merchant"}:
+        raise HTTPException(status_code=400, detail="user_role must be either 'client' or 'merchant'")
+
+    # Check if user is already authenticated with a username
+    session = get_ui_session_from_request(request)
+    session_username = str((session or {}).get("username") or "").strip() if session else ""
+
+    if session_username:
+        # Already onboarded user — link this wallet to their account
+        link_external_wallet(session_username, wallet, network=str(payload.get("network", "testnet")))
+        if user_role == "client":
+            upsert_client_profile(wallet, username=session_username)
+        _set_ui_session_cookies(
+            response,
+            role=user_role,
+            wallet=wallet,
+            username=session_username,
+            onboarding_required=False,
+        )
+        return {
+            "success": True,
+            "wallet": wallet,
+            "role": user_role,
+            "next": _role_dashboard_path(user_role),
+            "linked_to": session_username,
+        }
+
+    # Not authenticated or no username yet — original flow
     upsert_wallet_record(
         wallet_address=wallet,
         network=str(payload.get("network", "testnet")),
@@ -490,9 +527,6 @@ async def ui_wallet_connect(payload: Dict[str, Any], response: Response):
         is_primary=True,
         managed_wallet=False,
     )
-    user_role = str(payload.get("user_role", "client")).strip().lower()
-    if user_role not in {"client", "merchant"}:
-        raise HTTPException(status_code=400, detail="user_role must be either 'client' or 'merchant'")
 
     user = get_user_account_by_wallet(wallet)
     onboarding_required = not bool(user)
@@ -648,19 +682,25 @@ async def ui_google_callback(code: Optional[str] = None, state: Optional[str] = 
     google_email = str(profile.get("email") or "").strip().lower()
     google_sub = str(profile.get("sub") or "").strip()
     existing_account = get_user_account_by_google_sub(google_sub) or (get_user_account_by_identifier(google_email) if google_email else None)
-    existing_username = str((existing_account or {}).get("username") or (existing_account or {}).get("display_name") or "").strip() or None
-    account = upsert_user_account(
-        email=google_email,
-        username=existing_username,
-        display_name=profile.get("name"),
-        role=role,
-        google_sub=google_sub or None,
-    )
+    existing_username = str((existing_account or {}).get("username") or "").strip() or None
 
-    wallet_record = get_primary_wallet_for_user(str(account.get("id", ""))) if account.get("id") else None
-    wallet = (wallet_record or {}).get("wallet_address") or ""
-    username = str(account.get("username") or account.get("display_name") or "").strip()
-    onboarding_required = not bool(username)
+    # If the user already has a username, upsert. Otherwise skip account creation and go to onboarding.
+    wallet = ""
+    username = existing_username or ""
+    onboarding_required = not bool(existing_username)
+
+    if existing_username:
+        account = upsert_user_account(
+            email=google_email,
+            username=existing_username,
+            display_name=profile.get("name"),
+            role=role,
+            google_sub=google_sub or None,
+        )
+        wallet_record = get_primary_wallet_for_user(existing_username)
+        wallet = (wallet_record or {}).get("wallet_address") or ""
+        username = str(account.get("username") or "").strip()
+
     redirect = "/onboarding" if onboarding_required else _role_dashboard_path(role)
     response = RedirectResponse(url=redirect, status_code=303)
     _set_ui_session_cookies(
@@ -760,12 +800,11 @@ async def ui_register(payload: Dict[str, Any], request: Request, response: Respo
                 wallet_address=wallet,
                 network=str(payload.get("network", "testnet")),
                 provider=str(payload.get("provider", "manual")),
-                user_id=account.get("id"),
+                username=username,
                 is_primary=True,
                 managed_wallet=False,
             )
-        if account.get("id"):
-            assign_wallet_to_user(wallet, str(account.get("id")))
+        assign_wallet_to_user(wallet, username)
         if role == "client":
             upsert_client_profile(wallet)
 
@@ -900,7 +939,8 @@ async def ui_login(payload: Dict[str, Any], response: Response):
     else:
         user = get_user_account_by_identifier(identifier)
         if user:
-            wallet_record = get_primary_wallet_for_user(str(user.get("id", ""))) if user.get("id") else None
+            uname = str(user.get("username") or "").strip()
+            wallet_record = get_primary_wallet_for_user(uname) if uname else None
             wallet = (wallet_record or {}).get("wallet_address") or ""
 
     if not user:
@@ -927,6 +967,42 @@ async def ui_login(payload: Dict[str, Any], response: Response):
         "wallet": wallet,
         "redirect": _role_dashboard_path(resolved_role),
     }
+
+
+@router.post("/api/wallet/link")
+@auth_router.post("/wallet/link")
+async def ui_wallet_link(payload: Dict[str, Any], request: Request):
+    """Link an external real Solana wallet to the authenticated user."""
+    session = get_ui_session_from_request(request)
+    if not session:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    username = str(session.get("username") or "").strip()
+    if not username:
+        raise HTTPException(status_code=400, detail="Username not set. Complete onboarding first.")
+    wallet_address = str(payload.get("wallet_address", "")).strip()
+    if not wallet_address:
+        raise HTTPException(status_code=400, detail="wallet_address is required")
+    try:
+        Pubkey.from_string(wallet_address)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid Solana wallet address")
+    network = str(payload.get("network", "mainnet-beta")).strip()
+    record = link_external_wallet(username, wallet_address, network=network)
+    return {"success": True, "wallet": record}
+
+
+@router.get("/api/wallet/list")
+@auth_router.get("/wallet/list")
+async def ui_wallet_list(request: Request):
+    """List all wallets linked to the authenticated user."""
+    session = get_ui_session_from_request(request)
+    if not session:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    username = str(session.get("username") or "").strip()
+    if not username:
+        return {"wallets": []}
+    wallets = list_wallets_for_user(username)
+    return {"username": username, "wallets": wallets}
 
 
 @router.get("/events")
