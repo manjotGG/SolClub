@@ -831,3 +831,17 @@ def list_reward_feedback(merchant_id: int, limit: int = 50) -> List[Dict[str, An
         return _require_data(result)
     except Exception:
         return []
+
+
+def get_recent_merchant_transactions(merchant_id: int, limit: int = 10) -> List[Dict[str, Any]]:
+    """Fetch the most recent transactions for a merchant."""
+    _require_client()
+    result = (
+        _db.client.table("transactions")
+        .select("wallet_address,amount,signature,created_at")
+        .eq("merchant_id", int(merchant_id))
+        .order("created_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return _require_data(result)

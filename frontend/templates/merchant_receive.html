@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SolClub | Receive Payment</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script>tailwind.config={darkMode:"class",theme:{extend:{colors:{background:"#0f131e","surface-container":"#1b1f2b","surface-container-low":"#171b27",primary:"#ddb7ff",secondary:"#4cd7f6",tertiary:"#4ae176","on-primary":"#490080","on-background":"#dfe2f2"},fontFamily:{headline:["Space Grotesk"],body:["Inter"]}}}}</script>
+<style>
+.glass-panel{background:rgba(27,31,43,.7);backdrop-filter:blur(20px);border:1px solid rgba(221,183,255,.1)}
+.curtain{transform:translateY(-100%);transition:transform .5s cubic-bezier(.4,0,.2,1)}
+.curtain.open{transform:translateY(0)}
+</style>
+</head>
+<body class="bg-background text-on-background font-body" data-page="merchant-receive">
+<!-- Top Nav -->
+<nav class="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-xl flex justify-between items-center px-4 md:px-8 py-4 shadow-[0_0_20px_rgba(168,85,247,0.15)]">
+<div class="flex items-center gap-4">
+<a href="/ui/merchant" class="flex items-center gap-3">
+<span class="material-symbols-outlined text-slate-400">arrow_back</span>
+<span class="text-xl font-black tracking-tighter text-purple-400 uppercase font-['Space_Grotesk']">SolClub</span>
+</a>
+</div>
+<div class="flex items-center gap-3">
+<button id="btnStaticQR" class="flex items-center gap-2 bg-surface-container border border-white/10 text-sm text-slate-300 font-headline font-bold uppercase tracking-wider px-4 py-2 rounded-xl hover:border-cyan-500/30 transition-all">
+<span class="material-symbols-outlined text-base">qr_code</span> My QR
+</button>
+</div>
+</nav>
+
+<!-- Static QR Curtain Overlay -->
+<div id="staticQRCurtain" class="curtain fixed inset-0 z-[80] bg-slate-950/95 backdrop-blur-2xl flex flex-col items-center justify-center px-4">
+<button id="closeStaticQR" class="absolute top-6 right-6 text-slate-400 hover:text-white material-symbols-outlined text-3xl">close</button>
+<div class="text-center mb-6">
+<span class="text-xs font-headline font-bold text-cyan-400 uppercase tracking-[.3em] mb-2 block">Static Wallet QR</span>
+<p class="text-slate-500 text-sm">Customers scan this to pay any amount</p>
+</div>
+<div id="staticQRContainer" class="bg-white p-6 rounded-3xl shadow-[0_0_60px_rgba(76,215,246,0.15)] mb-6">
+<canvas id="staticQRCanvas" width="250" height="250"></canvas>
+</div>
+<div id="staticWalletAddr" class="font-['JetBrains_Mono'] text-xs text-cyan-300 bg-slate-900/80 border border-slate-700 px-4 py-2 rounded-xl text-center break-all max-w-sm">Loading...</div>
+</div>
+
+<main class="pt-20 md:pt-24 min-h-screen bg-background">
+<div class="max-w-lg mx-auto px-4 pb-12">
+
+<div class="text-center mb-8">
+<h1 class="text-3xl md:text-4xl font-headline font-bold tracking-tighter mb-2">Receive Payment</h1>
+<p class="text-sm text-slate-500">Generate a QR code with a specific amount for your customer</p>
+</div>
+
+<!-- Amount Input -->
+<div class="glass-panel rounded-3xl p-6 md:p-8 mb-6">
+<label class="text-[10px] uppercase tracking-widest text-slate-500 mb-3 block font-['JetBrains_Mono']">Request Amount (SOL)</label>
+<div class="relative mb-4">
+<input id="reqAmount" type="number" step="0.001" min="0.001" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-4 text-3xl font-headline font-bold text-white placeholder-slate-600 focus:border-cyan-500/50 focus:shadow-[0_0_0_2px_rgba(76,215,246,0.3)] transition-all" placeholder="0.00"/>
+<span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-cyan-400 font-headline font-bold">SOL</span>
+</div>
+<div class="mb-4">
+<label class="text-[10px] uppercase tracking-widest text-slate-500 mb-2 block font-['JetBrains_Mono']">Label (optional)</label>
+<input id="reqLabel" type="text" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white font-['JetBrains_Mono'] placeholder-slate-600 focus:border-cyan-500/50 transition-all" placeholder="e.g. Coffee order #42"/>
+</div>
+<button id="btnGenerateQR" class="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-headline font-bold text-sm uppercase tracking-widest hover:opacity-90 active:scale-[.98] transition-all shadow-[0_0_20px_rgba(76,215,246,0.3)]">
+<span class="material-symbols-outlined align-middle mr-2 text-base">qr_code_2</span>Generate Payment QR
+</button>
+</div>
+
+<!-- Generated Dynamic QR -->
+<div id="dynamicQRSection" class="hidden">
+<div class="glass-panel rounded-3xl p-6 md:p-8 text-center border-cyan-500/20">
+<div class="mb-4">
+<span class="text-[10px] font-headline font-bold text-cyan-400 uppercase tracking-[.3em] block mb-1">Dynamic Payment QR</span>
+<p id="dynAmountLabel" class="text-2xl font-headline font-bold text-white">0 SOL</p>
+</div>
+<div class="bg-white p-5 rounded-2xl inline-block mb-4 shadow-[0_0_40px_rgba(76,215,246,0.1)]">
+<canvas id="dynamicQRCanvas" width="220" height="220"></canvas>
+</div>
+<p id="dynRefLabel" class="text-xs font-['JetBrains_Mono'] text-slate-500 mb-4">REF: —</p>
+<div class="flex gap-3">
+<button id="btnCopyPayLink" class="flex-1 py-3 rounded-xl border border-slate-600 text-sm text-slate-300 font-headline font-bold uppercase tracking-wider hover:border-cyan-500/30 hover:text-cyan-400 transition-all">
+<span class="material-symbols-outlined align-middle mr-1 text-base">content_copy</span>Copy Link
+</button>
+<button id="btnNewQR" class="flex-1 py-3 rounded-xl border border-slate-600 text-sm text-slate-300 font-headline font-bold uppercase tracking-wider hover:border-purple-500/30 hover:text-purple-400 transition-all">
+<span class="material-symbols-outlined align-middle mr-1 text-base">refresh</span>New
+</button>
+</div>
+</div>
+</div>
+
+</div>
+</main>
+</body></html>

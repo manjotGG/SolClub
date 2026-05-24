@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SolClub | Partners</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>tailwind.config={darkMode:"class",theme:{extend:{colors:{background:"#0f131e","surface-container":"#1b1f2b","surface-container-low":"#171b27",primary:"#ddb7ff",secondary:"#4cd7f6",tertiary:"#4ae176","on-background":"#dfe2f2"},fontFamily:{headline:["Space Grotesk"],body:["Inter"]}}}}</script>
+<style>.glass-panel{background:rgba(27,31,43,.7);backdrop-filter:blur(20px);border:1px solid rgba(221,183,255,.1)}</style>
+</head>
+<body class="bg-background text-on-background font-body" data-page="client-partners">
+<nav class="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-xl flex justify-between items-center px-4 md:px-8 py-4 shadow-[0_0_20px_rgba(168,85,247,0.15)]">
+<div class="flex items-center gap-4">
+<a href="/ui/client" class="flex items-center gap-3"><span class="material-symbols-outlined text-slate-400">arrow_back</span><span class="text-xl font-black tracking-tighter text-purple-400 uppercase font-['Space_Grotesk']">SolClub</span></a>
+</div>
+<span class="text-sm font-headline font-bold text-slate-400 uppercase tracking-widest">Partners</span>
+</nav>
+<main class="pt-20 md:pt-24 min-h-screen bg-background">
+<div class="max-w-4xl mx-auto px-4 md:px-8 pb-12">
+<h1 class="text-3xl md:text-5xl font-headline font-bold tracking-tighter mb-3">Partner Merchants</h1>
+<p class="text-slate-500 text-sm mb-10">Earn cashback and NFT rewards when you shop with SolClub partners.</p>
+<div id="partnersList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- Default partners -->
+<div class="glass-panel rounded-2xl p-6 hover:translate-y-[-2px] transition-transform group">
+<div class="flex items-center gap-4 mb-4">
+<div class="w-12 h-12 rounded-xl bg-cyan-500/10 flex items-center justify-center"><span class="material-symbols-outlined text-cyan-400" style="font-variation-settings:'FILL' 1">storefront</span></div>
+<div><h3 class="font-headline font-bold">CyberDyne Gear</h3><p class="text-[10px] text-slate-500 uppercase tracking-widest">Tech & Accessories</p></div>
+</div>
+<div class="flex items-center justify-between"><span class="text-xs text-cyan-400 font-headline font-bold bg-cyan-500/10 px-3 py-1 rounded-full">3% Cashback</span><span class="text-[10px] text-tertiary uppercase tracking-wider">● Active</span></div>
+</div>
+<div class="glass-panel rounded-2xl p-6 hover:translate-y-[-2px] transition-transform group">
+<div class="flex items-center gap-4 mb-4">
+<div class="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center"><span class="material-symbols-outlined text-purple-400" style="font-variation-settings:'FILL' 1">coffee</span></div>
+<div><h3 class="font-headline font-bold">Neon Brew Co.</h3><p class="text-[10px] text-slate-500 uppercase tracking-widest">Food & Beverage</p></div>
+</div>
+<div class="flex items-center justify-between"><span class="text-xs text-purple-400 font-headline font-bold bg-purple-500/10 px-3 py-1 rounded-full">5% Cashback</span><span class="text-[10px] text-tertiary uppercase tracking-wider">● Active</span></div>
+</div>
+<div class="glass-panel rounded-2xl p-6 hover:translate-y-[-2px] transition-transform group">
+<div class="flex items-center gap-4 mb-4">
+<div class="w-12 h-12 rounded-xl bg-tertiary/10 flex items-center justify-center"><span class="material-symbols-outlined text-tertiary" style="font-variation-settings:'FILL' 1">sports_esports</span></div>
+<div><h3 class="font-headline font-bold">Pixel Arena</h3><p class="text-[10px] text-slate-500 uppercase tracking-widest">Gaming & Entertainment</p></div>
+</div>
+<div class="flex items-center justify-between"><span class="text-xs text-tertiary font-headline font-bold bg-tertiary/10 px-3 py-1 rounded-full">2% Cashback + NFT</span><span class="text-[10px] text-tertiary uppercase tracking-wider">● Active</span></div>
+</div>
+<div class="glass-panel rounded-2xl p-6 hover:translate-y-[-2px] transition-transform opacity-60">
+<div class="flex items-center gap-4 mb-4">
+<div class="w-12 h-12 rounded-xl bg-slate-700/30 flex items-center justify-center"><span class="material-symbols-outlined text-slate-500">add_business</span></div>
+<div><h3 class="font-headline font-bold text-slate-500">More Coming Soon</h3><p class="text-[10px] text-slate-600 uppercase tracking-widest">Stay tuned</p></div>
+</div>
+<div class="flex items-center justify-between"><span class="text-xs text-slate-600 font-headline font-bold bg-slate-700/20 px-3 py-1 rounded-full">TBA</span><span class="text-[10px] text-slate-600 uppercase tracking-wider">● Soon</span></div>
+</div>
+</div>
+</div>
+</main>
+</body></html>

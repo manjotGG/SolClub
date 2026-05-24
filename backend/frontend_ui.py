@@ -29,6 +29,7 @@ from database.db import (
     get_merchant_analytics,
     get_merchant_nft_tracking,
     get_merchant_profile,
+    get_recent_merchant_transactions,
     get_user_account_by_identifier,
     get_user_account_by_google_sub,
     get_user_account_by_username,
@@ -41,6 +42,7 @@ from database.db import (
     list_reward_feedback,
     list_wallets_for_user,
     list_wallet_transactions,
+    save_payment_request,
     save_reward_feedback,
     assign_wallet_to_user,
     upsert_client_profile,
@@ -286,9 +288,34 @@ async def ui_client_feedback_page(request: Request):
     return _render_static_template("client_feedback.html", "client-feedback", "client", "SolClub | Feedback")
 
 
+@router.get("/client/pay", response_class=HTMLResponse)
+async def ui_client_pay_page(request: Request):
+    return _render_static_template("client_pay.html", "client-pay", "client", "SolClub | Make Payment")
+
+
+@router.get("/client/partners", response_class=HTMLResponse)
+async def ui_client_partners_page(request: Request):
+    return _render_static_template("client_partners.html", "client-partners", "client", "SolClub | Partners")
+
+
+@router.get("/client/support", response_class=HTMLResponse)
+async def ui_client_support_page(request: Request):
+    return _render_static_template("client_support.html", "client-support", "client", "SolClub | Support")
+
+
+@router.get("/client/docs", response_class=HTMLResponse)
+async def ui_client_docs_page(request: Request):
+    return _render_static_template("client_docs.html", "client-docs", "client", "SolClub | Documentation")
+
+
 @router.get("/merchant", response_class=HTMLResponse)
 async def ui_merchant_page(request: Request):
     return _render_static_template("merchant.html", "merchant-dashboard", "merchant", "SolClub Merchant Dashboard")
+
+
+@router.get("/merchant/receive", response_class=HTMLResponse)
+async def ui_merchant_receive_page(request: Request):
+    return _render_static_template("merchant_receive.html", "merchant-receive", "merchant", "SolClub | Receive Payment")
 
 
 @router.get("/merchant/cashback", response_class=HTMLResponse)
@@ -432,7 +459,9 @@ async def ui_feedback(wallet: str, payload: Dict[str, Any]):
 
 @router.get("/api/merchant/{merchant_id}/analytics")
 async def ui_merchant_analytics(merchant_id: int):
-    return get_merchant_analytics(merchant_id)
+    analytics = get_merchant_analytics(merchant_id)
+    analytics["recent_transactions"] = get_recent_merchant_transactions(merchant_id, limit=5)
+    return analytics
 
 
 @router.get("/api/merchant/{merchant_id}/feedback")
@@ -905,11 +934,22 @@ async def ui_logout(response: Response):
 async def ui_get_session_role(request: Request):
     session = get_ui_session_from_request(request)
     if not session:
-        return {"authenticated": False, "role": None, "wallet": None}
+        return {"authenticated": False, "role": None, "wallet": None, "username": None}
+    wallet = str(session.get("wallet") or "").strip()
+    username = str(session.get("username") or "").strip()
+    # Resolve wallet from DB if session has username but no wallet
+    if not wallet and username:
+        wallet_record = get_primary_wallet_for_user(username)
+        wallet = (wallet_record or {}).get("wallet_address") or ""
+    # Resolve username from wallet if missing
+    if wallet and not username:
+        user = get_user_account_by_wallet(wallet)
+        username = str((user or {}).get("username") or "").strip()
     return {
         "authenticated": True,
         "role": session.get("role"),
-        "wallet": session.get("wallet"),
+        "wallet": wallet,
+        "username": username,
         "expires_at": session.get("exp"),
     }
 
@@ -967,6 +1007,212 @@ async def ui_login(payload: Dict[str, Any], response: Response):
         "wallet": wallet,
         "redirect": _role_dashboard_path(resolved_role),
     }
+
+
+@router.post("/api/auth/payment/create")
+@auth_router.post("/payment/create")
+async def ui_payment_create(payload: Dict[str, Any], request: Request):
+    """Merchant creates a dynamic payment request with amount."""
+    session = get_ui_session_from_request(request)
+    if not session:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    merchant_wallet = str(payload.get("merchant_wallet", session.get("wallet", ""))).strip()
+    if not merchant_wallet:
+        raise HTTPException(status_code=400, detail="merchant_wallet is required")
+    amount = float(payload.get("amount", 0))
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="amount must be positive")
+    label = str(payload.get("label", "SolClub Payment")).strip()
+
+    import uuid
+    reference = str(uuid.uuid4())[:12]
+    save_payment_request(
+        reference=reference,
+        user_wallet=merchant_wallet,
+        store_id=str(payload.get("store_id", "solclub")),
+        status="pending",
+        qr_type="dynamic",
+        amount=amount,
+    )
+    return {
+        "success": True,
+        "reference": reference,
+        "merchant_wallet": merchant_wallet,
+        "amount": amount,
+        "label": label,
+        "status": "pending",
+    }
+
+
+@router.get("/api/auth/payment/{reference}")
+@auth_router.get("/payment/{reference}")
+async def ui_payment_get(reference: str):
+    """Get a payment request by reference."""
+    from database.db import _require_client, _require_data, _db
+    _require_client()
+    result = _db.client.table("payment_requests").select("*").eq("reference", reference).limit(1).execute()
+    rows = _require_data(result)
+    if not rows:
+        raise HTTPException(status_code=404, detail="Payment request not found")
+    return rows[0]
+
+
+@router.post("/api/auth/payment/send")
+@auth_router.post("/payment/send")
+async def ui_payment_send(payload: Dict[str, Any], request: Request):
+    """Client sends a payment to a merchant.
+
+    For managed wallets the transaction is signed and broadcast on-chain.
+    For external wallets a Solana Pay URL is returned so the user can
+    approve the transaction in their wallet app.
+    """
+    session = get_ui_session_from_request(request)
+    if not session:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    sender_wallet = str(session.get("wallet", "")).strip()
+    if not sender_wallet:
+        raise HTTPException(status_code=400, detail="No wallet in session. Connect a wallet first.")
+    merchant_wallet = str(payload.get("merchant_wallet", "")).strip()
+    amount = float(payload.get("amount", 0))
+    if not merchant_wallet or amount <= 0:
+        raise HTTPException(status_code=400, detail="merchant_wallet and positive amount required")
+
+    # Validate merchant wallet address
+    try:
+        recipient_pubkey = Pubkey.from_string(merchant_wallet)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid merchant wallet address")
+
+    from database.db import insert_transaction, save_cashback_reward
+    from loyalty_engine.loyalty_engine import LoyaltyRulesEngine
+    import uuid
+
+    # Check if sender wallet is a managed wallet with stored key
+    wallet_record = get_wallet_record(sender_wallet)
+    is_managed = bool((wallet_record or {}).get("managed_wallet") and (wallet_record or {}).get("encrypted_secret"))
+
+    real_signature = None
+    solana_pay_url = None
+
+    if is_managed:
+        # ---- Managed wallet: sign & send on-chain ----
+        try:
+            encrypted_secret = wallet_record["encrypted_secret"]
+            secret_bytes = Fernet(_wallet_fernet_key()).decrypt(encrypted_secret.encode("utf-8"))
+            sender_keypair = Keypair.from_bytes(secret_bytes)
+
+            from solana.rpc.api import Client as SyncSolanaClient
+            from solders.system_program import TransferParams, transfer
+            from solders.transaction import Transaction
+            from solders.message import Message
+
+            rpc_url = os.getenv("SOLANA_RPC_URL", "https://api.testnet.solana.com")
+            sol_client = SyncSolanaClient(rpc_url)
+
+            lamports = int(amount * 1_000_000_000)
+            ix = transfer(TransferParams(
+                from_pubkey=sender_keypair.pubkey(),
+                to_pubkey=recipient_pubkey,
+                lamports=lamports,
+            ))
+
+            # Fetch a recent blockhash
+            bh_resp = sol_client.get_latest_blockhash()
+            recent_blockhash = bh_resp.value.blockhash
+
+            msg = Message.new_with_blockhash([ix], sender_keypair.pubkey(), recent_blockhash)
+            tx = Transaction.new_unsigned(msg)
+            tx.sign([sender_keypair], recent_blockhash)
+
+            send_resp = sol_client.send_transaction(tx)
+            real_signature = str(send_resp.value)
+            print(f"✅ On-chain payment sent: {real_signature}")
+        except Exception as exc:
+            print(f"❌ On-chain payment failed: {exc}")
+            # Fall back to DB-only record
+            real_signature = None
+
+    if not real_signature and not is_managed:
+        # ---- External wallet: return Solana Pay URL ----
+        ref = str(uuid.uuid4())[:12]
+        solana_pay_url = f"solana:{merchant_wallet}?amount={amount}&reference={ref}&label=SolClub+Payment"
+        save_payment_request(
+            reference=ref, user_wallet=merchant_wallet,
+            store_id="solclub", status="pending", qr_type="dynamic", amount=amount,
+        )
+        return {
+            "success": True,
+            "method": "external",
+            "solana_pay_url": solana_pay_url,
+            "amount": amount,
+            "merchant_wallet": merchant_wallet,
+            "message": "Open this URL in your Solana wallet to complete the payment.",
+        }
+
+    # Record the transaction in DB
+    sig = real_signature or f"pay-{uuid.uuid4().hex[:16]}"
+    insert_transaction(wallet=sender_wallet, merchant_id=1, amount=amount, signature=sig)
+
+    engine = LoyaltyRulesEngine(use_sqlite=False)
+    decision = engine.evaluate_cashback_and_nft(wallet=sender_wallet, merchant_id=1, transaction_amount=amount)
+    save_cashback_reward(
+        wallet=sender_wallet, merchant_id=1, transaction_signature=sig,
+        transaction_amount=amount, cashback_amount=decision.cashback_amount, reward_tier=decision.reward_tier,
+    )
+
+    ref = str(payload.get("reference", "")).strip()
+    if ref:
+        save_payment_request(reference=ref, user_wallet=merchant_wallet, store_id="solclub", status="completed", qr_type="dynamic", amount=amount)
+
+    return {
+        "success": True,
+        "method": "managed" if is_managed and real_signature else "fallback",
+        "signature": sig,
+        "on_chain": bool(real_signature),
+        "amount": amount,
+        "cashback": decision.cashback_amount,
+        "tier": decision.reward_tier,
+    }
+
+
+@router.get("/api/auth/merchant/wallet-info")
+@auth_router.get("/merchant/wallet-info")
+async def ui_merchant_wallet_info(request: Request):
+    """Return merchant wallet address for static QR."""
+    session = get_ui_session_from_request(request)
+    if not session:
+        raise HTTPException(status_code=401, detail="Authentication required")
+    wallet = str(session.get("wallet", "")).strip()
+    username = str(session.get("username", "")).strip()
+    return {"wallet": wallet, "username": username}
+
+
+@router.get("/api/wallet/{wallet}/balance")
+async def ui_wallet_balance(wallet: str):
+    """Fetch the SOL balance of a wallet from Solana RPC."""
+    import httpx
+    rpc_url = os.getenv("SOLANA_RPC_URL", "https://api.testnet.solana.com")
+    try:
+        Pubkey.from_string(wallet.strip())
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid wallet address")
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(rpc_url, json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "getBalance",
+                "params": [wallet.strip()],
+            })
+            data = resp.json()
+            lamports = int((data.get("result") or {}).get("value", 0))
+            return {
+                "wallet": wallet.strip(),
+                "balance_lamports": lamports,
+                "balance_sol": round(lamports / 1_000_000_000, 6),
+            }
+    except Exception as exc:
+        return {"wallet": wallet.strip(), "balance_lamports": 0, "balance_sol": 0.0, "error": str(exc)}
 
 
 @router.post("/api/wallet/link")

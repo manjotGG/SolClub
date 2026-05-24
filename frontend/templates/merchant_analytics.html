@@ -220,7 +220,7 @@
 </div>
 <div class="relative z-10">
 <p class="text-slate-500 font-headline font-bold text-sm tracking-widest uppercase mb-4">Total Transactions</p>
-<h3 class="text-4xl font-headline font-bold text-white mb-2">42,891 <span class="text-sm font-body font-normal text-tertiary">+12.4%</span></h3>
+<h3 id="analyticsTxCount" class="text-4xl font-headline font-bold text-white mb-2">42,891 <span class="text-sm font-body font-normal text-tertiary">+12.4%</span></h3>
 <div class="h-1 bg-surface-container-highest rounded-full overflow-hidden mt-6">
 <div class="h-full bg-gradient-to-r from-primary to-secondary w-3/4"></div>
 </div>
@@ -233,7 +233,7 @@
 </div>
 <div class="relative z-10">
 <p class="text-slate-500 font-headline font-bold text-sm tracking-widest uppercase mb-4">Rewards Issued</p>
-<h3 class="text-4xl font-headline font-bold text-white mb-2">1.2M <span class="text-xs text-slate-400 uppercase tracking-tighter">SOLC</span></h3>
+<h3 id="analyticsRewardsIssued" class="text-4xl font-headline font-bold text-white mb-2">1.2M <span class="text-xs text-slate-400 uppercase tracking-tighter">SOLC</span></h3>
 <div class="flex gap-1 mt-6">
 <div class="pixel-bar-segment bg-tertiary"></div>
 <div class="pixel-bar-segment bg-tertiary"></div>
@@ -252,7 +252,7 @@
 <circle class="text-surface-container-highest" cx="64" cy="64" fill="transparent" r="58" stroke="currentColor" stroke-width="8"></circle>
 <circle class="text-secondary shadow-[0_0_15px_rgba(76,215,246,0.5)]" cx="64" cy="64" fill="transparent" r="58" stroke="currentColor" stroke-dasharray="364.4" stroke-dashoffset="100" stroke-width="8"></circle>
 </svg>
-<span class="absolute text-2xl font-headline font-bold text-white">72%</span>
+<span id="analyticsRetention" class="absolute text-2xl font-headline font-bold text-white">72%</span>
 </div>
 <p class="text-center text-xs text-slate-500 mt-4 leading-relaxed">Engagement up <span class="text-tertiary">8%</span> from previous quarter</p>
 </div>
@@ -271,7 +271,7 @@
 </div>
 </div>
 <!-- Stylized Graph Simulation -->
-<div class="h-64 flex items-end justify-between gap-2">
+<div id="analyticsBarChart" class="h-64 flex items-end justify-between gap-2">
 <div class="w-full bg-surface-container-low rounded-t-lg h-[40%] hover:bg-primary-container/40 transition-all cursor-pointer relative group">
 <div class="absolute -top-10 left-1/2 -translate-x-1/2 bg-surface-bright px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">12.4k</div>
 </div>
@@ -328,7 +328,7 @@
 <h3 class="text-xl font-headline font-bold text-white">Live Transactions</h3>
 <span class="text-[10px] font-headline font-bold text-secondary uppercase tracking-[0.2em]">View All</span>
 </div>
-<div class="space-y-4">
+<div id="analyticsLiveTxList" class="space-y-4">
 <!-- Transaction Row -->
 <div class="flex items-center justify-between group cursor-pointer">
 <div class="flex items-center gap-4">

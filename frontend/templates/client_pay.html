@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SolClub | Make Payment</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<script>tailwind.config={darkMode:"class",theme:{extend:{colors:{background:"#0f131e","surface-container":"#1b1f2b","surface-container-low":"#171b27","surface-container-high":"#262a36",primary:"#ddb7ff",secondary:"#4cd7f6",tertiary:"#4ae176","on-primary":"#490080","on-background":"#dfe2f2","on-surface-variant":"#cfc2d6"},fontFamily:{headline:["Space Grotesk"],body:["Inter"]}}}}</script>
+<style>
+.glass-panel{background:rgba(27,31,43,.7);backdrop-filter:blur(20px);border:1px solid rgba(221,183,255,.1)}
+.pay-input:focus{box-shadow:0 0 0 2px rgba(76,215,246,.4);border-color:rgba(76,215,246,.5)}
+@keyframes pulse-glow{0%,100%{box-shadow:0 0 20px rgba(76,215,246,.2)}50%{box-shadow:0 0 40px rgba(76,215,246,.4)}}
+.scan-ring{animation:pulse-glow 2s ease-in-out infinite}
+</style>
+</head>
+<body class="bg-background text-on-background font-body" data-page="client-pay">
+<!-- Top Nav -->
+<nav class="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-xl flex justify-between items-center px-4 md:px-8 py-4 shadow-[0_0_20px_rgba(168,85,247,0.15)]">
+<div class="flex items-center gap-4">
+<a href="/ui/client" class="flex items-center gap-3">
+<span class="material-symbols-outlined text-slate-400">arrow_back</span>
+<span class="text-xl font-black tracking-tighter text-purple-400 uppercase font-['Space_Grotesk']">SolClub</span>
+</a>
+</div>
+<div class="text-sm font-headline font-bold text-slate-400 uppercase tracking-widest">Pay</div>
+</nav>
+
+<main class="pt-20 md:pt-24 min-h-screen bg-background">
+<div class="max-w-lg mx-auto px-4 pb-12">
+
+<!-- Mode Toggle -->
+<div class="flex gap-2 mb-8 bg-surface-container rounded-xl p-1">
+<button id="tabScan" class="flex-1 py-3 rounded-lg text-sm font-headline font-bold uppercase tracking-wider transition-all bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">
+<span class="material-symbols-outlined text-base align-middle mr-1">qr_code_scanner</span> Scan QR
+</button>
+<button id="tabManual" class="flex-1 py-3 rounded-lg text-sm font-headline font-bold uppercase tracking-wider transition-all text-slate-500 hover:text-slate-300">
+<span class="material-symbols-outlined text-base align-middle mr-1">edit</span> Enter Address
+</button>
+</div>
+
+<!-- Scan QR Section -->
+<div id="scanSection">
+<div class="glass-panel rounded-3xl p-6 mb-6">
+<div class="relative w-full aspect-square rounded-2xl overflow-hidden bg-black/50 mb-4">
+<video id="qrVideo" class="w-full h-full object-cover" autoplay playsinline muted></video>
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+<div class="w-48 h-48 md:w-64 md:h-64 border-2 border-cyan-400/60 rounded-2xl scan-ring"></div>
+</div>
+<div id="cameraError" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/90 hidden">
+<span class="material-symbols-outlined text-5xl text-slate-600 mb-3">no_photography</span>
+<p class="text-sm text-slate-500 text-center px-4">Camera access denied or unavailable.<br>Use "Enter Address" tab instead.</p>
+</div>
+</div>
+<p class="text-center text-xs text-slate-500 font-['JetBrains_Mono']">Point camera at merchant's SolClub QR code</p>
+</div>
+</div>
+
+<!-- Manual Entry Section -->
+<div id="manualSection" class="hidden">
+<div class="glass-panel rounded-3xl p-6 md:p-8 mb-6">
+<div class="space-y-5">
+<div>
+<label class="text-[10px] uppercase tracking-widest text-slate-500 mb-2 block font-['JetBrains_Mono']">Recipient Wallet Address</label>
+<input id="payAddress" type="text" class="pay-input w-full bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-3.5 text-sm text-white font-['JetBrains_Mono'] placeholder-slate-600 transition-all" placeholder="Enter Solana wallet address..."/>
+</div>
+<div>
+<label class="text-[10px] uppercase tracking-widest text-slate-500 mb-2 block font-['JetBrains_Mono']">Amount (SOL)</label>
+<div class="relative">
+<input id="payAmount" type="number" step="0.001" min="0.001" class="pay-input w-full bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-3.5 text-2xl font-headline font-bold text-white placeholder-slate-600 transition-all" placeholder="0.00"/>
+<span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-cyan-400 font-headline font-bold">SOL</span>
+</div>
+</div>
+<div>
+<label class="text-[10px] uppercase tracking-widest text-slate-500 mb-2 block font-['JetBrains_Mono']">Note (optional)</label>
+<input id="payNote" type="text" class="pay-input w-full bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white font-['JetBrains_Mono'] placeholder-slate-600 transition-all" placeholder="What's this for?"/>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Scanned/Prefilled Payment Confirmation -->
+<div id="payConfirm" class="hidden">
+<div class="glass-panel rounded-3xl p-6 md:p-8 mb-6 border-cyan-500/20">
+<div class="text-center mb-6">
+<span class="material-symbols-outlined text-cyan-400 text-5xl mb-2 block" style="font-variation-settings:'FILL' 1">verified</span>
+<h3 class="text-lg font-headline font-bold">Payment Details</h3>
+</div>
+<div class="space-y-4 mb-6">
+<div class="flex justify-between items-center py-3 border-b border-white/5">
+<span class="text-xs text-slate-500 uppercase tracking-wider">To</span>
+<span id="confirmAddr" class="text-sm font-['JetBrains_Mono'] text-cyan-300">—</span>
+</div>
+<div class="flex justify-between items-center py-3 border-b border-white/5">
+<span class="text-xs text-slate-500 uppercase tracking-wider">Amount</span>
+<span id="confirmAmount" class="text-2xl font-headline font-bold text-white">0 SOL</span>
+</div>
+<div id="confirmRefRow" class="flex justify-between items-center py-3 border-b border-white/5 hidden">
+<span class="text-xs text-slate-500 uppercase tracking-wider">Reference</span>
+<span id="confirmRef" class="text-xs font-['JetBrains_Mono'] text-slate-400">—</span>
+</div>
+</div>
+<button id="btnConfirmPay" class="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-headline font-bold text-sm uppercase tracking-widest hover:opacity-90 active:scale-[.98] transition-all shadow-[0_0_20px_rgba(76,215,246,0.3)]">
+<span class="material-symbols-outlined align-middle mr-2 text-base">send</span>Confirm &amp; Send
+</button>
+<p id="payStatus" class="text-center text-xs mt-3 font-['JetBrains_Mono'] text-slate-500"></p>
+<!-- Post-payment result area -->
+<div id="payResult" class="hidden mt-5 space-y-4">
+<div id="payResultOnChain" class="hidden bg-tertiary/10 border border-tertiary/20 rounded-xl p-4 text-center">
+<span class="material-symbols-outlined text-tertiary text-3xl mb-1 block" style="font-variation-settings:'FILL' 1">check_circle</span>
+<p class="text-sm font-headline font-bold text-tertiary mb-1">Transaction Confirmed On-Chain</p>
+<a id="payExplorerLink" href="#" target="_blank" class="text-xs font-['JetBrains_Mono'] text-cyan-400 underline break-all">View on Solana Explorer</a>
+</div>
+<div id="payResultSolanaPay" class="hidden bg-purple-500/10 border border-purple-500/20 rounded-xl p-4 text-center">
+<span class="material-symbols-outlined text-purple-400 text-3xl mb-1 block" style="font-variation-settings:'FILL' 1">open_in_new</span>
+<p class="text-sm font-headline font-bold text-purple-300 mb-2">Approve in Your Wallet</p>
+<p class="text-xs text-slate-400 mb-3">Open the link below in Phantom or your Solana wallet app to sign and send the transaction.</p>
+<a id="paySolanaPayLink" href="#" target="_blank" class="inline-block px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold rounded-lg transition-colors">Open in Wallet</a>
+</div>
+<div id="payResultCashback" class="hidden flex items-center justify-between bg-surface-container rounded-xl px-4 py-3">
+<span class="text-xs text-slate-400">Cashback Earned</span>
+<span id="payResultCashbackAmt" class="text-sm font-headline font-bold text-tertiary">0 SOL</span>
+</div>
+<button id="btnNewPayment" class="w-full py-3 rounded-xl border border-white/10 text-sm font-headline font-bold uppercase tracking-wider text-slate-300 hover:bg-white/5 transition-colors">
+<span class="material-symbols-outlined align-middle mr-1 text-base">replay</span> New Payment
+</button>
+</div>
+</div>
+</div>
+
+<!-- Review Button (manual mode) -->
+<button id="btnReviewPay" class="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-600 text-white font-headline font-bold text-sm uppercase tracking-widest hover:opacity-90 active:scale-[.98] transition-all shadow-[0_0_20px_rgba(76,215,246,0.3)]">
+Review Payment
+</button>
+
+</div>
+</main>
+</body></html>

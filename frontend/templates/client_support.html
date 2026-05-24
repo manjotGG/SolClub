@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SolClub | Support</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>tailwind.config={darkMode:"class",theme:{extend:{colors:{background:"#0f131e","surface-container":"#1b1f2b",primary:"#ddb7ff",secondary:"#4cd7f6",tertiary:"#4ae176","on-background":"#dfe2f2"},fontFamily:{headline:["Space Grotesk"],body:["Inter"]}}}}</script>
+<style>.glass-panel{background:rgba(27,31,43,.7);backdrop-filter:blur(20px);border:1px solid rgba(221,183,255,.1)}</style>
+</head>
+<body class="bg-background text-on-background font-body" data-page="client-support">
+<nav class="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-xl flex justify-between items-center px-4 md:px-8 py-4 shadow-[0_0_20px_rgba(168,85,247,0.15)]">
+<div class="flex items-center gap-4">
+<a href="/ui/client" class="flex items-center gap-3"><span class="material-symbols-outlined text-slate-400">arrow_back</span><span class="text-xl font-black tracking-tighter text-purple-400 uppercase font-['Space_Grotesk']">SolClub</span></a>
+</div>
+<span class="text-sm font-headline font-bold text-slate-400 uppercase tracking-widest">Support</span>
+</nav>
+<main class="pt-20 md:pt-24 min-h-screen bg-background">
+<div class="max-w-3xl mx-auto px-4 md:px-8 pb-12">
+<h1 class="text-3xl md:text-5xl font-headline font-bold tracking-tighter mb-3">Support Center</h1>
+<p class="text-slate-500 text-sm mb-10">Find answers or reach out to the SolClub team.</p>
+
+<!-- FAQ -->
+<div class="space-y-3 mb-12">
+<h2 class="text-xs font-headline font-bold text-cyan-400 uppercase tracking-[.2em] mb-4">Frequently Asked Questions</h2>
+<details class="glass-panel rounded-2xl group" open>
+<summary class="px-6 py-4 cursor-pointer flex items-center justify-between font-headline font-bold text-sm"><span>How do I connect my wallet?</span><span class="material-symbols-outlined text-slate-500 group-open:rotate-180 transition-transform">expand_more</span></summary>
+<div class="px-6 pb-5 text-sm text-slate-400 leading-relaxed">Click the "Connect Wallet" button in the top navigation. You can either create a managed wallet (we generate a keypair for you) or link an existing Phantom/Solflare wallet address. Managed wallets give you a private key you must save — it's shown only once.</div>
+</details>
+<details class="glass-panel rounded-2xl group">
+<summary class="px-6 py-4 cursor-pointer flex items-center justify-between font-headline font-bold text-sm"><span>How does cashback work?</span><span class="material-symbols-outlined text-slate-500 group-open:rotate-180 transition-transform">expand_more</span></summary>
+<div class="px-6 pb-5 text-sm text-slate-400 leading-relaxed">Every time you make a purchase through a SolClub partner merchant, you automatically earn cashback in SOL. The percentage depends on your loyalty tier — higher tiers earn more. Cashback is calculated instantly and reflected in your dashboard.</div>
+</details>
+<details class="glass-panel rounded-2xl group">
+<summary class="px-6 py-4 cursor-pointer flex items-center justify-between font-headline font-bold text-sm"><span>What are Mystery NFTs?</span><span class="material-symbols-outlined text-slate-500 group-open:rotate-180 transition-transform">expand_more</span></summary>
+<div class="px-6 pb-5 text-sm text-slate-400 leading-relaxed">After qualifying transactions, you may receive a Mystery NFT — a digital collectible minted on the Solana blockchain. These can be common, rare, or legendary. They're automatically minted to your connected wallet address.</div>
+</details>
+<details class="glass-panel rounded-2xl group">
+<summary class="px-6 py-4 cursor-pointer flex items-center justify-between font-headline font-bold text-sm"><span>How do I make a payment?</span><span class="material-symbols-outlined text-slate-500 group-open:rotate-180 transition-transform">expand_more</span></summary>
+<div class="px-6 pb-5 text-sm text-slate-400 leading-relaxed">Tap the QR scanner button (bottom right) or go to Pay in the sidebar. Scan a merchant's QR code or manually enter their wallet address and the SOL amount. The payment is recorded on-chain and you earn loyalty rewards automatically.</div>
+</details>
+<details class="glass-panel rounded-2xl group">
+<summary class="px-6 py-4 cursor-pointer flex items-center justify-between font-headline font-bold text-sm"><span>Is my private key safe?</span><span class="material-symbols-outlined text-slate-500 group-open:rotate-180 transition-transform">expand_more</span></summary>
+<div class="px-6 pb-5 text-sm text-slate-400 leading-relaxed">Managed wallet private keys are encrypted at rest using Fernet symmetric encryption. The key is displayed only once during creation. We never store plaintext keys. For maximum security, import your key into Phantom Wallet and use it from there.</div>
+</details>
+</div>
+
+<!-- Contact -->
+<div class="glass-panel rounded-3xl p-6 md:p-8">
+<h2 class="text-xs font-headline font-bold text-purple-400 uppercase tracking-[.2em] mb-6">Send Us a Message</h2>
+<form id="supportForm" class="space-y-4">
+<div>
+<label class="text-[10px] uppercase tracking-widest text-slate-500 mb-2 block">Subject</label>
+<input id="supportSubject" type="text" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:border-purple-500/50 transition-all" placeholder="What do you need help with?"/>
+</div>
+<div>
+<label class="text-[10px] uppercase tracking-widest text-slate-500 mb-2 block">Message</label>
+<textarea id="supportMessage" rows="4" class="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:border-purple-500/50 transition-all resize-none" placeholder="Describe your issue..."></textarea>
+</div>
+<button type="submit" class="w-full py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-headline font-bold text-sm uppercase tracking-widest transition-colors">Send Message</button>
+<p id="supportStatus" class="text-center text-xs text-slate-500"></p>
+</form>
+</div>
+</div>
+</main>
+</body></html>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SolClub | Documentation</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>tailwind.config={darkMode:"class",theme:{extend:{colors:{background:"#0f131e","surface-container":"#1b1f2b",primary:"#ddb7ff",secondary:"#4cd7f6",tertiary:"#4ae176","on-background":"#dfe2f2"},fontFamily:{headline:["Space Grotesk"],body:["Inter"]}}}}</script>
+<style>.glass-panel{background:rgba(27,31,43,.7);backdrop-filter:blur(20px);border:1px solid rgba(221,183,255,.1)} .doc-section h3{font-family:'Space Grotesk';font-weight:700;font-size:1.25rem;margin-bottom:.75rem;color:#ddb7ff}</style>
+</head>
+<body class="bg-background text-on-background font-body" data-page="client-docs">
+<nav class="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-xl flex justify-between items-center px-4 md:px-8 py-4 shadow-[0_0_20px_rgba(168,85,247,0.15)]">
+<div class="flex items-center gap-4">
+<a href="/ui/client" class="flex items-center gap-3"><span class="material-symbols-outlined text-slate-400">arrow_back</span><span class="text-xl font-black tracking-tighter text-purple-400 uppercase font-['Space_Grotesk']">SolClub</span></a>
+</div>
+<span class="text-sm font-headline font-bold text-slate-400 uppercase tracking-widest">Docs</span>
+</nav>
+<main class="pt-20 md:pt-24 min-h-screen bg-background">
+<div class="max-w-3xl mx-auto px-4 md:px-8 pb-16">
+<h1 class="text-3xl md:text-5xl font-headline font-bold tracking-tighter mb-3">What is SolClub?</h1>
+<p class="text-slate-500 text-sm mb-12 leading-relaxed">SolClub is a Solana-powered loyalty and rewards platform that connects merchants with customers through on-chain transactions, cashback rewards, and digital collectibles.</p>
+
+<div class="space-y-8 doc-section">
+<!-- How It Works -->
+<div class="glass-panel rounded-3xl p-6 md:p-8">
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined text-cyan-400 text-2xl" style="font-variation-settings:'FILL' 1">rocket_launch</span>
+<h3 class="!mb-0">How It Works</h3>
+</div>
+<div class="space-y-4 text-sm text-slate-400 leading-relaxed">
+<p><strong class="text-white">1. Sign up & connect.</strong> Create an account via Google OAuth or manual registration. Then either generate a managed Solana wallet or link your existing Phantom/Solflare wallet.</p>
+<p><strong class="text-white">2. Make purchases.</strong> Pay partner merchants using SOL. Scan their QR code or enter their wallet address from the Pay screen.</p>
+<p><strong class="text-white">3. Earn automatically.</strong> Every transaction is tracked on-chain. You earn cashback (SOL), loyalty XP, tier upgrades, and Mystery NFTs — all automatically.</p>
+<p><strong class="text-white">4. Level up.</strong> The more you transact, the higher your loyalty tier climbs. Higher tiers unlock bigger cashback percentages and rarer NFT drops.</p>
+</div>
+</div>
+
+<!-- Loyalty Tiers -->
+<div class="glass-panel rounded-3xl p-6 md:p-8">
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined text-purple-400 text-2xl" style="font-variation-settings:'FILL' 1">military_tech</span>
+<h3 class="!mb-0">Loyalty Tiers</h3>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+<div class="bg-slate-900/50 rounded-xl p-4 border border-amber-900/20"><div class="flex items-center gap-2 mb-1"><span class="w-3 h-3 rounded-full bg-amber-700"></span><span class="font-headline font-bold text-sm">Bronze</span></div><p class="text-xs text-slate-500">0-2 transactions · 1% cashback</p></div>
+<div class="bg-slate-900/50 rounded-xl p-4 border border-slate-500/20"><div class="flex items-center gap-2 mb-1"><span class="w-3 h-3 rounded-full bg-slate-400"></span><span class="font-headline font-bold text-sm">Silver</span></div><p class="text-xs text-slate-500">3-9 transactions · 2% cashback</p></div>
+<div class="bg-slate-900/50 rounded-xl p-4 border border-yellow-500/20"><div class="flex items-center gap-2 mb-1"><span class="w-3 h-3 rounded-full bg-yellow-400"></span><span class="font-headline font-bold text-sm">Gold</span></div><p class="text-xs text-slate-500">10-24 transactions · 3% cashback</p></div>
+<div class="bg-slate-900/50 rounded-xl p-4 border border-cyan-500/20"><div class="flex items-center gap-2 mb-1"><span class="w-3 h-3 rounded-full bg-cyan-400"></span><span class="font-headline font-bold text-sm">Diamond</span></div><p class="text-xs text-slate-500">25+ transactions · 5% cashback + rare NFTs</p></div>
+</div>
+</div>
+
+<!-- NFT System -->
+<div class="glass-panel rounded-3xl p-6 md:p-8">
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined text-tertiary text-2xl" style="font-variation-settings:'FILL' 1">token</span>
+<h3 class="!mb-0">Mystery NFT System</h3>
+</div>
+<p class="text-sm text-slate-400 leading-relaxed mb-4">After qualifying purchases, you may receive a Mystery NFT minted directly to your wallet on the Solana blockchain. NFTs come in three rarity tiers:</p>
+<div class="flex gap-3 flex-wrap">
+<span class="bg-slate-700/30 px-4 py-2 rounded-lg text-xs font-headline font-bold text-slate-300">⚪ Common</span>
+<span class="bg-blue-900/20 px-4 py-2 rounded-lg text-xs font-headline font-bold text-blue-400 border border-blue-500/20">🔵 Rare</span>
+<span class="bg-yellow-900/20 px-4 py-2 rounded-lg text-xs font-headline font-bold text-yellow-400 border border-yellow-500/20">🟡 Legendary</span>
+</div>
+</div>
+
+<!-- Payment Flow -->
+<div class="glass-panel rounded-3xl p-6 md:p-8">
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined text-secondary text-2xl" style="font-variation-settings:'FILL' 1">qr_code_scanner</span>
+<h3 class="!mb-0">Payment Flow</h3>
+</div>
+<div class="text-sm text-slate-400 leading-relaxed space-y-3">
+<p><strong class="text-cyan-400">For Customers:</strong> Tap the QR scanner FAB → scan merchant's QR or paste their wallet address → enter amount → confirm. Your transaction is recorded and rewards are calculated instantly.</p>
+<p><strong class="text-purple-400">For Merchants:</strong> Go to Receive → enter the amount you want → generate a dynamic QR. Or use the "My QR" button for a static wallet QR that accepts any amount. Customers scan and pay directly.</p>
+</div>
+</div>
+
+<!-- Security -->
+<div class="glass-panel rounded-3xl p-6 md:p-8">
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined text-red-400 text-2xl" style="font-variation-settings:'FILL' 1">shield</span>
+<h3 class="!mb-0 !text-red-400">Security</h3>
+</div>
+<ul class="text-sm text-slate-400 space-y-2">
+<li class="flex items-start gap-2"><span class="text-tertiary mt-0.5">✓</span> Private keys encrypted with Fernet (AES-128-CBC)</li>
+<li class="flex items-start gap-2"><span class="text-tertiary mt-0.5">✓</span> Session tokens signed with HMAC-SHA256</li>
+<li class="flex items-start gap-2"><span class="text-tertiary mt-0.5">✓</span> All API routes require authenticated sessions</li>
+<li class="flex items-start gap-2"><span class="text-tertiary mt-0.5">✓</span> Google OAuth 2.0 for social login</li>
+<li class="flex items-start gap-2"><span class="text-tertiary mt-0.5">✓</span> Private key shown exactly once — never stored in plaintext</li>
+</ul>
+</div>
+</div>
+</div>
+</main>
+</body></html>

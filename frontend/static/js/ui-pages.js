@@ -49,6 +49,40 @@ function go(path) {
   window.location.assign(path);
 }
 
+async function fetchSolBalance(wallet) {
+  try {
+    const data = await apiJson(`/ui/api/wallet/${encodeURIComponent(wallet)}/balance`);
+    return data.balance_sol || 0;
+  } catch { return 0; }
+}
+
+async function resolveWallet(session) {
+  if (session.wallet) return session.wallet;
+  // Session has no wallet — try to resolve from backend wallet list
+  try {
+    const data = await apiJson(`${AUTH_BASE}/wallet/list`);
+    const wallets = data.wallets || [];
+    const primary = wallets.find(w => w.is_primary) || wallets[0];
+    if (primary && primary.wallet_address) {
+      // Re-attach wallet to session cookie
+      try {
+        await apiJson(`${AUTH_BASE}/wallet/connect`, {
+          method: "POST",
+          body: JSON.stringify({
+            wallet_address: primary.wallet_address,
+            network: primary.network || "testnet",
+            provider: primary.provider || "resolved",
+            user_role: session.role || "client",
+          }),
+        });
+      } catch { /* best effort */ }
+      setLocalSession(session.role, primary.wallet_address);
+      return primary.wallet_address;
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
 function openModal(node) {
   if (!node) return;
   node.classList.remove("hidden");
@@ -537,7 +571,10 @@ function hydrateDashboardCards(snapshot, preview) {
   // Update nav button text if wallet is connected
   const navBtn = el("navConnectWallet");
   if (navBtn && snapshot.wallet) {
-    navBtn.textContent = snapshot.wallet.slice(0, 4) + "..." + snapshot.wallet.slice(-4);
+    // Show "Wallet 1 · X.XX SOL" instead of raw address
+    fetchSolBalance(snapshot.wallet).then(balance => {
+      navBtn.textContent = `Wallet 1 \u00B7 ${balance} SOL`;
+    });
   }
 }
 
@@ -697,6 +734,7 @@ async function hydrateMerchantPages() {
   ]);
   updateMerchantLivePanel(analytics, nfts.items || []);
   updateCashbackFormFromServer(cashback);
+  hydrateMerchantAnalytics(analytics);
 
   if (pageId() === "merchant-feedback") {
     const tableBody = $("tbody");
@@ -711,6 +749,82 @@ async function hydrateMerchantPages() {
       `).join("") || '<tr><td class="py-3" colspan="4">No feedback entries.</td></tr>';
     }
   }
+}
+
+function hydrateMerchantAnalytics(analytics) {
+  const el = (id) => document.getElementById(id);
+  // Total Transactions
+  if (el("analyticsTxCount")) {
+    el("analyticsTxCount").innerHTML = `${(analytics.transactions_count || 0).toLocaleString()} <span class="text-sm font-body font-normal text-tertiary">${analytics.unique_clients || 0} clients</span>`;
+  }
+  // Rewards Issued (cashback volume)
+  if (el("analyticsRewardsIssued")) {
+    el("analyticsRewardsIssued").innerHTML = `${analytics.cashback_volume || 0} <span class="text-xs text-slate-400 uppercase tracking-tighter">SOL</span>`;
+  }
+  // User Retention Rate (unique clients as % — use ratio of clients with >1 tx)
+  if (el("analyticsRetention")) {
+    const pct = analytics.unique_clients && analytics.transactions_count
+      ? Math.min(100, Math.round((analytics.unique_clients / Math.max(analytics.transactions_count, 1)) * 100))
+      : 0;
+    el("analyticsRetention").textContent = `${pct}%`;
+  }
+  // Live Transactions list
+  const txList = el("analyticsLiveTxList");
+  if (txList && analytics.recent_transactions && analytics.recent_transactions.length) {
+    txList.innerHTML = analytics.recent_transactions.map(tx => {
+      const wallet = tx.wallet_address || "-";
+      const shortWallet = wallet.length > 12 ? wallet.slice(0, 6) + "\u2026" + wallet.slice(-4) : wallet;
+      const ago = tx.created_at ? timeAgo(tx.created_at) : "-";
+      return `
+        <div class="flex items-center justify-between group cursor-pointer">
+          <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-full bg-[#313441] flex items-center justify-center">
+              <span class="material-symbols-outlined text-tertiary text-sm">arrow_downward</span>
+            </div>
+            <div>
+              <p class="text-sm font-bold text-white">${shortWallet}</p>
+              <p class="text-[10px] text-slate-500 uppercase">${ago}</p>
+            </div>
+          </div>
+          <div class="text-right">
+            <p class="text-sm font-headline font-bold text-tertiary">+${tx.amount || 0} SOL</p>
+            <p class="text-[10px] text-slate-500 uppercase">Confirmed</p>
+          </div>
+        </div>
+      `;
+    }).join("");
+  } else if (txList) {
+    txList.innerHTML = `<div class="text-center text-slate-500 text-sm py-4">No transactions yet</div>`;
+  }
+  // Bar chart — populate proportionally from recent transactions
+  const barChart = el("analyticsBarChart");
+  if (barChart && analytics.recent_transactions) {
+    const txs = analytics.recent_transactions;
+    const maxAmt = Math.max(...txs.map(t => t.amount || 0), 0.01);
+    const bars = txs.map((tx, i) => {
+      const pct = Math.max(10, Math.round(((tx.amount || 0) / maxAmt) * 100));
+      const isMax = (tx.amount || 0) === maxAmt;
+      return `<div class="w-full ${isMax ? 'bg-[#b76dff]' : 'bg-[#171b27] hover:bg-[#b76dff]/40'} rounded-t-lg transition-all cursor-pointer relative group" style="height:${pct}%">
+        <div class="absolute -top-10 left-1/2 -translate-x-1/2 bg-[#353945] px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">${tx.amount || 0} SOL</div>
+      </div>`;
+    }).join("");
+    // Pad to 10 bars if fewer
+    const padded = bars + Array(Math.max(0, 10 - txs.length)).fill('<div class="w-full bg-[#171b27] rounded-t-lg" style="height:5%"></div>').join("");
+    barChart.innerHTML = padded;
+  }
+}
+
+function timeAgo(dateStr) {
+  try {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins} min ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs} hr ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days}d ago`;
+  } catch { return "-"; }
 }
 
 function wireCommonButtons(session) {
@@ -952,6 +1066,422 @@ function wirePortal(session) {
   });
 }
 
+// ─── Payment Page ─────────────────────────────────────────────────────────────
+function wirePayPage(session) {
+  const tabScan   = $("#tabScan");
+  const tabManual = $("#tabManual");
+  const scanSec   = $("#scanSection");
+  const manualSec = $("#manualSection");
+  const confirmSec= $("#payConfirm");
+  const reviewBtn = $("#btnReviewPay");
+  const confirmBtn= $("#btnConfirmPay");
+  const payStatus = $("#payStatus");
+  let currentPayload = null;
+
+  function setTab(mode) {
+    if (mode === "scan") {
+      tabScan.className   = tabScan.className.replace("text-slate-500", "text-cyan-400").replace("hover:text-slate-300","") + " bg-cyan-500/20 border border-cyan-500/30";
+      tabManual.className = "flex-1 py-3 rounded-lg text-sm font-headline font-bold uppercase tracking-wider transition-all text-slate-500 hover:text-slate-300";
+      scanSec.classList.remove("hidden");
+      manualSec.classList.add("hidden");
+      confirmSec.classList.add("hidden");
+      reviewBtn.classList.remove("hidden");
+      startCamera();
+    } else {
+      tabManual.className = tabManual.className.replace("text-slate-500","text-cyan-400").replace("hover:text-slate-300","") + " bg-cyan-500/20 border border-cyan-500/30";
+      tabScan.className   = "flex-1 py-3 rounded-lg text-sm font-headline font-bold uppercase tracking-wider transition-all text-slate-500 hover:text-slate-300";
+      scanSec.classList.add("hidden");
+      manualSec.classList.remove("hidden");
+      confirmSec.classList.add("hidden");
+      reviewBtn.classList.remove("hidden");
+      stopCamera();
+    }
+  }
+
+  tabScan?.addEventListener("click",   () => setTab("scan"));
+  tabManual?.addEventListener("click", () => setTab("manual"));
+
+  // Camera QR scanning
+  let stream = null;
+  async function startCamera() {
+    const video = $("#qrVideo");
+    const errDiv = $("#cameraError");
+    if (!video) return;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      video.srcObject = stream;
+      if (errDiv) errDiv.classList.add("hidden");
+      scanQRFrames(video);
+    } catch {
+      if (errDiv) errDiv.classList.remove("hidden");
+    }
+  }
+  function stopCamera() {
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  }
+
+  function scanQRFrames(video) {
+    if (!stream) return;
+    // Use BarcodeDetector if available (Chrome, Android)
+    if ("BarcodeDetector" in window) {
+      const detector = new BarcodeDetector({ formats: ["qr_code"] });
+      const frame = async () => {
+        if (!stream) return;
+        try {
+          const codes = await detector.detect(video);
+          if (codes.length > 0) { onQRDetected(codes[0].rawValue); return; }
+        } catch {}
+        requestAnimationFrame(frame);
+      };
+      requestAnimationFrame(frame);
+    }
+  }
+
+  function onQRDetected(data) {
+    stopCamera();
+    // Parse solana:<address>?amount=<n>&reference=<ref>&label=<label>
+    try {
+      let addr = data, amount = 0, ref = "", label = "";
+      if (data.startsWith("solana:")) {
+        const url = new URL(data.replace("solana:", "solana://x/").replace("solana://x/",""));
+        addr   = data.split("?")[0].replace("solana:","");
+        amount = parseFloat(url.searchParams.get("amount") || "0");
+        ref    = url.searchParams.get("reference") || "";
+        label  = url.searchParams.get("label") || "";
+      }
+      showPayConfirm(addr, amount, ref);
+    } catch {
+      showPayConfirm(data, 0, "");
+    }
+  }
+
+  function showPayConfirm(addr, amount, ref) {
+    currentPayload = { merchant_wallet: addr, amount, reference: ref };
+    const short = addr.length > 20 ? addr.slice(0, 8) + "…" + addr.slice(-6) : addr;
+    const el = id => document.getElementById(id);
+    if (el("confirmAddr"))   el("confirmAddr").textContent   = short;
+    if (el("confirmAmount")) el("confirmAmount").textContent = `${amount || "?"} SOL`;
+    if (ref && el("confirmRef")) { el("confirmRef").textContent = ref; el("confirmRefRow").classList.remove("hidden"); }
+    confirmSec.classList.remove("hidden");
+    reviewBtn.classList.add("hidden");
+    manualSec.classList.add("hidden");
+    scanSec.classList.add("hidden");
+  }
+
+  // Manual review
+  reviewBtn?.addEventListener("click", () => {
+    const addr   = $("#payAddress")?.value?.trim();
+    const amount = parseFloat($("#payAmount")?.value || "0");
+    if (!addr) { alert("Please enter a wallet address."); return; }
+    if (amount <= 0) { alert("Please enter a valid amount greater than 0."); return; }
+    showPayConfirm(addr, amount, "");
+  });
+
+  // Confirm & send
+  confirmBtn?.addEventListener("click", async () => {
+    if (!currentPayload) return;
+    if (!session.wallet) { alert("Connect a wallet first to make payments."); return; }
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = "Sending…";
+    if (payStatus) payStatus.textContent = "";
+    const resultDiv = $("#payResult");
+    const onChainDiv = $("#payResultOnChain");
+    const solanaPayDiv = $("#payResultSolanaPay");
+    const cashbackDiv = $("#payResultCashback");
+    try {
+      const res = await apiJson(`${AUTH_BASE}/payment/send`, {
+        method: "POST",
+        body: JSON.stringify(currentPayload),
+      });
+
+      if (res.solana_pay_url) {
+        // External wallet — show Solana Pay link
+        if (payStatus) {
+          payStatus.className = "text-center text-xs mt-3 font-['JetBrains_Mono'] text-purple-400";
+          payStatus.textContent = "Open the payment link in your Solana wallet.";
+        }
+        if (resultDiv) resultDiv.classList.remove("hidden");
+        if (solanaPayDiv) {
+          solanaPayDiv.classList.remove("hidden");
+          const link = $("#paySolanaPayLink");
+          if (link) { link.href = res.solana_pay_url; }
+        }
+        if (onChainDiv) onChainDiv.classList.add("hidden");
+        if (cashbackDiv) cashbackDiv.classList.add("hidden");
+        confirmBtn.textContent = "Awaiting Wallet Approval";
+      } else {
+        // Managed or fallback — show result
+        if (payStatus) {
+          payStatus.className = "text-center text-xs mt-3 font-['JetBrains_Mono'] text-tertiary";
+          payStatus.textContent = res.on_chain
+            ? `✅ On-chain transaction confirmed!`
+            : `✅ Payment recorded. Cashback: ${res.cashback} SOL · Tier: ${res.tier}`;
+        }
+        if (resultDiv) resultDiv.classList.remove("hidden");
+        if (solanaPayDiv) solanaPayDiv.classList.add("hidden");
+        if (res.on_chain && res.signature) {
+          if (onChainDiv) onChainDiv.classList.remove("hidden");
+          const explorerLink = $("#payExplorerLink");
+          const network = "testnet";
+          const explorerUrl = `https://explorer.solana.com/tx/${res.signature}?cluster=${network}`;
+          if (explorerLink) { explorerLink.href = explorerUrl; explorerLink.textContent = res.signature; }
+        } else {
+          if (onChainDiv) onChainDiv.classList.add("hidden");
+        }
+        if (res.cashback && res.cashback > 0) {
+          if (cashbackDiv) cashbackDiv.classList.remove("hidden");
+          const cashbackAmt = $("#payResultCashbackAmt");
+          if (cashbackAmt) cashbackAmt.textContent = `${res.cashback} SOL`;
+        } else {
+          if (cashbackDiv) cashbackDiv.classList.add("hidden");
+        }
+        confirmBtn.textContent = "Payment Sent ✓";
+      }
+    } catch (err) {
+      if (payStatus) {
+        payStatus.className = "text-center text-xs mt-3 font-['JetBrains_Mono'] text-red-400";
+        payStatus.textContent = err.message;
+      }
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = "Confirm & Send";
+    }
+  });
+
+  // New Payment button
+  $("#btnNewPayment")?.addEventListener("click", () => {
+    currentPayload = null;
+    confirmSec.classList.add("hidden");
+    const resultDiv = $("#payResult");
+    if (resultDiv) resultDiv.classList.add("hidden");
+    scanSec.classList.remove("hidden");
+    reviewBtn.classList.remove("hidden");
+    if (payStatus) payStatus.textContent = "";
+    confirmBtn.disabled = false;
+    confirmBtn.innerHTML = `<span class="material-symbols-outlined align-middle mr-2 text-base">send</span>Confirm & Send`;
+    if ($("#payAddress")) $("#payAddress").value = "";
+    if ($("#payAmount")) $("#payAmount").value = "";
+    if ($("#payNote")) $("#payNote").value = "";
+    setTab("scan");
+  });
+
+  // Default to scan tab
+  setTab("scan");
+}
+
+// ─── Notifications ─────────────────────────────────────────────────────────────
+function wireNotifications(session) {
+  const btn = $("#btnNotifications");
+  if (!btn) return;
+  let panel = null;
+
+  btn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (panel) { panel.remove(); panel = null; return; }
+
+    panel = document.createElement("div");
+    panel.id = "notifPanel";
+    panel.className = "fixed top-16 right-4 md:right-8 z-[90] w-80 max-w-[calc(100vw-2rem)] bg-[#0d1320] border border-white/10 rounded-2xl shadow-[0_0_40px_rgba(0,0,0,0.6)] overflow-hidden";
+    panel.innerHTML = `
+      <div class="px-5 py-4 border-b border-white/5 flex items-center justify-between">
+        <span class="font-headline font-bold text-sm">Notifications</span>
+        <span id="notifClear" class="text-[10px] text-cyan-400 cursor-pointer uppercase tracking-wider hover:text-cyan-300">Clear all</span>
+      </div>
+      <div id="notifList" class="max-h-72 overflow-y-auto divide-y divide-white/5">
+        <div class="flex items-center justify-center py-8 text-slate-600 text-sm">Loading…</div>
+      </div>
+    `;
+    document.body.appendChild(panel);
+    document.addEventListener("click", () => { panel?.remove(); panel = null; }, { once: true });
+    $("#notifClear", panel)?.addEventListener("click", () => { panel.remove(); panel = null; });
+
+    try {
+      const wallet = session.wallet || "";
+      if (!wallet) throw new Error("no wallet");
+      const [txData, rewData] = await Promise.all([
+        apiJson(`/ui/api/client/${encodeURIComponent(wallet)}/transactions?limit=5`),
+        apiJson(`/ui/api/client/${encodeURIComponent(wallet)}/rewards?merchant_id=1&limit=5`),
+      ]);
+      const items = [
+        ...(txData.items || []).map(tx => ({ icon: "payments", color: "text-cyan-400", text: `Payment: ${tx.amount} SOL`, sub: tx.created_at ? new Date(tx.created_at).toLocaleDateString() : "" })),
+        ...(rewData.items || []).map(r => ({ icon: "card_giftcard", color: "text-tertiary", text: `Cashback: ${r.cashback_amount} SOL (${r.reward_tier})`, sub: r.created_at ? new Date(r.created_at).toLocaleDateString() : "" })),
+      ].sort((a, b) => (b.sub > a.sub ? 1 : -1)).slice(0, 8);
+
+      const list = $("#notifList", panel);
+      if (list) {
+        list.innerHTML = items.length ? items.map(it => `
+          <div class="flex items-center gap-3 px-5 py-3 hover:bg-white/5 transition-colors">
+            <span class="material-symbols-outlined ${it.color} text-xl" style="font-variation-settings:'FILL' 1">${it.icon}</span>
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-headline font-bold truncate">${it.text}</div>
+              <div class="text-[10px] text-slate-600">${it.sub}</div>
+            </div>
+          </div>
+        `).join("") : `<div class="flex items-center justify-center py-8 text-slate-600 text-sm">No notifications yet</div>`;
+      }
+    } catch {
+      const list = $("#notifList", panel);
+      if (list) list.innerHTML = `<div class="flex items-center justify-center py-8 text-slate-600 text-sm">No notifications yet</div>`;
+    }
+  });
+}
+
+// ─── Settings Modal ─────────────────────────────────────────────────────────────
+function wireSettings(session) {
+  const btn = $("#btnSettings");
+  if (!btn) return;
+
+  btn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    let modal = $("#settingsModal");
+    if (modal) { modal.remove(); return; }
+
+    modal = document.createElement("div");
+    modal.id = "settingsModal";
+    modal.className = "fixed inset-0 z-[85] flex items-center justify-center bg-black/70 px-4";
+    modal.innerHTML = `
+      <div class="w-full max-w-md rounded-2xl border border-white/10 bg-[#0d1320] overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.8)]">
+        <div class="flex items-center justify-between px-6 py-5 border-b border-white/5">
+          <h3 class="font-headline font-bold text-lg">Settings</h3>
+          <button id="closeSettings" class="material-symbols-outlined text-slate-400 hover:text-white text-2xl">close</button>
+        </div>
+        <div class="px-6 py-5 space-y-5">
+          <div>
+            <div class="text-[10px] uppercase tracking-widest text-slate-500 mb-2 font-['JetBrains_Mono']">Account</div>
+            <div class="space-y-2">
+              <div class="flex items-center justify-between bg-slate-900/50 rounded-xl px-4 py-3">
+                <span class="text-sm text-slate-400">Username</span>
+                <span id="settingUsername" class="text-sm font-headline font-bold text-primary">${session.username || "—"}</span>
+              </div>
+              <div class="flex items-center justify-between bg-slate-900/50 rounded-xl px-4 py-3">
+                <span class="text-sm text-slate-400">Role</span>
+                <span class="text-sm font-headline font-bold uppercase text-secondary">${session.role || "client"}</span>
+              </div>
+              <div class="flex items-center justify-between bg-slate-900/50 rounded-xl px-4 py-3">
+                <span class="text-sm text-slate-400">Wallet</span>
+                <span class="text-xs font-['JetBrains_Mono'] text-slate-300">${session.wallet ? session.wallet.slice(0,8)+"…"+session.wallet.slice(-6) : "None"}</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="text-[10px] uppercase tracking-widest text-slate-500 mb-2 font-['JetBrains_Mono']">Wallet</div>
+            <button id="settingsManageWallet" class="w-full flex items-center gap-3 bg-slate-900/50 rounded-xl px-4 py-3 hover:bg-slate-800/60 transition-colors text-left">
+              <span class="material-symbols-outlined text-purple-400">account_balance_wallet</span>
+              <span class="text-sm font-headline font-bold">Manage Wallets</span>
+              <span class="material-symbols-outlined text-slate-600 ml-auto">chevron_right</span>
+            </button>
+          </div>
+          <div class="pt-2 border-t border-white/5">
+            <button id="settingsLogout" class="w-full flex items-center gap-3 bg-red-950/30 border border-red-500/20 rounded-xl px-4 py-3 hover:bg-red-900/30 transition-colors text-left">
+              <span class="material-symbols-outlined text-red-400">logout</span>
+              <span class="text-sm font-headline font-bold text-red-400">Sign Out</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.addEventListener("click", ev => { if (ev.target === modal) modal.remove(); });
+    $("#closeSettings", modal)?.addEventListener("click", () => modal.remove());
+    $("#settingsManageWallet", modal)?.addEventListener("click", () => { modal.remove(); showWalletManageModal(); });
+    $("#settingsLogout", modal)?.addEventListener("click", () => logout().catch(err => alert(err.message)));
+
+    // Fetch real username if empty
+    if (!session.username) {
+      try {
+        const obs = await getOnboardingStatus();
+        const u = obs.username || "";
+        const el = $("#settingUsername", modal);
+        if (el && u) el.textContent = u;
+      } catch {}
+    }
+  });
+}
+
+// ─── Merchant Receive Page ─────────────────────────────────────────────────────
+function wireMerchantReceive(session) {
+  const staticBtn  = $("#btnStaticQR");
+  const curtain    = $("#staticQRCurtain");
+  const closeBtn   = $("#closeStaticQR");
+  const genBtn     = $("#btnGenerateQR");
+  const newQRBtn   = $("#btnNewQR");
+  const copyBtn    = $("#btnCopyPayLink");
+  const dynSection = $("#dynamicQRSection");
+  let lastPayLink  = "";
+
+  // Load static QR on curtain open
+  async function loadStaticQR() {
+    try {
+      const info = await apiJson(`${AUTH_BASE}/merchant/wallet-info`);
+      const addr = info.wallet || session.wallet || "";
+      const addrEl = $("#staticWalletAddr");
+      if (addrEl) addrEl.textContent = addr;
+      const canvas = $("#staticQRCanvas");
+      if (canvas && addr && window.QRCode) {
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        QRCode.toCanvas(canvas, `solana:${addr}`, { width: 250, margin: 2, color: { dark: "#000000", light: "#ffffff" } });
+      }
+    } catch (err) {
+      console.warn("Static QR load failed:", err.message);
+    }
+  }
+
+  // Static QR curtain
+  staticBtn?.addEventListener("click", async () => {
+    curtain.classList.add("open");
+    await loadStaticQR();
+  });
+  closeBtn?.addEventListener("click", () => curtain.classList.remove("open"));
+
+  // Dynamic QR generation
+  genBtn?.addEventListener("click", async () => {
+    const amount = parseFloat($("#reqAmount")?.value || "0");
+    const label  = ($("#reqLabel")?.value || "SolClub Payment").trim();
+    if (amount <= 0) { alert("Enter a valid amount."); return; }
+    genBtn.disabled = true;
+    genBtn.textContent = "Generating…";
+    try {
+      const merchantWallet = session.wallet || "";
+      const res = await apiJson(`${AUTH_BASE}/payment/create`, {
+        method: "POST",
+        body: JSON.stringify({ amount, label, merchant_wallet: merchantWallet }),
+      });
+      // Solana Pay URL: solana:<address>?amount=<n>&reference=<ref>&label=<label>
+      const solanaPayUrl = `solana:${merchantWallet}?amount=${amount}&reference=${res.reference}&label=${encodeURIComponent(label)}`;
+      lastPayLink = solanaPayUrl;
+      const canvas = $("#dynamicQRCanvas");
+      if (canvas && window.QRCode) {
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        QRCode.toCanvas(canvas, solanaPayUrl, { width: 220, margin: 2, color: { dark: "#000000", light: "#ffffff" } });
+      }
+      const amtLabel = $("#dynAmountLabel");
+      const refLabel = $("#dynRefLabel");
+      if (amtLabel) amtLabel.textContent = `${amount} SOL — ${label}`;
+      if (refLabel) refLabel.textContent  = `REF: ${res.reference}`;
+      dynSection.classList.remove("hidden");
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      genBtn.disabled = false;
+      genBtn.innerHTML = `<span class="material-symbols-outlined align-middle mr-2 text-base">qr_code_2</span>Generate Payment QR`;
+    }
+  });
+
+  newQRBtn?.addEventListener("click", () => {
+    dynSection.classList.add("hidden");
+    if ($("#reqAmount")) $("#reqAmount").value = "";
+    if ($("#reqLabel"))  $("#reqLabel").value  = "";
+  });
+
+  copyBtn?.addEventListener("click", () => {
+    navigator.clipboard.writeText(lastPayLink).then(() => {
+      copyBtn.textContent = "✅ Copied!";
+      setTimeout(() => { copyBtn.innerHTML = `<span class="material-symbols-outlined align-middle mr-1 text-base">content_copy</span>Copy Link`; }, 2000);
+    });
+  });
+}
+
 async function bootstrap() {
   const page = pageId();
 
@@ -1043,16 +1573,54 @@ async function bootstrap() {
   }
 
   if (page.startsWith("client")) {
+    // Immediately set username from session/onboarding-status (fixes "..." bug)
+    try {
+      const obs = await getOnboardingStatus();
+      const u = obs.username || obs.user_ref || "";
+      if (u && document.getElementById("dashUsername")) document.getElementById("dashUsername").textContent = u;
+      if (session.wallet) {
+        const nb = document.getElementById("navConnectWallet");
+        if (nb) {
+          fetchSolBalance(session.wallet).then(balance => {
+            nb.textContent = `Wallet 1 \u00B7 ${balance} SOL`;
+          });
+        }
+      }
+    } catch {}
+
     if (session.wallet) {
       await hydrateClientPages(session.wallet);
       attachSSE("client", session.wallet);
       loadWalletList();
-    } else if (page === "client-dashboard") {
-      showSoftWalletPrompt();
+    } else {
+      // Try to resolve wallet from backend
+      const resolvedWallet = await resolveWallet(session);
+      if (resolvedWallet) {
+        session.wallet = resolvedWallet;
+        await hydrateClientPages(resolvedWallet);
+        attachSSE("client", resolvedWallet);
+        loadWalletList();
+      } else if (page === "client-dashboard") {
+        showSoftWalletPrompt();
+      }
     }
+
+    // FAB payment button
+    const fab = $("#fabPayment");
+    if (fab) fab.addEventListener("click", (e) => { e.preventDefault(); go("/ui/client/pay"); });
+
+    // Wire pay page
+    if (page === "client-pay") wirePayPage(session);
+
+    // Notifications bell
+    wireNotifications(session);
+
+    // Settings
+    wireSettings(session);
   } else if (page.startsWith("merchant")) {
     await hydrateMerchantPages();
     attachSSE("merchant", session.wallet || "");
+    if (page === "merchant-receive") wireMerchantReceive(session);
   }
 }
 
