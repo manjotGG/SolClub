@@ -3,7 +3,7 @@
 <html class="dark" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>SolClub | My Inventory</title>
+<title>SolClub | Leaderboard</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
@@ -50,7 +50,7 @@
         }
     </style>
 </head>
-<body class="bg-background text-on-background font-body selection:bg-primary selection:text-on-primary" data-page="client-nfts">
+<body class="bg-background text-on-background font-body selection:bg-primary selection:text-on-primary" data-page="client-leaderboard">
 <!-- Top Navigation Bar -->
 <header class="fixed top-0 w-full z-50 bg-slate-950/80 backdrop-blur-xl shadow-[0_0_20px_rgba(168,85,247,0.15)] flex justify-between items-center px-8 py-4 w-full">
 <div class="flex items-center gap-12">
@@ -59,7 +59,7 @@
 </a>
 <nav class="hidden md:flex gap-8 font-['Space_Grotesk'] tracking-wider">
 <a class="text-slate-400 hover:text-purple-300 transition-colors" href="/ui/client/progress">Quests</a>
-<a class="text-slate-400 hover:text-purple-300 transition-colors" href="/ui/client/leaderboard">Leaderboard</a>
+<a class="text-purple-400 border-b-2 border-purple-400 pb-1" href="/ui/client/leaderboard">Leaderboard</a>
 <a class="text-slate-400 hover:text-purple-300 transition-colors" href="/ui/client/marketplace">Marketplace</a>
 </nav>
 </div>
@@ -91,7 +91,7 @@
 <span class="material-symbols-outlined text-lg">grid_view</span>
                 Dashboard
             </a>
-<a class="flex items-center gap-3 px-4 py-3 text-cyan-400 bg-cyan-500/10 rounded-lg shadow-[inset_0_0_10px_rgba(76,215,246,0.2)] font-['Space_Grotesk'] font-medium uppercase text-xs" href="/ui/client/nfts">
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-200 hover:translate-x-1 transition-all duration-200 font-['Space_Grotesk'] font-medium uppercase text-xs" href="/ui/client/nfts">
 <span class="material-symbols-outlined text-lg">inventory_2</span>
                 Inventory
             </a>
@@ -127,42 +127,35 @@
 <!-- Main Content -->
 <main class="md:ml-64 pt-24 min-h-screen px-8 pb-12">
 <!-- Editorial Header Section -->
-<section class="mb-16 relative overflow-hidden">
-<div class="absolute -top-24 -right-24 w-96 h-96 bg-primary/10 rounded-full blur-[100px]"></div>
-<div class="absolute top-40 -left-24 w-64 h-64 bg-secondary/10 rounded-full blur-[80px]"></div>
+<section class="mb-12 relative overflow-hidden">
+<div class="absolute -top-24 -right-24 w-96 h-96 bg-purple-500/10 rounded-full blur-[100px]"></div>
+<div class="absolute top-40 -left-24 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px]"></div>
 <div class="relative z-10 flex flex-col md:flex-row justify-between items-end gap-8">
 <div class="max-w-2xl">
 <div class="flex items-center gap-2 mb-4">
 <span class="w-12 h-[1px] bg-primary"></span>
-<span class="text-primary font-headline text-xs tracking-[0.3em] uppercase">Digital Vault</span>
+<span class="text-primary font-headline text-xs tracking-[0.3em] uppercase">Ecosystem Arena</span>
 </div>
-<h2 class="text-6xl font-black font-headline tracking-tighter leading-none mb-6">
-                        MY INVENTORY
-</h2>
-<p class="text-on-surface-variant text-lg max-w-lg font-light leading-relaxed">
-                        The collection of mystery digital assets, credentials, and achievements you've earned from ecosystems transactions.
+<h2 class="text-6xl font-black font-headline tracking-tighter leading-none mb-4">LEADERBOARD</h2>
+<p class="text-on-surface-variant text-base max-w-lg font-light leading-relaxed">
+                        Top agents ranked by XP, badges, and ecosystems transactions. Engage in quests and trade with partners to climb.
                     </p>
-</div>
-<div class="flex flex-col items-end gap-4">
-<a href="/ui/client/marketplace" class="glass-card px-6 py-4 rounded-xl flex gap-3 items-center hover:bg-surface-container transition-colors">
-<span class="material-symbols-outlined text-primary">store</span>
-<div>
-<p class="text-[10px] text-slate-500 uppercase tracking-widest">WANT MORE?</p>
-<p class="text-sm font-bold text-white">Browse Marketplace</p>
-</div>
-</a>
 </div>
 </div>
 </section>
 
-<!-- NFT Grid -->
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-  <!-- Dynamic Cards loaded by JS -->
-  <div class="glass-card rounded-2xl p-6 text-center col-span-full py-16 animate-pulse">
-    <span class="material-symbols-outlined text-4xl text-slate-600 mb-2 block">military_tech</span>
-    <p class="text-slate-500 text-sm">Accessing the crystalline vault...</p>
-  </div>
+<!-- Podium (Top 3) -->
+<div id="leaderboardPodium" class="grid grid-cols-1 md:grid-cols-3 gap-8 items-end mb-16 pt-8 max-w-5xl mx-auto">
+  <!-- Dynamic Podium Cards (Rank 1, 2, 3) -->
 </div>
+
+<!-- Leaderboard Ranks 4+ -->
+<section class="max-w-5xl mx-auto glass-card rounded-3xl p-6 md:p-8">
+  <h3 class="font-headline font-bold text-xl text-white mb-6 uppercase tracking-wider">Rankings</h3>
+  <div id="leaderboardList" class="space-y-4">
+    <!-- Rankings hydrated by JS -->
+  </div>
+</section>
 </main>
 <!-- Background Orbs -->
 <div class="fixed top-0 left-0 w-full h-full pointer-events-none -z-10 overflow-hidden">

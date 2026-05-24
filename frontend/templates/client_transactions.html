@@ -120,7 +120,7 @@
 <div class="flex items-center gap-4">
 <div class="hidden sm:flex items-center bg-surface-container-lowest px-4 py-2 rounded-lg border border-outline-variant/15">
 <span class="material-symbols-outlined text-slate-400 text-sm mr-2">search</span>
-<input class="bg-transparent border-none focus:ring-0 text-sm w-48 text-on-surface" placeholder="Search activity..." type="text"/>
+<input id="searchActivity" class="bg-transparent border-none focus:ring-0 text-sm w-48 text-on-surface" placeholder="Search activity..." type="text"/>
 </div>
 <button class="material-symbols-outlined text-slate-400 hover:bg-purple-500/10 p-2 rounded-full transition-all">notifications</button>
 <button class="material-symbols-outlined text-slate-400 hover:bg-purple-500/10 p-2 rounded-full transition-all">settings</button>
@@ -142,15 +142,15 @@
 </div>
 </div>
 <nav class="flex-1 space-y-2">
-<a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-200 hover:translate-x-1 transition-transform duration-200 group" href="#">
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-200 hover:translate-x-1 transition-transform duration-200 group" href="/ui/client">
 <span class="material-symbols-outlined">grid_view</span>
 <span class="font-headline font-medium uppercase text-xs">Dashboard</span>
 </a>
-<a class="flex items-center gap-3 px-4 py-3 text-cyan-400 bg-cyan-500/10 rounded-lg shadow-[inset_0_0_10px_rgba(76,215,246,0.2)] group" href="#">
+<a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-200 hover:translate-x-1 transition-transform duration-200 group" href="/ui/client/nfts">
 <span class="material-symbols-outlined">inventory_2</span>
 <span class="font-headline font-medium uppercase text-xs">Inventory</span>
 </a>
-<a class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:text-slate-200 hover:translate-x-1 transition-transform duration-200 group" href="#">
+<a class="flex items-center gap-3 px-4 py-3 text-cyan-400 bg-cyan-500/10 rounded-lg shadow-[inset_0_0_10px_rgba(76,215,246,0.2)] group" href="/ui/client/transactions">
 <span class="material-symbols-outlined">monitoring</span>
 <span class="font-headline font-medium uppercase text-xs">Analytics</span>
 </a>
@@ -209,16 +209,16 @@
 <!-- Filter Bar -->
 <div class="flex items-center justify-between py-2">
 <div class="flex gap-2">
-<button class="px-4 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold font-headline transition-all">All</button>
-<button class="px-4 py-1.5 rounded-full bg-surface-container-high text-slate-400 text-xs font-bold font-headline hover:bg-surface-bright transition-all">Rewards Only</button>
-<button class="px-4 py-1.5 rounded-full bg-surface-container-high text-slate-400 text-xs font-bold font-headline hover:bg-surface-bright transition-all">Purchases</button>
+<button id="filterAll" class="px-4 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold font-headline transition-all">All</button>
+<button id="filterRewards" class="px-4 py-1.5 rounded-full bg-surface-container-high text-slate-400 text-xs font-bold font-headline hover:bg-surface-bright transition-all">Rewards Only</button>
+<button id="filterPurchases" class="px-4 py-1.5 rounded-full bg-surface-container-high text-slate-400 text-xs font-bold font-headline hover:bg-surface-bright transition-all">Purchases</button>
 </div>
-<button class="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-colors">
+<button id="btnExportCSV" class="flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white transition-colors">
 <span class="material-symbols-outlined text-sm">filter_list</span> Export CSV
                 </button>
 </div>
 <!-- Transaction Grid -->
-<div class="space-y-3">
+<div id="transactionsListContainer" class="space-y-3">
 <!-- Highlighted Transaction Card (Reward Triggered) -->
 <div class="group glass-panel rounded-2xl p-5 flex items-center gap-6 border-l-4 border-tertiary hover:translate-x-1 transition-transform duration-300">
 <div class="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0">

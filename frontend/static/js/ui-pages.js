@@ -1,6 +1,7 @@
 const SOLCLUB_ROLE_KEY = "solclub_role";
 const SOLCLUB_WALLET_KEY = "solclub_wallet";
 const AUTH_BASE = "/api/auth";
+let clientAllActivities = [];
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => Array.from(root.querySelectorAll(selector));
@@ -392,9 +393,13 @@ function wireNavigation(role) {
     rewards: "/ui/client/rewards",
     transactions: "/ui/client/transactions",
     "nft collection": "/ui/client/nfts",
+    inventory: "/ui/client/nfts",
+    marketplace: "/ui/client/marketplace",
+    leaderboard: "/ui/client/leaderboard",
+    quests: "/ui/client/progress",
     "loyalty progress": "/ui/client/progress",
     "cashback config": "/ui/merchant/cashback",
-    analytics: "/ui/merchant/analytics",
+    analytics: role === "merchant" ? "/ui/merchant/analytics" : "/ui/client/transactions",
     franchises: "/ui/merchant/franchises",
     "nft distribution": "/ui/merchant/nfts",
     feedback: role === "merchant" ? "/ui/merchant/feedback" : "/ui/client/feedback",
@@ -441,15 +446,8 @@ function getOrCreateLivePanel() {
   if (panel) return panel;
   panel = document.createElement("section");
   panel.id = "solclubLivePanel";
-  panel.className = "mb-8 p-4 rounded-2xl border border-cyan-400/20 bg-cyan-500/10 text-sm";
-  const main = $("main");
-  if (main && main.firstChild) {
-    main.insertBefore(panel, main.firstChild);
-  } else if (main) {
-    main.appendChild(panel);
-  } else {
-    document.body.prepend(panel);
-  }
+  panel.className = "hidden";
+  document.body.appendChild(panel);
   return panel;
 }
 
@@ -457,34 +455,90 @@ function showSoftWalletPrompt() {
   showWalletManageModal();
 }
 
-function showWalletManageModal() {
+function getWalletButton() {
+  const nb = $("#navConnectWallet");
+  if (nb) return nb;
+  return $$("button").find(b => {
+    const lbl = findClickableLabel(b);
+    return lbl.includes("connect wallet") || lbl.includes("wallet 1");
+  });
+}
+
+async function showWalletManageModal() {
   let modal = $("#walletManageModal");
   if (modal) modal.remove();
+  
   modal = document.createElement("div");
   modal.id = "walletManageModal";
   modal.className = "fixed inset-0 z-[80] flex items-center justify-center bg-black/70 px-4";
   modal.innerHTML = `
-    <div class="w-full max-w-md rounded-2xl border border-purple-500/20 bg-[#0d1320] p-6 shadow-[0_0_60px_rgba(168,85,247,0.1)]">
-      <div class="flex items-center justify-between mb-5">
-        <h3 class="text-lg font-bold" style="font-family:'Space Grotesk',sans-serif">Wallet Manager</h3>
+    <div class="w-full max-w-lg rounded-2xl border border-purple-500/20 bg-[#0d1320] p-6 shadow-[0_0_60px_rgba(168,85,247,0.15)] flex flex-col gap-4">
+      <div class="flex items-center justify-between border-b border-white/5 pb-3">
+        <h3 class="text-xl font-bold font-headline text-white">Wallet Manager</h3>
         <button id="closeWalletManage" class="text-slate-400 hover:text-white text-xl" type="button">✕</button>
       </div>
-      <p class="text-sm text-slate-400 mb-6">Link an existing Solana wallet or create a new managed one.</p>
-      <div class="space-y-3">
-        <button id="wmLinkExternal" class="w-full flex items-center gap-4 p-4 rounded-xl border border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 transition-colors text-left">
-          <span class="material-symbols-outlined text-purple-400 text-2xl">link</span>
-          <div>
-            <div class="font-bold text-sm">Link Existing Wallet</div>
-            <div class="text-[11px] text-slate-500">Paste your Phantom / Solflare address</div>
+      
+      <div id="wmLoading" class="py-12 text-center text-slate-500 flex flex-col items-center justify-center gap-2">
+        <span class="material-symbols-outlined text-4xl animate-spin text-purple-400">sync</span>
+        <p class="text-sm">Accessing secure wallet records...</p>
+      </div>
+      
+      <div id="wmContent" class="hidden space-y-4">
+        <!-- Active Wallet Info -->
+        <div class="bg-gradient-to-r from-purple-900/40 to-cyan-900/30 border border-purple-500/30 p-5 rounded-2xl relative overflow-hidden">
+          <div class="absolute top-0 right-0 w-32 h-32 bg-cyan-400/5 blur-[50px]"></div>
+          <div class="flex justify-between items-start mb-4">
+            <div>
+              <span class="text-[9px] uppercase tracking-widest text-slate-400 font-mono block">Status: Connected</span>
+              <h4 id="wmActiveLabel" class="text-lg font-headline font-bold text-white font-headline">Wallet 1</h4>
+            </div>
+            <span id="wmActiveProvider" class="text-[9px] uppercase px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 font-bold font-mono">Managed</span>
           </div>
-        </button>
-        <button id="wmCreateManaged" class="w-full flex items-center gap-4 p-4 rounded-xl border border-cyan-500/20 bg-cyan-500/5 hover:bg-cyan-500/10 transition-colors text-left">
-          <span class="material-symbols-outlined text-cyan-400 text-2xl">add_circle</span>
-          <div>
-            <div class="font-bold text-sm">Create Managed Wallet</div>
-            <div class="text-[11px] text-slate-500">Generate a new Solana testnet keypair</div>
+          
+          <div class="mb-4">
+            <span class="text-[9px] uppercase tracking-widest text-slate-400 font-mono block">On-chain Balance</span>
+            <div class="flex items-baseline gap-2">
+              <span id="wmActiveBalance" class="text-3xl font-headline font-bold text-cyan-400 font-headline">...</span>
+              <span class="text-sm font-bold text-slate-400">SOL</span>
+              <button id="wmRefreshBalance" class="material-symbols-outlined text-slate-400 hover:text-white text-base ml-2 cursor-pointer transition-colors" title="Refresh Balance">refresh</button>
+            </div>
           </div>
-        </button>
+          
+          <div class="flex flex-col gap-2">
+            <span class="text-[9px] uppercase tracking-widest text-slate-400 font-mono block">Public Key</span>
+            <div class="flex items-center justify-between bg-black/40 rounded-lg px-3 py-2 text-xs font-mono text-slate-300">
+              <span id="wmActiveAddress" class="break-all font-mono">...</span>
+              <button id="wmCopyAddress" class="material-symbols-outlined text-slate-400 hover:text-white text-sm ml-2 cursor-pointer transition-colors" title="Copy Address">content_copy</button>
+            </div>
+          </div>
+          
+          <div class="flex gap-4 mt-4 pt-4 border-t border-white/5">
+            <a id="wmExplorerLink" href="#" target="_blank" class="text-xs text-cyan-400 hover:underline flex items-center gap-1 font-headline">
+              <span class="material-symbols-outlined text-xs">open_in_new</span> View on Explorer
+            </a>
+            <a href="https://faucet.solana.com/" target="_blank" class="text-xs text-purple-400 hover:underline flex items-center gap-1 font-headline">
+              <span class="material-symbols-outlined text-xs">local_gas_station</span> Solana Faucet
+            </a>
+          </div>
+        </div>
+        
+        <!-- Linked Wallets Section -->
+        <div>
+          <h5 class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Linked Wallets</h5>
+          <div id="wmWalletsList" class="space-y-2 max-h-40 overflow-y-auto pr-1">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="grid grid-cols-2 gap-3 pt-2">
+          <button id="wmLinkExternal" class="flex items-center justify-center gap-2 p-3 rounded-xl border border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 transition-colors text-slate-200 text-xs font-bold font-headline">
+            <span class="material-symbols-outlined text-sm">link</span> Link New Wallet
+          </button>
+          <button id="wmCreateManaged" class="flex items-center justify-center gap-2 p-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 hover:bg-cyan-500/10 transition-colors text-slate-200 text-xs font-bold font-headline">
+            <span class="material-symbols-outlined text-sm">add_circle</span> Create Managed
+          </button>
+        </div>
       </div>
     </div>
   `;
@@ -493,14 +547,314 @@ function showWalletManageModal() {
   $("#closeWalletManage", modal)?.addEventListener("click", () => modal.remove());
   modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
 
-  $("#wmLinkExternal", modal)?.addEventListener("click", () => {
-    modal.remove();
-    showLinkWalletModal();
-  });
+  $("#wmLinkExternal", modal)?.addEventListener("click", () => { modal.remove(); showLinkWalletModal(); });
   $("#wmCreateManaged", modal)?.addEventListener("click", () => {
     modal.remove();
     createManagedWallet(localStorage.getItem(SOLCLUB_ROLE_KEY) || "client").catch((e) => alert(e.message));
   });
+
+  try {
+    const session = await getSession();
+    const activeWallet = session.wallet || "";
+    
+    const data = await apiJson(`${AUTH_BASE}/wallet/list`);
+    const wallets = data.wallets || [];
+    
+    $("#wmLoading", modal)?.classList.add("hidden");
+    $("#wmContent", modal)?.classList.remove("hidden");
+
+    if (activeWallet) {
+      const activeRec = wallets.find(w => w.wallet_address === activeWallet) || { wallet_address: activeWallet, provider: "Phantom", managed_wallet: false, network: "testnet" };
+      $("#wmActiveAddress", modal).textContent = activeWallet;
+      $("#wmActiveLabel", modal).textContent = activeRec.is_primary ? "Primary Wallet (Wallet 1)" : "Wallet";
+      $("#wmActiveProvider", modal).textContent = activeRec.managed_wallet ? "Managed" : "External";
+      $("#wmActiveProvider", modal).className = activeRec.managed_wallet 
+        ? "text-[9px] uppercase px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-400 font-bold font-mono" 
+        : "text-[9px] uppercase px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 font-bold font-mono";
+      
+      const explorer = $("#wmExplorerLink", modal);
+      if (explorer) explorer.href = `https://explorer.solana.com/address/${activeWallet}?cluster=testnet`;
+
+      $("#wmCopyAddress", modal)?.addEventListener("click", () => {
+        navigator.clipboard.writeText(activeWallet).then(() => {
+          $("#wmCopyAddress", modal).textContent = "check";
+          setTimeout(() => { $("#wmCopyAddress", modal).textContent = "content_copy"; }, 1500);
+        });
+      });
+
+      const updateBalance = async () => {
+        $("#wmActiveBalance", modal).textContent = "...";
+        const bal = await fetchSolBalance(activeWallet);
+        $("#wmActiveBalance", modal).textContent = bal;
+      };
+      
+      $("#wmRefreshBalance", modal)?.addEventListener("click", updateBalance);
+      updateBalance();
+    } else {
+      $("#wmContent", modal).innerHTML = `
+        <div class="text-center py-6">
+          <p class="text-slate-400 text-sm mb-4 font-headline">No wallet connected to your session.</p>
+          <div class="grid grid-cols-2 gap-3">
+            <button id="wmLinkExternal" class="flex items-center justify-center gap-2 p-3 rounded-xl border border-purple-500/20 bg-purple-500/5 hover:bg-purple-500/10 transition-colors text-slate-200 text-xs font-bold font-headline">
+              <span class="material-symbols-outlined text-sm">link</span> Link Wallet
+            </button>
+            <button id="wmCreateManaged" class="flex items-center justify-center gap-2 p-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 hover:bg-cyan-500/10 transition-colors text-slate-200 text-xs font-bold font-headline">
+              <span class="material-symbols-outlined text-sm">add_circle</span> Create Managed
+            </button>
+          </div>
+        </div>
+      `;
+      $("#wmLinkExternal", modal)?.addEventListener("click", () => { modal.remove(); showLinkWalletModal(); });
+      $("#wmCreateManaged", modal)?.addEventListener("click", () => {
+        modal.remove();
+        createManagedWallet(localStorage.getItem(SOLCLUB_ROLE_KEY) || "client").catch((e) => alert(e.message));
+      });
+      return;
+    }
+
+    const listNode = $("#wmWalletsList", modal);
+    if (listNode) {
+      if (!wallets.length) {
+        listNode.innerHTML = `<p class="text-xs text-slate-500 italic font-headline">No other wallets linked</p>`;
+      } else {
+        listNode.innerHTML = "";
+        for (const w of wallets) {
+          const isCurrent = w.wallet_address === activeWallet;
+          const div = document.createElement("div");
+          div.className = `flex items-center justify-between p-3 rounded-xl border ${isCurrent ? 'border-cyan-500/30 bg-cyan-500/5' : 'border-white/5 bg-white/5'} text-xs`;
+          
+          const typeBadge = w.managed_wallet 
+            ? `<span class="ml-2 text-[8px] uppercase px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 font-mono">Managed</span>` 
+            : `<span class="ml-2 text-[8px] uppercase px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 font-mono">External</span>`;
+
+          div.innerHTML = `
+            <div class="flex flex-col min-w-0">
+              <div class="flex items-center">
+                <span class="font-mono text-slate-200 truncate max-w-[150px] md:max-w-[200px]">${w.wallet_address}</span>
+                ${typeBadge}
+              </div>
+              <span class="text-[9px] text-slate-500 font-mono mt-0.5">Network: ${w.network || 'testnet'} · <span id="bal-${w.wallet_address.slice(0, 8)}">...</span> SOL</span>
+            </div>
+            <div>
+              ${isCurrent 
+                ? `<span class="text-cyan-400 font-bold uppercase tracking-wider text-[9px] px-2 py-1 rounded bg-cyan-500/10 border border-cyan-500/20 font-headline">Active</span>` 
+                : `<button class="wm-switch-btn px-2 py-1 rounded border border-slate-600 text-slate-300 hover:text-white hover:border-white transition-colors uppercase tracking-wider text-[9px] font-bold font-headline" data-addr="${w.wallet_address}">Switch</button>`}
+            </div>
+          `;
+          listNode.appendChild(div);
+          
+          fetchSolBalance(w.wallet_address).then(bal => {
+            const el = document.getElementById(`bal-${w.wallet_address.slice(0, 8)}`);
+            if (el) el.textContent = bal;
+          });
+        }
+
+        $$(".wm-switch-btn", listNode).forEach(btn => {
+          btn.addEventListener("click", async (e) => {
+            const addr = e.target.dataset.addr;
+            btn.disabled = true;
+            btn.textContent = "Switching...";
+            try {
+              await apiJson(`${AUTH_BASE}/wallet/connect`, {
+                method: "POST",
+                body: JSON.stringify({
+                  wallet_address: addr,
+                  network: "testnet",
+                  provider: "resolved",
+                  user_role: session.role || "client",
+                }),
+              });
+              setLocalSession(session.role, addr);
+              modal.remove();
+              window.location.reload();
+            } catch (err) {
+              alert(err.message);
+              btn.disabled = false;
+              btn.textContent = "Switch";
+            }
+          });
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Wallet list fetch failed", error);
+  }
+}
+
+function wireClientTransactionsFilters() {
+  if (pageId() !== "client-transactions") return;
+  
+  const filterAll = $("#filterAll");
+  const filterRewards = $("#filterRewards");
+  const filterPurchases = $("#filterPurchases");
+  const searchInput = $("#searchActivity");
+  
+  let currentFilter = "all";
+  let searchQuery = "";
+  
+  const applyFilters = () => {
+    let filtered = [...clientAllActivities];
+    
+    if (currentFilter === "rewards") {
+      filtered = filtered.filter(a => a.type === "reward" || a.linkedReward);
+    } else if (currentFilter === "purchases") {
+      filtered = filtered.filter(a => a.type === "purchase");
+    }
+    
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(a => {
+        const sig = (a.signature || a.transaction_signature || "").toLowerCase();
+        const amt = String(a.amount || a.cashback_amount || "");
+        const merchant = String(a.merchant_id || "");
+        const tier = (a.reward_tier || (a.linkedReward && a.linkedReward.reward_tier) || "").toLowerCase();
+        return sig.includes(q) || amt.includes(q) || merchant.includes(q) || tier.includes(q);
+      });
+    }
+    
+    renderClientTransactions(filtered);
+  };
+  
+  const setTabActive = (activeBtn, inactiveBtns) => {
+    if (activeBtn) activeBtn.className = "px-4 py-1.5 rounded-full bg-primary text-on-primary text-xs font-bold font-headline transition-all";
+    inactiveBtns.forEach(btn => {
+      if (btn) btn.className = "px-4 py-1.5 rounded-full bg-surface-container-high text-slate-400 text-xs font-bold font-headline hover:bg-surface-bright transition-all";
+    });
+  };
+  
+  filterAll?.addEventListener("click", () => {
+    currentFilter = "all";
+    setTabActive(filterAll, [filterRewards, filterPurchases]);
+    applyFilters();
+  });
+  
+  filterRewards?.addEventListener("click", () => {
+    currentFilter = "rewards";
+    setTabActive(filterRewards, [filterAll, filterPurchases]);
+    applyFilters();
+  });
+  
+  filterPurchases?.addEventListener("click", () => {
+    currentFilter = "purchases";
+    setTabActive(filterPurchases, [filterAll, filterRewards]);
+    applyFilters();
+  });
+  
+  searchInput?.addEventListener("input", (e) => {
+    searchQuery = e.target.value.trim();
+    applyFilters();
+  });
+}
+
+async function hydrateLeaderboard() {
+  if (pageId() !== "client-leaderboard") return;
+  try {
+    const users = await apiJson("/ui/api/leaderboard");
+    renderLeaderboard(users);
+  } catch (error) {
+    console.error("Leaderboard hydration failed:", error);
+  }
+}
+
+function renderLeaderboard(users) {
+  const podiumContainer = $("#leaderboardPodium");
+  const listContainer = $("#leaderboardList");
+  if (!users || !users.length) return;
+
+  const rank1 = users.find(u => u.rank === 1);
+  const rank2 = users.find(u => u.rank === 2);
+  const rank3 = users.find(u => u.rank === 3);
+
+  if (podiumContainer) {
+    podiumContainer.innerHTML = `
+      <!-- Rank 2 -->
+      ${rank2 ? `
+      <div class="glass-card rounded-3xl p-6 flex flex-col items-center justify-end text-center flex-1 order-1 border-slate-400/20 shadow-[0_0_30px_rgba(148,163,184,0.05)] min-h-[300px]">
+        <div class="w-16 h-16 rounded-full bg-slate-400/10 flex items-center justify-center border-2 border-slate-400 mb-4 relative">
+          <span class="material-symbols-outlined text-slate-400 text-3xl">workspace_premium</span>
+          <span class="absolute -bottom-2 right-1/2 translate-x-1/2 bg-slate-500 text-white font-bold text-xs px-2 py-0.5 rounded-full">2</span>
+        </div>
+        <h4 class="font-headline font-bold text-lg text-white truncate w-full font-headline">${rank2.username}</h4>
+        <p class="text-xs text-slate-500 font-mono truncate w-full mb-3">${rank2.wallet.slice(0, 10)}...</p>
+        <span class="text-xs font-headline font-bold uppercase tracking-wider text-slate-400 px-3 py-1 rounded-full bg-slate-400/10 border border-slate-400/20 mb-4 font-headline">${rank2.tier}</span>
+        <div class="text-center">
+          <p class="text-2xl font-headline font-bold text-slate-300 font-headline">${rank2.xp.toLocaleString()} XP</p>
+          <p class="text-[10px] text-slate-500 uppercase tracking-widest font-headline">${rank2.transactions} Transactions</p>
+        </div>
+      </div>
+      ` : ''}
+
+      <!-- Rank 1 -->
+      ${rank1 ? `
+      <div class="glass-card rounded-3xl p-8 flex flex-col items-center justify-end text-center flex-1 order-2 border-amber-500/30 shadow-[0_0_40px_rgba(245,158,11,0.1)] min-h-[350px] scale-105 relative">
+        <div class="absolute -top-6 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-950 font-bold text-xs uppercase tracking-widest px-4 py-1 rounded-full shadow-[0_0_15px_rgba(245,158,11,0.4)] font-headline">Apex Agent</div>
+        <div class="w-20 h-20 rounded-full bg-amber-500/10 flex items-center justify-center border-2 border-amber-500 mb-4 relative">
+          <span class="material-symbols-outlined text-amber-500 text-4xl">workspace_premium</span>
+          <span class="absolute -bottom-2 right-1/2 translate-x-1/2 bg-amber-500 text-slate-950 font-bold text-sm px-2 py-0.5 rounded-full">1</span>
+        </div>
+        <h4 class="font-headline font-bold text-xl text-white truncate w-full font-headline">${rank1.username}</h4>
+        <p class="text-xs text-slate-500 font-mono truncate w-full mb-3">${rank1.wallet.slice(0, 10)}...</p>
+        <span class="text-xs font-headline font-bold uppercase tracking-wider text-amber-400 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 mb-4 font-headline">${rank1.tier}</span>
+        <div class="text-center">
+          <p class="text-3xl font-headline font-bold text-amber-300 font-headline">${rank1.xp.toLocaleString()} XP</p>
+          <p class="text-[10px] text-slate-500 uppercase tracking-widest font-headline">${rank1.transactions} Transactions</p>
+        </div>
+      </div>
+      ` : ''}
+
+      <!-- Rank 3 -->
+      ${rank3 ? `
+      <div class="glass-card rounded-3xl p-6 flex flex-col items-center justify-end text-center flex-1 order-3 border-amber-700/20 shadow-[0_0_30px_rgba(180,83,9,0.05)] min-h-[280px]">
+        <div class="w-16 h-16 rounded-full bg-amber-700/10 flex items-center justify-center border-2 border-amber-700 mb-4 relative">
+          <span class="material-symbols-outlined text-amber-700 text-3xl">workspace_premium</span>
+          <span class="absolute -bottom-2 right-1/2 translate-x-1/2 bg-amber-700 text-white font-bold text-xs px-2 py-0.5 rounded-full">3</span>
+        </div>
+        <h4 class="font-headline font-bold text-lg text-white truncate w-full font-headline">${rank3.username}</h4>
+        <p class="text-xs text-slate-500 font-mono truncate w-full mb-3">${rank3.wallet.slice(0, 10)}...</p>
+        <span class="text-xs font-headline font-bold uppercase tracking-wider text-amber-600 px-3 py-1 rounded-full bg-amber-700/10 border border-amber-700/20 mb-4 font-headline">${rank3.tier}</span>
+        <div class="text-center">
+          <p class="text-2xl font-headline font-bold text-amber-600 font-headline">${rank3.xp.toLocaleString()} XP</p>
+          <p class="text-[10px] text-slate-500 uppercase tracking-widest font-headline">${rank3.transactions} Transactions</p>
+        </div>
+      </div>
+      ` : ''}
+    `;
+  }
+
+  if (listContainer) {
+    const listUsers = users.slice(3);
+    listContainer.innerHTML = listUsers.map(u => {
+      const isReal = u.is_real;
+      const borderClass = isReal ? "border-l-4 border-primary" : "border-l-4 border-transparent";
+      const shortWallet = u.wallet.length > 12 ? u.wallet.slice(0, 6) + "…" + u.wallet.slice(-4) : u.wallet;
+      
+      return `
+        <div class="group bg-surface-container-low/40 rounded-2xl p-4 flex items-center justify-between ${borderClass} hover:bg-surface-container-low transition-colors duration-200">
+          <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-xl bg-slate-900 border border-white/5 flex items-center justify-center font-headline font-bold text-slate-400">
+              #${u.rank}
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-headline font-bold text-white font-headline">${u.username}</span>
+                ${isReal ? '<span class="text-[9px] uppercase px-2 py-0.5 rounded bg-primary/20 text-primary font-bold font-headline">You</span>' : ''}
+              </div>
+              <span class="text-xs text-slate-500 font-mono select-all font-mono">${shortWallet}</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-8 text-right">
+            <div>
+              <span class="text-[9px] uppercase px-2 py-0.5 rounded bg-slate-800 text-slate-400 font-headline font-bold font-headline">${u.tier}</span>
+            </div>
+            <div class="w-24">
+              <p class="text-sm font-headline font-bold text-white font-headline">${u.xp.toLocaleString()} XP</p>
+              <p class="text-[9px] text-slate-500 uppercase tracking-widest font-headline">${u.transactions} Txns</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("") || `<div class="text-center text-slate-500 text-sm py-4 font-headline">No additional competitors</div>`;
+  }
 }
 
 function updateClientLivePanel(snapshot, preview) {
@@ -593,21 +947,80 @@ function updateMerchantLivePanel(analytics, nfts) {
 }
 
 function renderClientTransactions(items) {
-  const container = $$("section").find((section) => section.querySelector(".space-y-3"));
+  const container = $("#transactionsListContainer");
   if (!container) return;
-  const list = container.querySelector(".space-y-3");
-  if (!list) return;
-  const rows = (items || []).slice(0, 8).map((tx) => `
-    <div class="group glass-panel rounded-2xl p-4 border-l-4 border-cyan-400/50">
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-2 text-sm">
-        <div><div class="text-[10px] uppercase text-slate-400">Date</div><div>${tx.created_at || "-"}</div></div>
-        <div><div class="text-[10px] uppercase text-slate-400">Merchant</div><div>${tx.merchant_id || "-"}</div></div>
-        <div><div class="text-[10px] uppercase text-slate-400">Amount</div><div>${tx.amount || 0} SOL</div></div>
-        <div><div class="text-[10px] uppercase text-slate-400">Signature</div><div class="font-mono text-xs">${tx.signature || "-"}</div></div>
-      </div>
-    </div>
-  `).join("");
-  list.innerHTML = rows || '<div class="glass-panel rounded-2xl p-4">No transaction data available.</div>';
+  
+  const rows = (items || []).map((act) => {
+    const isReward = act.type === "reward";
+    const date = act.created_at ? new Date(act.created_at).toLocaleString() : "-";
+    const sig = act.signature || act.transaction_signature || "";
+    const shortSig = sig.length > 12 ? sig.slice(0, 8) + "…" + sig.slice(-4) : sig;
+    
+    if (isReward) {
+      return `
+        <div class="group glass-panel rounded-2xl p-5 flex items-center gap-6 border-l-4 border-tertiary hover:translate-x-1 transition-all duration-300">
+          <div class="w-12 h-12 rounded-xl bg-tertiary/10 flex items-center justify-center flex-shrink-0">
+            <span class="material-symbols-outlined text-tertiary text-2xl">card_giftcard</span>
+          </div>
+          <div class="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+            <div>
+              <p class="text-white font-headline font-bold">Reward: ${act.reward_tier || 'Loot'}</p>
+              <p class="text-xs text-slate-500">${date}</p>
+            </div>
+            <div class="md:text-center">
+              <p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Signature</p>
+              <span class="font-mono text-xs text-slate-400 select-all">${shortSig}</span>
+            </div>
+            <div class="md:text-center">
+              <p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Cashback</p>
+              <p class="text-tertiary font-headline font-bold">+${act.cashback_amount || 0} SOL</p>
+            </div>
+            <div class="text-right">
+              <p class="text-[10px] text-tertiary uppercase font-bold tracking-widest mb-1">Loyalty Tier</p>
+              <div class="flex items-center justify-end gap-2 text-tertiary">
+                <span class="font-headline font-black text-sm">${act.reward_tier}</span>
+                <span class="material-symbols-outlined text-sm" data-weight="fill">verified</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      const linkedReward = act.linkedReward;
+      const borderClass = linkedReward ? "border-l-4 border-cyan-400" : "border-l-4 border-transparent";
+      const rewardText = linkedReward ? `+${linkedReward.cashback_amount} SOL` : "0 SOL";
+      const xpText = linkedReward ? `+${Math.round(act.amount * 100)} XP` : `${Math.round(act.amount * 10)} XP`;
+      
+      return `
+        <div class="group bg-surface-container-low/40 rounded-2xl p-5 flex items-center gap-6 ${borderClass} hover:bg-surface-container-low/80 hover:translate-x-1 transition-all duration-300">
+          <div class="w-12 h-12 rounded-xl bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+            <span class="material-symbols-outlined text-cyan-400 text-2xl">shopping_bag</span>
+          </div>
+          <div class="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+            <div>
+              <p class="text-white font-headline font-bold">Purchase (Merchant #${act.merchant_id || 1})</p>
+              <p class="text-xs text-slate-500">${date}</p>
+            </div>
+            <div class="md:text-center">
+              <p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Status</p>
+              <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 uppercase">Success</span>
+            </div>
+            <div class="md:text-center">
+              <p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Amount</p>
+              <p class="text-white font-headline font-bold">${act.amount || 0} SOL</p>
+            </div>
+            <div class="text-right">
+              <p class="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Reward/XP</p>
+              <div class="flex items-center justify-end gap-2 text-cyan-400">
+                <span class="font-headline font-bold text-sm">${xpText} (${rewardText} Back)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  }).join("");
+  container.innerHTML = rows || '<div class="glass-panel rounded-2xl p-4">No activity history available.</div>';
 }
 
 function renderClientRewards(items) {
@@ -627,17 +1040,52 @@ function renderClientRewards(items) {
 
 function renderClientNfts(items) {
   if (pageId() !== "client-nfts") return;
-  const grid = $$(".grid").find((node) => node.className.includes("xl:grid-cols-4"));
-  if (!grid) return;
-  const cards = (items || []).slice(0, 8).map((nft, index) => `
-    <div class="glass-card rounded-2xl p-4 border border-purple-300/20">
-      <div class="text-[10px] uppercase text-slate-400">NFT ${index + 1}</div>
-      <div class="font-bold mt-1">${nft.nft_type || "Mystery NFT"}</div>
-      <div class="text-xs font-mono text-slate-400 mt-2">${nft.mint_address || nft.token_id || "pending"}</div>
-      <div class="text-xs text-slate-300 mt-2">Minted: ${nft.minted_at || nft.created_at || "-"}</div>
-    </div>
-  `).join("");
-  if (cards) grid.innerHTML = cards;
+  const grid = $$(".grid").find((node) => node.className.includes("xl:grid-cols-4") || node.id === "nftsGridContainer" || node.innerHTML.includes("vault"));
+  const targetGrid = grid || $(".grid-cols-1.sm\\:grid-cols-2");
+  if (!targetGrid) return;
+  
+  if (!items || !items.length) {
+    targetGrid.innerHTML = `
+      <div class="glass-card rounded-2xl p-8 text-center col-span-full py-16">
+        <span class="material-symbols-outlined text-4xl text-slate-600 mb-2 block">military_tech</span>
+        <p class="text-slate-400 text-sm">Your crystalline vault is currently empty.</p>
+        <a href="/ui/client/marketplace" class="mt-4 inline-block bg-primary text-on-primary text-xs font-bold font-headline px-6 py-2 rounded-lg hover:scale-105 active:scale-95 transition-all">Buy NFTs in Marketplace</a>
+      </div>
+    `;
+    return;
+  }
+  
+  const cards = items.map((nft, index) => {
+    const isGold = String(nft.nft_type).toLowerCase().includes("gold") || index % 3 === 0;
+    const isSilver = String(nft.nft_type).toLowerCase().includes("silver") || index % 3 === 1;
+    const rarity = isGold ? "Legendary" : isSilver ? "Epic" : "Rare";
+    const bgGradient = isGold 
+      ? "from-amber-500/20 to-yellow-600/10 border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.15)]"
+      : isSilver 
+        ? "from-slate-400/20 to-slate-500/10 border-slate-400/30 shadow-[0_0_20px_rgba(148,163,184,0.15)]"
+        : "from-amber-700/20 to-orange-800/10 border-amber-800/30 shadow-[0_0_20px_rgba(180,83,9,0.15)]";
+    const textRarity = isGold ? "text-amber-400" : isSilver ? "text-slate-300" : "text-amber-600";
+    
+    return `
+      <div class="glass-card rounded-2xl p-4 border bg-gradient-to-br ${bgGradient} hover:scale-105 active:scale-95 transition-all duration-300">
+        <div class="relative h-48 rounded-xl overflow-hidden mb-4 bg-slate-950/80 flex items-center justify-center border border-white/5">
+          <span class="material-symbols-outlined text-6xl ${textRarity} animate-pulse">military_tech</span>
+          <div class="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-[8px] font-bold ${textRarity} tracking-widest uppercase border border-white/5">
+            ${rarity}
+          </div>
+        </div>
+        <div class="px-1">
+          <p class="text-[10px] text-slate-500 uppercase tracking-widest">NFT #${index + 1}</p>
+          <h3 class="font-headline font-bold text-lg text-white mb-2 truncate">${nft.nft_type || "Mystery NFT"}</h3>
+          <div class="bg-black/40 rounded p-2 text-[10px] font-mono text-slate-400 break-all mb-2">
+            ${nft.mint_address || nft.token_id || "Minting pending..."}
+          </div>
+          <p class="text-[9px] text-slate-500">Earned on ${nft.minted_at ? new Date(nft.minted_at).toLocaleDateString() : (nft.created_at ? new Date(nft.created_at).toLocaleDateString() : "Just now")}</p>
+        </div>
+      </div>
+    `;
+  }).join("");
+  targetGrid.innerHTML = cards;
 }
 
 function updateCashbackFormFromServer(profile) {
@@ -713,15 +1161,56 @@ async function hydrateClientPages(wallet) {
 
   const preview = await apiJson(`/ui/api/client/${encodeURIComponent(wallet)}/reward-preview?merchant_id=1&amount=0.1`);
   updateClientLivePanel(snapshot, preview);
-  renderClientTransactions(txs.items || []);
+  
+  clientAllActivities = [];
+  const transItems = txs.items || [];
+  const rewItems = rewards.items || [];
+  
+  transItems.forEach(tx => {
+    const linkedReward = rewItems.find(r => r.transaction_signature === tx.signature);
+    clientAllActivities.push({
+      type: "purchase",
+      created_at: tx.created_at,
+      merchant_id: tx.merchant_id,
+      amount: tx.amount,
+      signature: tx.signature,
+      linkedReward: linkedReward
+    });
+  });
+  
+  rewItems.forEach(r => {
+    const matched = clientAllActivities.some(a => a.signature === r.transaction_signature);
+    if (!matched) {
+      clientAllActivities.push({
+        type: "reward",
+        created_at: r.created_at,
+        merchant_id: r.merchant_id || 1,
+        cashback_amount: r.cashback_amount,
+        reward_tier: r.reward_tier,
+        transaction_signature: r.transaction_signature
+      });
+    }
+  });
+  
+  clientAllActivities.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  
+  renderClientTransactions(clientAllActivities);
   renderClientRewards(rewards.items || []);
   renderClientNfts(nfts.items || []);
+  wireClientTransactionsFilters();
 
   if (pageId() === "client-progress") {
     const pctText = $$("p").find((node) => node.textContent.trim().endsWith("%") && node.className.includes("text-5xl"));
     const txsCount = Number(progress.transactions || 0);
     const pct = Math.max(0, Math.min(100, Math.round(((txsCount % 10) / 10) * 100)));
     if (pctText) pctText.textContent = `${pct}%`;
+  }
+  
+  const navBtn = getWalletButton();
+  if (navBtn && snapshot.wallet) {
+    fetchSolBalance(snapshot.wallet).then(balance => {
+      navBtn.textContent = `Wallet 1 \u00B7 ${balance} SOL`;
+    });
   }
 }
 
@@ -998,46 +1487,9 @@ function renderWalletList(wallets) {
   if (!container) {
     container = document.createElement("section");
     container.id = "walletListPanel";
-    container.className = "mb-6 p-4 rounded-2xl border border-purple-400/20 bg-purple-500/5 text-sm";
-    const livePanel = $("#solclubLivePanel");
-    if (livePanel && livePanel.parentNode) {
-      livePanel.parentNode.insertBefore(container, livePanel.nextSibling);
-    } else {
-      const main = $("main");
-      if (main) main.prepend(container);
-    }
+    container.className = "hidden";
+    document.body.appendChild(container);
   }
-  if (!wallets.length) {
-    container.innerHTML = `
-      <div class="flex items-center justify-between">
-        <div class="font-bold tracking-wider uppercase text-xs">Linked Wallets</div>
-        <button id="btnLinkRealWallet" class="text-xs text-purple-400 hover:text-purple-300 font-bold uppercase tracking-wider">+ Link Real Wallet</button>
-      </div>
-      <p class="text-xs text-slate-500 mt-2">No wallets linked yet. Link a real Solana wallet to make on-chain transactions.</p>
-    `;
-  } else {
-    const rows = wallets.map(w => `
-      <div class="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
-        <div>
-          <span class="font-mono text-xs">${w.wallet_address || "-"}</span>
-          <span class="ml-2 text-[9px] uppercase px-2 py-0.5 rounded ${w.managed_wallet ? 'bg-cyan-500/10 text-cyan-400' : 'bg-purple-500/10 text-purple-400'}">${w.managed_wallet ? 'Managed' : 'External'}</span>
-          <span class="ml-1 text-[9px] uppercase px-2 py-0.5 rounded bg-slate-700 text-slate-300">${w.network || 'testnet'}</span>
-          ${w.is_primary ? '<span class="ml-1 text-[9px] uppercase px-2 py-0.5 rounded bg-green-500/10 text-green-400">Primary</span>' : ''}
-        </div>
-      </div>
-    `).join("");
-    container.innerHTML = `
-      <div class="flex items-center justify-between mb-2">
-        <div class="font-bold tracking-wider uppercase text-xs">Linked Wallets (${wallets.length})</div>
-        <button id="btnLinkRealWallet" class="text-xs text-purple-400 hover:text-purple-300 font-bold uppercase tracking-wider">+ Link Real Wallet</button>
-      </div>
-      ${rows}
-    `;
-  }
-  $("#btnLinkRealWallet", container)?.addEventListener("click", (e) => {
-    e.preventDefault();
-    showLinkWalletModal();
-  });
 }
 
 function wirePortal(session) {
@@ -1545,6 +1997,16 @@ async function bootstrap() {
   }
 
   wireNavigation(session.role);
+  
+  // Nav connect wallet button
+  const navConnBtn = getWalletButton();
+  if (navConnBtn) {
+    navConnBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      showWalletManageModal();
+    });
+  }
+
   wireCommonButtons(session);
   wirePortal(session);
 
@@ -1563,15 +2025,6 @@ async function bootstrap() {
     });
   }
 
-  // Nav connect wallet button
-  const navConnBtn = $("#navConnectWallet");
-  if (navConnBtn) {
-    navConnBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      showWalletManageModal();
-    });
-  }
-
   if (page.startsWith("client")) {
     // Immediately set username from session/onboarding-status (fixes "..." bug)
     try {
@@ -1579,7 +2032,7 @@ async function bootstrap() {
       const u = obs.username || obs.user_ref || "";
       if (u && document.getElementById("dashUsername")) document.getElementById("dashUsername").textContent = u;
       if (session.wallet) {
-        const nb = document.getElementById("navConnectWallet");
+        const nb = getWalletButton();
         if (nb) {
           fetchSolBalance(session.wallet).then(balance => {
             nb.textContent = `Wallet 1 \u00B7 ${balance} SOL`;
@@ -1603,6 +2056,10 @@ async function bootstrap() {
       } else if (page === "client-dashboard") {
         showSoftWalletPrompt();
       }
+    }
+
+    if (page === "client-leaderboard") {
+      await hydrateLeaderboard();
     }
 
     // FAB payment button

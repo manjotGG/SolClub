@@ -273,6 +273,16 @@ async def ui_client_nfts_page(request: Request):
     return _render_static_template("client_nfts.html", "client-nfts", "client", "SolClub | NFT Collection")
 
 
+@router.get("/client/marketplace", response_class=HTMLResponse)
+async def ui_client_marketplace_page(request: Request):
+    return _render_static_template("client_marketplace.html", "client-marketplace", "client", "SolClub | NFT Marketplace")
+
+
+@router.get("/client/leaderboard", response_class=HTMLResponse)
+async def ui_client_leaderboard_page(request: Request):
+    return _render_static_template("client_leaderboard.html", "client-leaderboard", "client", "SolClub | Leaderboard")
+
+
 @router.get("/client/transactions", response_class=HTMLResponse)
 async def ui_client_transactions_page(request: Request):
     return _render_static_template("client_transactions.html", "client-transactions", "client", "SolClub | Transactions")
@@ -415,6 +425,72 @@ async def ui_client_nfts(wallet: str):
 @router.get("/api/client/{wallet}/transactions")
 async def ui_client_transactions(wallet: str, limit: int = 50):
     return {"wallet": wallet.strip(), "items": list_wallet_transactions(wallet.strip(), limit=limit)}
+
+
+@router.get("/api/leaderboard")
+async def ui_leaderboard():
+    from database.db import _require_client, _require_data, _db
+    try:
+        _require_client()
+        tx_result = _db.client.table("transactions").select("username, wallet_address, amount").execute()
+        txs = _require_data(tx_result)
+    except Exception:
+        txs = []
+
+    user_stats = {}
+    for tx in txs:
+        wallet = str(tx.get("wallet_address") or "").strip()
+        if not wallet:
+            continue
+        username = str(tx.get("username") or "").strip() or wallet[:8]
+        amount = float(tx.get("amount") or 0)
+
+        if wallet not in user_stats:
+            user_stats[wallet] = {
+                "username": username,
+                "wallet": wallet,
+                "transactions": 0,
+                "spent": 0.0,
+            }
+        user_stats[wallet]["transactions"] += 1
+        user_stats[wallet]["spent"] += amount
+
+    real_leaderboard = []
+    for wallet, stats in user_stats.items():
+        tx_count = stats["transactions"]
+        spent = stats["spent"]
+        xp = tx_count * 100 + int(spent * 10)
+
+        from loyalty_engine.loyalty_engine import LoyaltyRulesEngine
+        engine = LoyaltyRulesEngine(use_sqlite=False)
+        tier = engine.calculate_tier(tx_count)
+
+        real_leaderboard.append({
+            "username": stats["username"],
+            "wallet": wallet,
+            "transactions": tx_count,
+            "spent": round(spent, 4),
+            "xp": xp,
+            "tier": tier.upper(),
+            "is_real": True
+        })
+
+    mock_users = [
+        {"username": "Satoshi_99", "wallet": "GvXpDkmepvQqVCnxRiNgcjj1v9QYSxqTXsHPRftS99a", "transactions": 45, "spent": 120.5, "xp": 5705, "tier": "GOLD", "is_real": False},
+        {"username": "Vitalic_Club", "wallet": "8fEpDkmepvQqVCnxRiNgcjj1v9QYSxqTXsHPRftS2bc", "transactions": 32, "spent": 84.2, "xp": 4042, "tier": "GOLD", "is_real": False},
+        {"username": "Cyber_Ninja", "wallet": "3sDpDkmepvQqVCnxRiNgcjj1v9QYSxqTXsHPRftS98f", "transactions": 25, "spent": 56.7, "xp": 3067, "tier": "SILVER", "is_real": False},
+        {"username": "Byte_Bender", "wallet": "DhEpDkmepvQqVCnxRiNgcjj1v9QYSxqTXsHPRftS11a", "transactions": 19, "spent": 40.2, "xp": 2302, "tier": "SILVER", "is_real": False},
+        {"username": "Sol_Surfer", "wallet": "5xYpDkmepvQqVCnxRiNgcjj1v9QYSxqTXsHPRftS88b", "transactions": 12, "spent": 24.1, "xp": 1441, "tier": "BRONZE", "is_real": False},
+        {"username": "Hex_Rider", "wallet": "9wZpDkmepvQqVCnxRiNgcjj1v9QYSxqTXsHPRftS55c", "transactions": 8, "spent": 16.5, "xp": 965, "tier": "BRONZE", "is_real": False},
+    ]
+
+    all_users = real_leaderboard + mock_users
+    all_users.sort(key=lambda u: u["xp"], reverse=True)
+
+    for index, user in enumerate(all_users):
+        user["rank"] = index + 1
+
+    return all_users
 
 
 @router.get("/api/client/{wallet}/progress")
@@ -1101,32 +1177,31 @@ async def ui_payment_send(payload: Dict[str, Any], request: Request):
             secret_bytes = Fernet(_wallet_fernet_key()).decrypt(encrypted_secret.encode("utf-8"))
             sender_keypair = Keypair.from_bytes(secret_bytes)
 
-            from solana.rpc.api import Client as SyncSolanaClient
+            from solana.rpc.async_api import AsyncClient as AsyncSolanaClient
             from solders.system_program import TransferParams, transfer
             from solders.transaction import Transaction
             from solders.message import Message
 
             rpc_url = os.getenv("SOLANA_RPC_URL", "https://api.testnet.solana.com")
-            sol_client = SyncSolanaClient(rpc_url)
+            async with AsyncSolanaClient(rpc_url) as sol_client:
+                lamports = int(amount * 1_000_000_000)
+                ix = transfer(TransferParams(
+                    from_pubkey=sender_keypair.pubkey(),
+                    to_pubkey=recipient_pubkey,
+                    lamports=lamports,
+                ))
 
-            lamports = int(amount * 1_000_000_000)
-            ix = transfer(TransferParams(
-                from_pubkey=sender_keypair.pubkey(),
-                to_pubkey=recipient_pubkey,
-                lamports=lamports,
-            ))
+                # Fetch a recent blockhash
+                bh_resp = await sol_client.get_latest_blockhash()
+                recent_blockhash = bh_resp.value.blockhash
 
-            # Fetch a recent blockhash
-            bh_resp = sol_client.get_latest_blockhash()
-            recent_blockhash = bh_resp.value.blockhash
+                msg = Message.new_with_blockhash([ix], sender_keypair.pubkey(), recent_blockhash)
+                tx = Transaction.new_unsigned(msg)
+                tx.sign([sender_keypair], recent_blockhash)
 
-            msg = Message.new_with_blockhash([ix], sender_keypair.pubkey(), recent_blockhash)
-            tx = Transaction.new_unsigned(msg)
-            tx.sign([sender_keypair], recent_blockhash)
-
-            send_resp = sol_client.send_transaction(tx)
-            real_signature = str(send_resp.value)
-            print(f"✅ On-chain payment sent: {real_signature}")
+                send_resp = await sol_client.send_transaction(tx)
+                real_signature = str(send_resp.value)
+                print(f"✅ On-chain payment sent: {real_signature}")
         except Exception as exc:
             print(f"❌ On-chain payment failed: {exc}")
             # Fall back to DB-only record
@@ -1217,7 +1292,7 @@ async def ui_wallet_balance(wallet: str):
 
 @router.post("/api/wallet/link")
 @auth_router.post("/wallet/link")
-async def ui_wallet_link(payload: Dict[str, Any], request: Request):
+async def ui_wallet_link(payload: Dict[str, Any], request: Request, response: Response):
     """Link an external real Solana wallet to the authenticated user."""
     session = get_ui_session_from_request(request)
     if not session:
@@ -1234,6 +1309,16 @@ async def ui_wallet_link(payload: Dict[str, Any], request: Request):
         raise HTTPException(status_code=400, detail="Invalid Solana wallet address")
     network = str(payload.get("network", "mainnet-beta")).strip()
     record = link_external_wallet(username, wallet_address, network=network)
+
+    # Immediately set in cookie to keep it active
+    _set_ui_session_cookies(
+        response,
+        role=session.get("role") or "client",
+        wallet=wallet_address,
+        user_ref=session.get("user_ref"),
+        username=username,
+        onboarding_required=False,
+    )
     return {"success": True, "wallet": record}
 
 

@@ -606,7 +606,9 @@ def create_fastapi_app():
                     )
 
             except Exception as exc:
+                import traceback
                 print(f"❌ Transaction watcher error: {exc}")
+                traceback.print_exc()
 
             await asyncio.sleep(10)
 
