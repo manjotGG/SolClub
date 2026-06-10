@@ -55,6 +55,15 @@ export async function mintNftToWallet(recipientWalletAddress, rarity = 'common')
 
     const uri = getRarityUri(rarity);
     const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+    const balance = await connection.getBalance(
+    walletKeypair.publicKey
+);
+
+console.log(
+    "Minter balance:",
+    balance / 1000000000,
+    "SOL"
+);
     const metaplex = Metaplex.make(connection).use(keypairIdentity(walletKeypair));
 
     const { nft } = await metaplex.nfts().create({
@@ -69,9 +78,21 @@ export async function mintNftToWallet(recipientWalletAddress, rarity = 'common')
 
     return nft;
   } catch (error) {
-    console.error('Minting failed:', error);
+    console.error("===== FULL ERROR =====");
+    console.error(error);
+
+    if (error.logs) {
+        console.error("===== LOGS =====");
+        console.error(error.logs);
+    }
+
+    if (error.cause) {
+        console.error("===== CAUSE =====");
+        console.error(error.cause);
+    }
+
     throw error;
-  }
+}
 }
 
 const recipientArg = process.argv[2];
