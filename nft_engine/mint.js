@@ -7,7 +7,6 @@ import { Metaplex, keypairIdentity } from '@metaplex-foundation/js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const KEYPAIR_PATH = path.join(__dirname, '../data/nft_minter_keypair.json');
-const GITHUB_RAW_BASE = 'https://raw.githubusercontent.com/manjotGG/SolClub/main/metadata';
 
 function loadKeypairFromFile(filePath) {
   const raw = fs.readFileSync(filePath, 'utf8');
@@ -23,10 +22,10 @@ function loadKeypairFromFile(filePath) {
 function getRarityUri(rarity) {
   let uri;
 
-  if (rarity === 'common') uri = "https://raw.githubusercontent.com/manjotGG/SolClub/8e47e480a03201059370a79a73bd59ea1e03baf0/metadata/common.json";
-  if (rarity === 'mystery') uri = "https://raw.githubusercontent.com/manjotGG/SolClub/8e47e480a03201059370a79a73bd59ea1e03baf0/metadata/mystery.json";
-  if (rarity === 'epic') uri = "https://raw.githubusercontent.com/manjotGG/SolClub/8e47e480a03201059370a79a73bd59ea1e03baf0/metadata/epic.json";
-  if (rarity === 'legendary') uri = "https://raw.githubusercontent.com/manjotGG/SolClub/8e47e480a03201059370a79a73bd59ea1e03baf0/metadata/legendary.json";
+  if (rarity === 'common') uri = 'https://raw.githubusercontent.com/manjotGG/SolClub/8e47e480a03201059370a79a73bd59ea1e03baf0/metadata/common.json';
+  if (rarity === 'mystery') uri = 'https://raw.githubusercontent.com/manjotGG/SolClub/8e47e480a03201059370a79a73bd59ea1e03baf0/metadata/mystery.json';
+  if (rarity === 'epic') uri = 'https://raw.githubusercontent.com/manjotGG/SolClub/8e47e480a03201059370a79a73bd59ea1e03baf0/metadata/epic.json';
+  if (rarity === 'legendary') uri = 'https://raw.githubusercontent.com/manjotGG/SolClub/8e47e480a03201059370a79a73bd59ea1e03baf0/metadata/legendary.json';
 
   if (!uri) {
     throw new Error(`Unsupported rarity: ${rarity}. Supported values are common, mystery, epic, legendary.`);
@@ -55,15 +54,9 @@ export async function mintNftToWallet(recipientWalletAddress, rarity = 'common')
 
     const uri = getRarityUri(rarity);
     const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
-    const balance = await connection.getBalance(
-    walletKeypair.publicKey
-);
+    const balance = await connection.getBalance(walletKeypair.publicKey);
 
-console.log(
-    "Minter balance:",
-    balance / 1000000000,
-    "SOL"
-);
+    console.log('Minter balance:', balance / 1000000000, 'SOL');
     const metaplex = Metaplex.make(connection).use(keypairIdentity(walletKeypair));
 
     const { nft } = await metaplex.nfts().create({
@@ -78,21 +71,21 @@ console.log(
 
     return nft;
   } catch (error) {
-    console.error("===== FULL ERROR =====");
+    console.error('===== FULL ERROR =====');
     console.error(error);
 
     if (error.logs) {
-        console.error("===== LOGS =====");
-        console.error(error.logs);
+      console.error('===== LOGS =====');
+      console.error(error.logs);
     }
 
     if (error.cause) {
-        console.error("===== CAUSE =====");
-        console.error(error.cause);
+      console.error('===== CAUSE =====');
+      console.error(error.cause);
     }
 
     throw error;
-}
+  }
 }
 
 const recipientArg = process.argv[2];
@@ -112,5 +105,3 @@ const rarityArg = process.argv[3] || 'common';
     process.exitCode = 1;
   }
 })();
-
-

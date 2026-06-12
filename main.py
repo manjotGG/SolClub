@@ -210,14 +210,26 @@ def create_fastapi_app():
             
             # Call Node.js minting script
             import subprocess
-            
+
+            nft_engine_dir = os.path.abspath(os.path.join(BASE_DIR, "nft_engine"))
+            nft_script_path = os.path.abspath(os.path.join(nft_engine_dir, "mint.js"))
+            node_modules_path = os.path.join(nft_engine_dir, "node_modules")
+
+            if not os.path.isdir(node_modules_path):
+                raise RuntimeError(
+                    f"node_modules not found at {node_modules_path}. "
+                    "Run: cd nft_engine && npm install"
+                )
+
             print("🔨 Calling Node.js mint script...")
+            print(f"   cwd: {nft_engine_dir}")
+            print(f"   command: node {nft_script_path} {wallet} {rarity}")
             result = subprocess.run(
-                ["node", "nft_engine/mint.js", wallet, rarity],
+                ["node", nft_script_path, wallet, rarity],
                 capture_output=True,
                 text=True,
-                timeout=30,
-                cwd=BASE_DIR  # Run from project root
+                timeout=120,
+                cwd=nft_engine_dir
             )
             
             if result.returncode == 0:
@@ -233,8 +245,17 @@ def create_fastapi_app():
                     print("💡 Node dependencies missing. Run: cd nft_engine && npm install")
                 return False
                 
-        except subprocess.TimeoutExpired:
-            print("❌ Real NFT minting timeout (30s)")
+        except subprocess.TimeoutExpired as e:
+            if hasattr(e, "kill"):
+                try:
+                    e.kill()
+                except Exception:
+                    pass
+            print("❌ Real NFT minting timeout after 120s")
+            if e.stdout:
+                print(f"   stdout: {e.stdout}")
+            if e.stderr:
+                print(f"   stderr: {e.stderr}")
             return False
         except FileNotFoundError:
             print("❌ Node.js or mint.js not found - check installation")
